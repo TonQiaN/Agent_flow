@@ -1,0 +1,463 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgentFlow · 决策生命周期</title><style>
+:root{--ink:#243b46;--muted:#60767e;--accent:#127a72;--line:#dce6e4;--bg:#f0f5f3}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:22px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+header{background:#203b45;color:#f1faf7;padding:25px 5%;display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;font-size:13px;letter-spacing:.08em}
+.layout{max-width:1450px;margin:28px auto;padding:0 24px;display:grid;grid-template-columns:225px minmax(0,1fr);gap:28px}nav{position:sticky;top:24px;align-self:start}nav a{display:block;padding:9px 12px;font-size:14px;text-decoration:none;border-left:2px solid transparent;color:var(--muted)}nav a:hover{background:#e2efeb;border-color:var(--accent)}a{color:var(--accent);text-underline-offset:3px}.intro,section{background:white;border:1px solid var(--line);padding:32px 40px;border-radius:12px;margin-bottom:22px}.eyebrow{font-size:12px;color:var(--muted);letter-spacing:.05em;overflow-wrap:anywhere}h1{font-size:30px;line-height:1.4;margin:8px 0 18px}h2{font-size:25px;line-height:1.45;margin:10px 0}h3{font-size:19px;margin:29px 0 12px;padding-top:12px;border-top:1px solid var(--line)}p{margin:14px 0}.source{font-size:13px}.callout{background:#edf6f2;padding:16px 20px;border-radius:8px}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.75;margin:18px 0}th,td{border:1px solid var(--line);padding:11px 13px;vertical-align:top;text-align:left}th{background:#edf5f2}tr:nth-child(even){background:#fafcfb}code{background:#eef4f2;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}li{margin:6px 0}
+@media(max-width:950px){.layout{grid-template-columns:185px minmax(0,1fr);gap:18px}.intro,section{padding:28px}}
+@media(max-width:800px){header{flex-direction:column;gap:3px;padding:20px}.layout{display:block;padding:0 12px}nav{position:static;display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px}nav a{background:#e4efeb;border-radius:5px;padding:7px 10px;font-size:13px}.intro,section{padding:24px 20px}h1{font-size:27px}h2{font-size:23px}table{min-width:550px}}
+@media print{header,nav{display:none}.layout{display:block;margin:0;padding:0}body{background:white;font-size:11pt}.intro,section{padding:0;border:0}h2,h3{break-after:avoid}tr{break-inside:avoid}.table-wrap{overflow:visible}}
+</style></head>
+<body><header><span>AGENTFLOW / DECISION LIFECYCLE</span><span>2026.09.07 · 正式记录的生成阅读视图</span></header><div class="layout"><nav aria-label="决策目录"><a href="#section-1">01 · 用目录管理决策生命周期</a><a href="#section-2">02 · AGENTS.md 的职责分层与唯一书写决策</a><a href="#section-3">03 · 一份自足的决定保存选择、比较与否决理由</a><a href="#section-4">04 · 强制正式决策绑定原始资料规范与路径</a><a href="#section-5">05 · 决策、当前说明与宽松原始资料分层</a><a href="../../../docs/development/documentation.md">当前操作指南 ↗</a></nav><main><div class="intro"><div class="eyebrow">目录管理状态 · 正文管理取舍</div><h1>一项决策，一份事实，完整的选择理由。</h1><p>本页直接从正式决策生成，便于讨论与审阅。修改以仓库中的唯一正文为准，重新生成即可更新此视图。</p><div class="callout">accepted 区分采纳与实施，也为共同审查留出位置。鼓励多人审查，启动期暂时直接设计、直接做。每份 AGENTS.md 由唯一书写决策负责，README 专注说明与导航。</div></div><section id="section-1"><div class="eyebrow">implemented / D-20260907-decision-lifecycle</div><h2>用目录管理决策生命周期</h2><a class="source" href="../../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle">正式正文入口 ↗</a><p>创建于 2026-09-07。</p>
+<h3 id="section-1-结论与边界">结论与边界</h3>
+<p>在产品、开发流程两个分类下，分别用以下目录管理决策。生命周期只由路径表达，正文不另写状态；同一决策
+ID 同时只有一份正式正文。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>目录</th>
+<th>含义与开发效力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>proposed</td>
+<td>尚待决定，不能据此改变既有要求</td>
+</tr>
+<tr>
+<td>accepted</td>
+<td>已有明确决定，尚未全部落实；约束目标，不证明功能存在</td>
+</tr>
+<tr>
+<td>implemented</td>
+<td>在所述范围内已落实并验证，后续相关改动继续遵循</td>
+</tr>
+<tr>
+<td>archived</td>
+<td>问题退出当前范围或提案撤回；保留记录，不约束当前工作，不等于明确拒绝</td>
+</tr>
+<tr>
+<td>rejected</td>
+<td>独立且被明确拒绝的方向；记录拒绝边界与重开条件，防止重复研究</td>
+</tr>
+</tbody>
+</table></div>
+<p>archived 使用该英文拼写。superseded
+不作为并列状态：被替代的是同一问题下的旧方案，合并进正文的
+alternatives，保留选用与放弃原因。一般未选方案也只在该处维护；独立问题的明确拒绝才建
+rejected 记录，不复制完整理由。</p>
+<h3 id="section-1-多人审查目标与启动期取舍">多人审查目标与启动期取舍</h3>
+<p>保留
+accepted，既区分采纳与实施，也为决策在实施前经过审查留出明确位置。鼓励同一份决策由多名开发者审阅：个人再认真也可能在某些问题上判断失误，错误一旦进入长期决定，会持续影响后续开发；共同审阅结论与
+alternatives，也有助于同步开发者对项目的理解和掌控程度。</p>
+<p>多人审查会增加协调成本、减缓推进。目前项目、管理系统和产品内容都在启动阶段，因此暂时直接设计、直接做，不把等待多人审查作为实施前置条件。已有明确采纳依据时仍如实登记决定，范围落实并验证后可在同一次任务中进入
+implemented，无需为了形式停留在 accepted。</p>
+<p>accepted 不代表已经有多人审查，implemented
+也不补造审查事实。确认摘要记录实际审阅情况；未进行多人审阅就明确保留这一事实。未来若要引入固定人数、责任人或必须先审后做的门槛，需在本决定中继续讨论，不能由
+AI 自动升级为现行制度。</p>
+<h3 id="section-1-状态转换">状态转换</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>事件</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>新问题进入正式讨论</td>
+<td>在 proposed 建立笔记，先查重复问题与已有否决理由</td>
+</tr>
+<tr>
+<td>有明确采纳依据</td>
+<td>移入
+accepted，记录实际确认与审阅情况；启动期按上述取舍直接推进，不等待多人审查</td>
+</tr>
+<tr>
+<td>所述范围全部落实并验证</td>
+<td>移入 implemented；部分完成仍留 accepted，进度在 docs
+或工作项说明</td>
+</tr>
+<tr>
+<td>整个独立提案被明确拒绝</td>
+<td>移入 rejected，留下拒绝结论、边界与重开条件</td>
+</tr>
+<tr>
+<td>问题不再适用或提案撤回</td>
+<td>移入 archived，并写明原因；不能用归档代替拒绝理由</td>
+</tr>
+<tr>
+<td>当前方案改选且已确认</td>
+<td>更新同一正文，旧方案合并进 alternatives；新方案待落实时移入
+accepted，验证后再移入 implemented</td>
+</tr>
+<tr>
+<td>rejected 或 archived 出现新依据并重开</td>
+<td>同一文件移回
+proposed，保留既有拒绝或退出背景；重开研究不等于许可采用</td>
+</tr>
+</tbody>
+</table></div>
+<p>只是在讨论修订时，保留原文件当前目录和结论，在末尾写清待决修订。不能把仍有效的已实现决定整体搬入
+proposed，造成现行要求消失，也不能另建同问题正文来竞争效力。</p>
+<p>归档不用于日常换方案。错字修正不触发状态转换。移动文件同时更新分类索引，其他正式引用通过稳定
+ID 定位。已提交版本可用 Git
+追溯，但关键理由必须在当前正文自足，不能只靠翻历史找回。</p>
+<h3 id="section-1-方案考量alternatives">方案考量（alternatives）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>可取之处</th>
+<th>代价或不适用原因</th>
+<th>本次取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>生命周期目录，正文专注内容</td>
+<td>浏览与按范围读取直接</td>
+<td>转换需移动文件并更新索引</td>
+<td>采用</td>
+</tr>
+<tr>
+<td>正文写 status，索引再复制状态</td>
+<td>单文件携带元数据</td>
+<td>多处事实易漂移，不符合目录管理要求</td>
+<td>放弃上一版做法</td>
+</tr>
+<tr>
+<td>superseded 与生命周期并列</td>
+<td>易堆积替代历史</td>
+<td>混淆方案替换和决策生命周期，需拼接多个版本的理由</td>
+<td>不采用，旧方案并入 alternatives</td>
+</tr>
+<tr>
+<td>accepted 合并进 proposed</td>
+<td>目录少</td>
+<td>混淆采纳与讨论，也缺少实施前承接共同审查的明确位置</td>
+<td>保留 accepted</td>
+</tr>
+<tr>
+<td>启动期强制多名开发者先审后做</td>
+<td>及早纠错并同步项目理解</td>
+<td>当前管理与产品均刚起步，协调成本会减缓构建</td>
+<td>当前鼓励审查但不强制等待，暂时直接设计、直接做</td>
+</tr>
+<tr>
+<td>永久只由提出者判断，无共同审查目标</td>
+<td>协调少、推进快</td>
+<td>个体失误会沉淀为长期约束，团队掌控程度容易分化</td>
+<td>不作为长期方向；保留共同审查目标</td>
+</tr>
+<tr>
+<td>每次改选新增整份记录</td>
+<td>完整版本易留存</td>
+<td>同问题多份事实，信息密度降低</td>
+<td>保持一个 ID 与一份正文</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="section-1-影响与验证">影响与验证</h3>
+<p>操作见 <a
+href="../../../docs/development/documentation.md">维护指南</a>，实现依据见
+<a
+href="../../../docs/validation/2026-09-07-documentation-foundation.md">验证记录</a>。本记录落实的是目录、模板与规则，不代表未来产品决定都已实现。</p>
+<h3 id="section-1-重开条件">重开条件</h3>
+<p>实际使用证明状态无法区分、索引难维护或单份笔记承载不同问题时，以实例调整；不为分类完整而增加状态。出现因单人判断失误长期影响开发、团队理解明显分化，或启动期协调条件改变时，重新讨论多人审查的实施方式；这些信号只触发讨论，不自动启用审批门槛。</p>
+<h3 id="section-1-确认与变更留痕">确认与变更留痕</h3>
+<ul>
+<li>2026-09-07：当前用户第 1–4、6
+点明确目录生命周期、替代方案内聚、独立拒绝与唯一事实。</li>
+<li>2026-09-07 后续补充：当前用户明确保留 accepted
+的多人审查目标、避免长期错误约束及同步项目掌控程度的理由，同时明确启动期暂时直接设计、直接做。</li>
+<li>本次依据为当前用户明确指令；未进行多人审阅，未将其写成团队全体已经确认。固定审查人数、确认权限和日后切换时机仍未约定。</li>
+<li>旧版 proposed → accepted → superseded
+提案已在原问题内修订，放弃原因见 alternatives。</li>
+</ul>
+</section><section id="section-2"><div class="eyebrow">implemented / D-20260907-agents-writing</div><h2>AGENTS.md 的职责分层与唯一书写决策</h2><a class="source" href="../../../.agents/decisions/development/README.md#d-20260907-agents-writing">正式正文入口 ↗</a><p>创建于 2026-09-07。</p>
+<h3 id="section-2-结论与边界">结论与边界</h3>
+<p>项目内每份 AGENTS.md
+的书写、职责和变更理由都由唯一一项书写决策完整负责。一项决定可以管理一份或多份
+AGENTS.md，同一份 AGENTS.md
+不能由多项书写决策共同管理。文件声明自己的唯一书写决策，决定列明其管理的完整文件集合。</p>
+<p>本决定管理下列两份文件，并解释当前全部职责分工；此表是对应关系的主记录，文件内的回链用于反向定位。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>受管文件</th>
+<th>作用范围</th>
+<th>当前书写职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../AGENTS.md">根 AGENTS.md</a></td>
+<td>整个项目</td>
+<td>项目阶段、知识边界、按任务读取入口、非平凡改动先有决定、编辑任一
+AGENTS.md 的唯一归属要求</td>
+</tr>
+<tr>
+<td><a href="../../../.agents/decisions/AGENTS.md">决策
+AGENTS.md</a></td>
+<td>.agents/decisions 及其子目录</td>
+<td>决策查重与提炼、生命周期转换、索引维护、真实确认与审阅记录，以及决策系统自身的书写纪律</td>
+</tr>
+</tbody>
+</table></div>
+<p>根目录 CLAUDE.md 仍是 AGENTS.md
+的符号链接，同一正文沿用同一书写决策，不单独建立另一套理由。未来新增
+AGENTS.md
+时，先确定唯一归属；职责相关时扩展既有决定，确属独立范围时才建立新的书写决定。修改既有文件回到其原负责决定，不能因为多改一次就增加一个共同负责人。普通错字修正仍沿用既有决定，无需制造新的取舍记录。</p>
+<h3 id="section-2-agentsmd-与-readmemd-的分工">AGENTS.md 与 README.md 的分工</h3>
+<p>AGENTS.md
+保存需要代理执行的简短指令，包含作用范围、读取顺序和必要约束；README.md
+说明目录内容并提供导航，不另行维护一套执行规则。为什么这样分工、为什么写这些规则，集中在本决定中。详细操作说明放在
+docs，原始讨论不进入 AGENTS.md。</p>
+<p>根入口保留所有任务都需要的约束，把生命周期、唯一正文与 alternatives
+等决策编辑细则放入决策目录 AGENTS.md；README
+保留分类、索引、模板与维护入口。这样既能使用指令文件的专门加载机制，也减少普通任务的上下文负担和重复规则。</p>
+<p>AGENTS.md
+中可以按需引用产品决定或开发流程决定以定位领域事实。被引用决定管理其自身问题，不因此共同管理这份
+AGENTS.md 的书写。若领域事实变化需要修改
+AGENTS.md，在本文件的唯一负责决定里记录如何调整指令，再同步正文。</p>
+<h3 id="section-2-指令加载与作用范围">指令加载与作用范围</h3>
+<p>核对的 Codex
+行为是：启动时从项目根目录沿路径加载至当前工作目录，更靠近当前目录的项目指令出现在后面；不会为了根目录任务自动遍历所有子目录。因此根
+AGENTS.md 显式要求，在创建或修改决策正文、模板、目录与索引前读取决策
+AGENTS.md，不能只依赖目录名推测它已自动加载。README.md
+在此项目中承担导航职责。</p>
+<p>这里的目录内细化只作用于相应范围，不将子目录约定写成全项目覆盖。其他
+Harness 的实际加载行为需要分别验证；本轮未修改其配置。技术依据：<a
+href="https://learn.chatgpt.com/docs/agent-configuration/agents-md">OpenAI
+官方 AGENTS.md 说明</a>，2026-09-07 核对。</p>
+<h3 id="section-2-方案考量alternatives">方案考量（alternatives）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>可取之处</th>
+<th>代价或不适用原因</th>
+<th>本次取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>根指令加目录内指令，README 专注导航</td>
+<td>按范围执行，入口短，规则可定位</td>
+<td>根入口需要显式引导读取嵌套规则</td>
+<td>采用</td>
+</tr>
+<tr>
+<td>所有细则与理由都写入根 AGENTS.md</td>
+<td>单入口直达</td>
+<td>每项任务都承担决策编辑细节与论证的上下文成本</td>
+<td>细则按目录分工，理由留在决定</td>
+</tr>
+<tr>
+<td>仅 README 保存操作约束</td>
+<td>一般文档阅读方便</td>
+<td>不能据此保证工具按专门指令文件加载，容易漏读</td>
+<td>不作为执行规则主文</td>
+</tr>
+<tr>
+<td>每份 AGENTS.md 各自一项书写决定</td>
+<td>范围清晰</td>
+<td>当前两份相互配合的入口会拆散同一设计问题</td>
+<td>当前一项决定管理两份，未来独立范围可单独负责</td>
+</tr>
+<tr>
+<td>多项决定共同管理同一 AGENTS.md</td>
+<td>各个局部取舍容易另起笔记</td>
+<td>理由分散，修改时必须拼接多个管理来源</td>
+<td>按用户要求不采用，一份文件只有一个负责决定</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="section-2-影响与验证">影响与验证</h3>
+<p>当前操作见 <a
+href="../../../docs/development/documentation.md">文档维护指南</a>。核对管理清单是否覆盖全部正式
+AGENTS.md、每份回链是否恰好指向一个负责决定、根目录是否有嵌套指令读取入口，以及
+README 是否只承担说明与导航。验证留在 <a
+href="../../../docs/validation/2026-09-07-documentation-foundation.md">文档骨架记录</a>。</p>
+<h3 id="section-2-重开条件">重开条件</h3>
+<p>出现独立模块专门指令需求，或一项书写决定过大而难以共同维护时，按完整文件集合拆分职责；迁移归属必须同步移除旧对应关系，仍保持每份文件只有一个负责决定。工具加载行为变化时再调整读取入口。</p>
+<h3 id="section-2-确认与变更留痕">确认与变更留痕</h3>
+<p>2026-09-07：当前用户要求决策目录 AGENTS.md 与 README.md
+分工，利用指令文件作用，并明确一项决定可对应一份或多份
+AGENTS.md、不得多项对应一份。本次据此集中记录根入口与决策入口的书写设计。依据为当前用户明确指令；未进行多人审阅。沿用启动期直接设计、直接做的政策。</p>
+</section><section id="section-3"><div class="eyebrow">implemented / D-20260907-decision-record-content</div><h2>一份自足的决定保存选择、比较与否决理由</h2><a class="source" href="../../../.agents/decisions/development/README.md#d-20260907-decision-record-content">正式正文入口 ↗</a><p>创建于 2026-09-07。</p>
+<h3 id="section-3-结论与边界">结论与边界</h3>
+<p>非平凡改动必须有对应决策记录。已有决定完整覆盖时直接引用；出现新取舍时更新该问题正文，或为独立问题新建记录。“必须有记录”不等于“每次必须新建”。</p>
+<p>非平凡包括影响可观察行为、目标用户、架构或接口契约、数据与安全边界、依赖策略、开发流程及文档治理的改动，不能按行数判定。错字、排版、机械同步且不改变上述取舍的工作可简化。Bug
+修复若恢复已记录行为可引用原决定；若改变行为或引入新取舍，则需补充记录。</p>
+<p>正文至少保存问题、结论与范围、实际比较过的相似方案及选择/否决理由、影响与验证、重开条件、确认、实际审阅情况与重要变更摘要。审查政策见
+<a
+href="../../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle">生命周期决定</a>。区分事实、待验证假设和建议，不为填表编造比较。原始资料消失后，决定仍应可理解、可评审。</p>
+<p>每个问题只有一个稳定 ID
+和权威正文。唯一性指完整事实和取舍的归属；索引、短入口提示和从正文生成的阅读视图可以存在，但不能各自维护另一套结论。不同决定间引用，不复制；运行指南描述当前行为，不再复制决策论证。原始讨论副本不属于正式决定。</p>
+<h3 id="section-3-方案考量alternatives">方案考量（alternatives）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>可取之处</th>
+<th>代价或不适用原因</th>
+<th>本次取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>短而自足的比较与结论</td>
+<td>AI 和人快速确认为什么选、为什么不选</td>
+<td>需要主动提炼</td>
+<td>采用</td>
+</tr>
+<tr>
+<td>只留最后结论</td>
+<td>文本最短</td>
+<td>相似观点及否决理由丢失，易反复优化和研究</td>
+<td>不采用</td>
+</tr>
+<tr>
+<td>完整讨论搬进决策</td>
+<td>细节齐全</td>
+<td>噪声破坏信息密度和审批阅读</td>
+<td>原始内容留在资料区</td>
+</tr>
+<tr>
+<td>每次非平凡改动新建一份</td>
+<td>容易形式化检查</td>
+<td>同事实重复登记，产生竞争版本</td>
+<td>有对应记录即可，新问题才新建</td>
+</tr>
+<tr>
+<td>每个未选方案复制进 rejected</td>
+<td>目录可枚举</td>
+<td>理由重复，无法保持唯一</td>
+<td>同问题在 alternatives，独立拒绝另立记录</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="section-3-影响与验证">影响与验证</h3>
+<p>使用 <a href="../../../.agents/decisions/TEMPLATE.md">共同模板</a> 和
+<a
+href="../../../docs/development/documentation.md">维护流程</a>。核对问题是否有唯一记录、比较是否真实、说明是否符合当前行为。本轮结果见
+<a
+href="../../../docs/validation/2026-09-07-documentation-foundation.md">验证记录</a>。</p>
+<h3 id="section-3-重开条件">重开条件</h3>
+<p>实际任务显示“非平凡”边界有歧义时，以实例修订；不以材料长度、模板字数或是否有
+Issue 代替判断。</p>
+<h3 id="section-3-确认与变更留痕">确认与变更留痕</h3>
+<p>2026-09-07：当前用户第 2–7
+点明确方案比较、避免重复否决、非平凡改动有记录、唯一事实及期望/现实分离。本轮据此补齐模板和执行判据；完整
+CI/CD、Issue/PR 流程另议。</p>
+</section><section id="section-4"><div class="eyebrow">rejected / D-20260907-mandatory-source-traceability</div><h2>强制正式决策绑定原始资料规范与路径</h2><a class="source" href="../../../.agents/decisions/development/README.md#d-20260907-mandatory-source-traceability">正式正文入口 ↗</a><p>创建于 2026-09-07。</p>
+<h3 id="section-4-拒绝结论与边界">拒绝结论与边界</h3>
+<p>明确拒绝把“原始资料必须统一格式、目录、索引，正式决策必须链接对应原文或
+artifact”作为进入开发或确认决定的前置要求。</p>
+<p>原始区特意兼容不同开发者习惯，内容和路径可能变化。正式决定应保存必要事实、比较理由与确认摘要，不依赖原始区稳定才保持严谨。拒绝的是强制要求，不禁止自愿整理或研究时寻找原文。</p>
+<h3 id="section-4-方案考量alternatives">方案考量（alternatives）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>可取之处</th>
+<th>代价或不适用原因</th>
+<th>本次取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>强制原文路径与材料包规范</td>
+<td>方便逐句核查</td>
+<td>正式流程绑在易变原始区，迫使不同习惯服从一套收录方式</td>
+<td>明确拒绝</td>
+</tr>
+<tr>
+<td>正式决定自足，原始区宽松</td>
+<td>严谨部分有共同流程，研究习惯兼容</td>
+<td>不保证按固定路径还原整场讨论</td>
+<td>整体结构见分层决定</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="section-4-影响与验证">影响与验证</h3>
+<p>模板移除强制 artifact 来源字段；正式知识不得依赖材料内部链接。关联 <a
+href="../../../.agents/decisions/development/README.md#d-20260907-documentation-layers">分层决定</a>。本项不决定资料是否随
+Git，也不规定大文件存储方式。</p>
+<h3 id="section-4-重开条件">重开条件</h3>
+<p>只有明确的新资料保全需求、协作范围变化或用户主动改变此设计时再评估。不能仅以“更规范”“更可追溯”为由重开同一强制方案。</p>
+<h3 id="section-4-确认与变更留痕">确认与变更留痕</h3>
+<p>2026-09-07：当前用户第 9
+点明确不严格规范原始格式和树，不要求决策链接对应
+artifact，并要求正式开发统一流程。此前指南要求材料包索引及决策来源链接，本次拒绝其强制性；完整理由仅在本文件维护。</p>
+</section><section id="section-5"><div class="eyebrow">implemented / D-20260907-documentation-layers</div><h2>决策、当前说明与宽松原始资料分层</h2><a class="source" href="../../../.agents/decisions/development/README.md#d-20260907-documentation-layers">正式正文入口 ↗</a><p>创建于 2026-09-07。</p>
+<h3 id="section-5-结论与边界">结论与边界</h3>
+<p>项目决策是第一公民。产品与开发流程的取舍分别放在
+.agents/decisions/product 和
+development；当前架构、用法、结构、验证结果及重大事故正式复盘放在
+docs；原始资料统一收容在 materials，其中可以有
+artifacts、会议纪要、录音及任意其他文件。</p>
+<p>决定描述期望，使用指南描述现实。即使经过完整 CI/CD、Issue/PR
+和测试仍发生重大事故，也要在 docs/postmortems
+永久记录影响、根因、为何既有检查遗漏及修正；结论不能只留在研究材料里。验证记录在
+docs/validation，未完成的检查不能写成通过。</p>
+<p>正式知识遵循统一流程；原始资料区不要求统一文件格式、目录树、索引或反向链接，不进入普通开发的默认上下文。原始资料治理的完整否决理由仅在
+<a
+href="../../../.agents/decisions/development/README.md#d-20260907-mandatory-source-traceability">明确拒绝项</a>维护。</p>
+<h3 id="section-5-方案考量alternatives">方案考量（alternatives）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>可取之处</th>
+<th>代价或不适用原因</th>
+<th>本次取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>决策、当前说明、原始资料分开</td>
+<td>正式上下文密度高，兼容不同研究习惯</td>
+<td>需要主动提炼并同步说明</td>
+<td>采用</td>
+</tr>
+<tr>
+<td>原始资料入口仍叫 artifacts</td>
+<td>已有内容无需迁移</td>
+<td>名称不能清晰涵盖录音、纪要和普通文件</td>
+<td>用 materials 收容，已有 artifacts 整体移入</td>
+</tr>
+<tr>
+<td>所有验证与事故复盘只放原始资料区</td>
+<td>起草过程自由</td>
+<td>完整流程仍漏出的严重问题缺少持久、严谨的记录</td>
+<td>不采用；上一版建议已调整</td>
+</tr>
+<tr>
+<td>决定、运行说明与原文混放</td>
+<td>收录简单</td>
+<td>期望现实难区分，噪声影响开发与审计</td>
+<td>不采用</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="section-5-影响与验证">影响与验证</h3>
+<p>当前操作见 <a
+href="../../../docs/development/documentation.md">维护指南</a>，目录见
+<a
+href="../../../docs/reference/repository-map.md">结构图</a>，落地结果见
+<a
+href="../../../docs/validation/2026-09-07-documentation-foundation.md">验证记录</a>。范围为文档管理骨架，不表示产品已经运行。</p>
+<h3 id="section-5-重开条件">重开条件</h3>
+<p>若资料保全成为明确的新需求，再评估保存边界；不因个别材料混乱就把原始区整体变为强制规范库。</p>
+<h3 id="section-5-确认与变更留痕">确认与变更留痕</h3>
+<ul>
+<li>2026-09-07：当前用户首次明确三层设计；随后九点补充的第 6–9
+点明确唯一性、期望与现实、永久复盘及宽松原始区。</li>
+<li>本次修订扩大原始资料入口并调整正式复盘归属，旧取舍和原因已合并进
+alternatives。</li>
+<li>目录命名及阅读入口是本轮实现细化，未约定多人批准权或资料 Git
+共享策略。</li>
+</ul>
+</section></main></div></body></html>
