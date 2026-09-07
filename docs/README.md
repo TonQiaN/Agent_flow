@@ -10,6 +10,7 @@
 | [使用指南](guides/README.md) | 当前仓库用法与未来用户指南入口 |
 | [仓库结构图](reference/repository-map.md) | 正式目录职责，原始区只列边界 |
 | [文档维护](development/documentation.md) | 决策的查找、记录、转换及校验 |
+| [开发工作指南](development/workflow.md) | Issue 整理、预检记录、PR 模板与当前能力边界 |
 | [验证记录](validation/README.md) | 已执行检查、结果与局限 |
 | [重大事故复盘](postmortems/README.md) | 永久保留的影响、根因、遗漏与修正 |
 | [决策索引](../.agents/decisions/README.md) | 期望与理由的权威入口 |
