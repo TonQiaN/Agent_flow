@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgentFlow · 文档管理设计讨论</title><style>
+:root{--ink:#213641;--muted:#58707d;--line:#dbe4e6;--accent:#187c77;--bg:#f2f6f5}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:30px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+header{background:#1d3640;color:#eff9f7;padding:27px 5%;display:flex;justify-content:space-between;gap:20px;font-size:13px;letter-spacing:.1em}.layout{display:grid;grid-template-columns:230px minmax(0,1fr);max-width:1400px;margin:30px auto;padding:0 24px;gap:30px}nav{position:sticky;top:30px;align-self:start;font-size:14px}nav .label{font-size:11px;letter-spacing:.13em;color:var(--muted);margin:0 0 15px 12px}a{color:var(--accent);text-underline-offset:3px}nav a{display:block;color:var(--muted);text-decoration:none;padding:9px 12px;border-left:2px solid transparent}nav a:hover{border-color:var(--accent);background:#e3efec}nav .files{margin-top:25px}article{background:white;border:1px solid var(--line);border-radius:12px;padding:42px 48px;min-width:0}h1{font-size:31px;line-height:1.4;margin:0 0 12px}h2{font-size:24px;margin:45px 0 20px;padding-top:15px;border-top:2px solid #e1eae9}h3{font-size:19px;margin:26px 0 12px}p{margin:0 0 18px}strong{font-weight:650}article>p:first-of-type{font-size:14px;color:var(--accent)}article>p:nth-of-type(2){padding:21px 24px;background:#edf6f3;border-radius:8px;font-size:18px}li{margin:7px 0}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.7;margin:22px 0}td,th{border:1px solid var(--line);padding:12px 14px;vertical-align:top;text-align:left}th{background:#eef5f3}tr:nth-child(even){background:#fbfcfc}code{font-size:.9em;background:#f0f5f5;padding:1px 4px;border-radius:3px;overflow-wrap:anywhere}pre{padding:18px 20px;background:#f3f7f6;border-radius:7px;overflow:auto;line-height:1.75}pre code{padding:0;background:transparent;font-size:14px;overflow-wrap:normal}.table-scroll{overflow-x:auto}
+@media(max-width:1100px){.layout{grid-template-columns:185px minmax(0,1fr);gap:20px}article{padding:30px 28px}h1{font-size:27px}}
+@media(max-width:800px){header{flex-direction:column;gap:4px;padding:20px}.layout{display:block;padding:0 12px;margin:20px auto}nav{position:static;display:flex;flex-wrap:wrap;gap:3px;margin-bottom:20px;font-size:13px}nav .label{width:100%}nav a{padding:5px 9px;background:#e5efed;border-radius:4px}nav .files{margin:0}article{padding:25px 20px}article>p:nth-of-type(2){font-size:16px;padding:16px}h1{font-size:25px}h2{font-size:22px}table{min-width:560px;font-size:13px}}
+@media print{header,nav{display:none}body{background:white;font-size:11pt}.layout{display:block;margin:0;padding:0}article{border:0;padding:0}h2,h3{break-after:avoid}tr{break-inside:avoid}.table-scroll{overflow:visible}}
+</style></head>
+<body><header><span>AGENTFLOW / DOCUMENTATION</span><span>2026.09.07 · 骨架已落地 / 补充建议待讨论</span></header>
+<div class="layout"><nav aria-label="文档目录"><div class="label">DESIGN REVIEW / 文档管理</div><a href="#1-本轮已搭建什么">1. 本轮已搭建什么</a><a href="#2-与会议核对的结果">2. 与会议核对的结果</a><a href="#3-你还没有展开的关键部分">3. 你还没有展开的关键部分</a><a href="#4-建议优先讨论的设计取舍">4. 建议优先讨论的设计取舍</a><a href="#5-下一步如何继续">5. 下一步如何继续</a><div class="files"><a href="discussion.md">Markdown 原稿</a><a href="../../docs/README.md">项目文档入口 ↗</a></div></nav><article><h1 id="agentflow-文档管理骨架与待讨论设计">AgentFlow
+文档管理：骨架与待讨论设计</h1>
+<p><strong>2026-09-07 · 根据当前请求与 9 月 5
+日会议逐字稿整理</strong></p>
+<p>你的三层设计与会议没有实质冲突，适合先落地。它把“为什么这样做”“现在是什么样”“当时怎么讨论的”分开，能减少多人长期开发时的方向偏移。真正需要补充的不是更多文件夹，而是材料如何成为决定、决定如何更新，以及当前说明如何跟上实现。</p>
+<h2 id="1-本轮已搭建什么">1. 本轮已搭建什么</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>层</th>
+<th>目录</th>
+<th>回答的问题</th>
+<th>普通开发是否读取</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>产品决策</td>
+<td><code>.agents/decisions/product/</code></td>
+<td>为谁做、做什么、为何选择这种架构或交互</td>
+<td>按任务读取已接受项</td>
+</tr>
+<tr>
+<td>开发流程决策</td>
+<td><code>.agents/decisions/development/</code></td>
+<td>为什么这样组织开发、研究、评审与文档</td>
+<td>按任务读取已接受项</td>
+</tr>
+<tr>
+<td>当前项目说明</td>
+<td><code>docs/</code></td>
+<td>当前架构、用法、结构和维护方法</td>
+<td>读取相关部分</td>
+</tr>
+<tr>
+<td>材料与过程</td>
+<td><code>artifacts/</code></td>
+<td>原话、研究过程、实验、摘要与可视化展示</td>
+<td>只在研究、提炼或追溯时按需读取</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code>AGENTS.md → 文档入口 + 两类决策索引 → 相关决定 + 当前说明
+                                      ↑
+artifacts/ ── 按任务研究与浓缩 ──────────┘</code></pre>
+<p>根目录保留一份简短的 <code>AGENTS.md</code>；已有
+<code>CLAUDE.md</code>
+符号链接继续指向它。三层结构的依据记录为接受项；生命周期建议和会议产品方向标为待讨论。原有会议
+artifact 和文字稿原路径保留。</p>
+<p>当前入口：<a href="../../README.md">仓库说明</a> · <a
+href="../../docs/README.md">文档入口</a> · <a
+href="../../docs/reference/repository-map.md">结构图</a> · <a
+href="../../.agents/decisions/README.md">决策索引</a> · <a
+href="../../docs/development/documentation.md">维护指南</a></p>
+<h2 id="2-与会议核对的结果">2. 与会议核对的结果</h2>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>你的本次设计</th>
+<th>会议原话或含义</th>
+<th>判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>决策为第一公民</td>
+<td>01:53:18 明确提到管理两人做过的决策；01:53:25–01:53:36
+说“文档是第一公民”，包含功能、架构、目标、背景等</td>
+<td>是进一步明确权威层次，不是冲突；当前说明依然需要真实、可用</td>
+</tr>
+<tr>
+<td>产品决策和开发流程决策分开</td>
+<td>01:21:46 指出参考源码与更新是开发流程问题，而非产品设计；01:50:22
+希望先做跨项目的通用开发流程</td>
+<td>与会上区分两个问题一致；具体目录划分是你这次的新设计</td>
+</tr>
+<tr>
+<td>原始材料不直接进入普通开发上下文</td>
+<td>01:35:14 希望 PR 可追溯到决策和原始资料；01:48:49
+希望汇总飞书内容</td>
+<td>不冲突，但必须保留可定位的证据链接，不能把“不默认读取”变成“无法追溯”</td>
+</tr>
+<tr>
+<td>现在开始文档管理骨架</td>
+<td>01:50:22 当时说骨架先不用动，先定通用开发流程</td>
+<td>是阶段推进。本次明确启动文档管理，仍没有跳过产品高层架构讨论</td>
+</tr>
+<tr>
+<td>文档管理是重要工程部分</td>
+<td>58:43、01:42:54–01:43:04 强调先以最小框架运行，再补充规则</td>
+<td>应控制模板与机制的数量；重要不等于每次改字都要一份新决策</td>
+</tr>
+</tbody>
+</table></div>
+<p>证据：<a
+href="../coe-meeting-2026-09-05/README.md">会议材料索引</a>；具体原话可从
+<a
+href="../coe-meeting-2026-09-05/transcript.html#t-01-35-14">01:35:14</a>、<a
+href="../coe-meeting-2026-09-05/transcript.html#t-01-50-22">01:50:22</a>、<a
+href="../coe-meeting-2026-09-05/transcript.html#t-01-53-18">01:53:18</a>跳转查看。本次以逐字稿为依据，飞书
+AI 总结只用于对照。</p>
+<h2 id="3-你还没有展开的关键部分">3. 你还没有展开的关键部分</h2>
+<h3 id="31-决策需要保留理由和边界">3.1 决策需要保留理由和边界</h3>
+<p>“支持多个
+Harness”是一条结论；“为什么支持、是否要求能力对等、当前适用的场景是什么”才能约束后续实现。过度浓缩成口号，会让
+AI 用自己的理解补全关键空白。</p>
+<p>建议一份短笔记至少保留：问题、决定、主要替代方案与取舍、适用边界、来源。必要时加一条重看条件。详细研究留在
+artifact；无需把讨论逐句搬进决定。</p>
+<h3 id="32-接受提议被替代不能混在一起">3.2
+接受、提议、被替代不能混在一起</h3>
+<p>多人异步开发最容易出现两种错误：AI
+把建议当作共识，或者不同任务各自找到一版“最新决定”。本轮已用状态标签区分材料。更完整的建议是：以明确决议作为生效依据，实质改变新增替代记录，旧决定可追溯，索引指向当前有效项。</p>
+<p><strong>尚待讨论的是谁有权决定什么。</strong>
+单人负责领域能否独立确认、跨边界改动是否需要两人参与，不能由 AI
+替团队规定。已明确的用户指令可直接登记，不需要为了记笔记再请求一次确认。详见
+<a
+href="../../.agents/decisions/development/D-20260907-decision-lifecycle.md">生命周期提案</a>。</p>
+<h3 id="33-决定描述期望使用指南描述现实">3.3
+决定描述期望，使用指南描述现实</h3>
+<p>一份接受的决定可能尚未实现。不能因为决定采用某
+Harness，就在使用指南写成“已支持”。因此 <code>docs/</code>
+需要标清当前阶段和可验证行为，规划另行标注。</p>
+<p>建议以后在同一个变更中维护受影响的决定、当前说明与实现。这样评审时能发现“目标变了但指南没变”或者“指南写好了但功能不存在”。本轮的架构和指南入口如实标为尚无运行实现。</p>
+<h3 id="34-还需要给验证与事故复盘一个去处">3.4
+还需要给验证与事故复盘一个去处</h3>
+<p>会议 01:53:49
+特别提到：即使检查通过，使用时仍出错，也要追溯错误为何被放过。这一点没有在你本次列举中展开。</p>
+<p>建议原始日志、复现步骤、实验和复盘过程仍放
+<code>artifacts/</code>；从中发现的长期修正进入相应决策笔记，最终运行说明进入
+<code>docs/</code>。先复用已有三层，不额外建立第四套知识库。一个单次 Bug
+不必自动升级成制度决定。</p>
+<h3 id="35-artifact-也需要可编辑源与出处">3.5 Artifact
+也需要可编辑源与出处</h3>
+<p>可视化页面、PDF
+或幻灯片是阅读形式；其编辑源、构建方式和原始证据仍应可定位。把同一次会议或研究按主题聚合，比将
+TXT、HTML、图片分别散落在不同格式目录里更容易追溯。</p>
+<p>建议每个材料包只写一份短索引：来源与日期、原始文件、衍生摘要、阅读入口、提炼去向。原文纠错另存版本，AI
+摘要单独标注。当前会议包已按这个方式补上索引。</p>
+<h2 id="4-建议优先讨论的设计取舍">4. 建议优先讨论的设计取舍</h2>
+<h3 id="a-开发必须从-issue-开始吗">A. 开发必须从 Issue 开始吗</h3>
+<p>这仍是未决问题。会上认可 Idea → Issue → worktree → PR
+的大框架，同时明确需要按小团队实践简化。你本次也把“从 Issue
+开始的优缺点”作为需要决策的例子，因此本轮没有写成强制制度。</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>好处</th>
+<th>代价</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>所有工作必须先建 Issue</td>
+<td>工作项、负责人和上下文容易统一定位</td>
+<td>初步探索、会议讨论和极小改动也会承担登记成本</td>
+</tr>
+<tr>
+<td>所有工作自由推进，最后补记录</td>
+<td>启动快</td>
+<td>容易丢失背景、分工和先前决议，补记常常滞后</td>
+</tr>
+<tr>
+<td>研究可先产出
+artifact；形成重要取舍时写决定；进入实现时登记工作项</td>
+<td>区分探索、决策与执行，能兼顾追溯与轻量</td>
+<td>需要约定何时算进入实现、哪些小改动可以简化</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>建议采用第三种。</strong>
+“决策为第一公民”不等于每项任务都要先产生新决策；在已有决定内修错、完善说明可以直接推进。Issue
+承载执行范围和负责人，决定承载方向与理由，二者互相引用即可。</p>
+<h3 id="b-哪些材料随-git-共享">B. 哪些材料随 Git 共享</h3>
+<p>建议把小体积文字稿、可编辑文档源和材料索引随 Git
+管理，大体积音视频保留飞书来源与定位信息；可复现的生成文件根据评审和离线阅读需要选择保存。</p>
+<p>好处是新成员拿到仓库后可以复核核心文字依据，同时减少大型二进制版本的负担。代价是原始音视频访问仍依赖飞书权限；仅有远程链接的材料还存在链接失效问题。具体取舍待讨论，<strong>本轮没有用
+<code>.gitignore</code>
+排除原始材料，也没有提交或推送材料。</strong></p>
+<h3 id="c-agentsmd-要不要写成项目百科">C. AGENTS.md
+要不要写成项目百科</h3>
+<p>建议保持短入口，只放读取顺序、材料效力和必要协作行为；“为什么这样写”进入开发流程决策，详细维护方法放进
+<code>docs/development/</code>。</p>
+<p>原因是所有任务都可能读这个入口，放入大量历史会提高上下文成本，复制规则也容易不同步。当前
+<code>CLAUDE.md → AGENTS.md</code>
+的共享方式保留，避免维护两份相同说明。</p>
+<h2 id="5-下一步如何继续">5. 下一步如何继续</h2>
+<p>先讨论决策接受与替代的最小机制、以及材料共享范围。随后再用实际一项小工作检验这套结构是否容易找、容易更新、容易追溯；遇到明确问题时再增加模板或检查。</p>
+<p>产品的节点契约、Harness
+接口、容器方案和页面架构仍应单独形成产品决定。本轮的候选笔记只是把会议方向浓缩出来，避免下一次重新读取整场会议，不代表已经定案。</p>
+</article></div></body></html>

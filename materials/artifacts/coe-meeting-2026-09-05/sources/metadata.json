@@ -1,0 +1,21 @@
+{
+  "organization": "COE",
+  "meeting_date": "2026-09-05",
+  "timezone": "GMT+08",
+  "start_time": "20:08:39",
+  "meeting_duration_seconds": 6931,
+  "recording_export_duration_seconds": 6930,
+  "participants": [
+    "付方圆",
+    "李孝轩"
+  ],
+  "minute_url": "https://fcnovfj762l9.feishu.cn/minutes/obcnul428zhzz345vb4u96l1",
+  "ai_notes_url": "https://fcnovfj762l9.feishu.cn/docx/NQrKdXbeUouTw8x91GFcNEgQncd",
+  "retrieved_date": "2026-09-06",
+  "retrieval": "Authenticated Feishu COE desktop meeting history and browser UI; Minutes TXT export and AI Notes document copy",
+  "transcript_characters": 40806,
+  "utterance_blocks": 619,
+  "first_utterance": "01:06",
+  "last_utterance": "01:54:51",
+  "appendix": "AI Notes full summary and todo text; visual and interactive blocks linked to original; wording retained"
+}
