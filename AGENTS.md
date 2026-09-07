@@ -7,9 +7,10 @@
 ## 读取与开发
 
 1. 从 [文档入口](docs/README.md) 确认当前能力和任务范围，再查 [产品索引](.agents/decisions/product/README.md) 与 [开发流程索引](.agents/decisions/development/README.md)。按需读取现行决定及已有否决理由，不加载全部历史。
-2. 非平凡改动必须有对应决策记录；已有决定覆盖时引用，有新取舍时更新或新建。具体判据见 [维护指南](docs/development/documentation.md)。
+2. 正式开发先有对应 Issue、明确主负责开发者和验收标准，经人参与整理与关键确认后预检；AI 和工具可协助整理，由主负责开发者敲定决策与文档，再开发、测试。按 [开发工作指南](docs/development/workflow.md) 执行，自动化尚未实现的环节如实记录。
 3. 创建或修改决策正文、模板、目录和索引前，先读取 [.agents/decisions/AGENTS.md](.agents/decisions/AGENTS.md)，再按其规则操作。
-4. 当前用户明确指令优先于历史约定。已有授权继续执行，不为登记重复索取确认；新增建议不能冒充人类已接受，proposed 不能作为既定要求，accepted 不能作为功能已实现的证明。
+4. 当前用户明确指令优先于历史约定。已有授权继续执行，不为登记重复索取确认；新增建议不能冒充已敲定要求。proposed 表达尚未全部落实，实施范围依据对应 Issue 的明确结论及决定中的确认摘要，不能只看目录；审查确认不证明功能已实现。
+5. 非平凡改动由一个或多个决定覆盖；每个 PR 相对自身 base 至少有一份决策正文的实质改动，复用既有记录不等于仅引用即可。判据见 [开发流程决定](.agents/decisions/development/README.md#d-20260907-development-workflow)；保持事实唯一，不为空改动凑数。先写文档不要求先独立 commit 或合并，决定、实现、测试与文档可同一 PR 提交。
 
 ## 知识边界
 

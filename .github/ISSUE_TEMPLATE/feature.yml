@@ -1,0 +1,53 @@
+name: 功能与改进
+description: 提出可独立验收的功能或行为改进。
+title: "[功能] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提交后先经人参与整理到可开工，AI 和工具可协助提炼、拆分及补齐信息，再预检和敲定决策。请将主负责开发者设置到 Issue 的 Assignees；填写名字不会自动完成分配。原始讨论的链接可选，正文必须自足。
+  - type: input
+    id: owner
+    attributes:
+      label: 主负责开发者
+      description: 填写负责这项工作和验收跟进的 GitHub 用户名；协作者另列。
+      placeholder: "@username"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题、当前行为与目标
+      description: 谁在什么场景遇到什么问题，希望得到什么可观察结果？
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与非目标
+      description: 这项工作包含什么、不包含什么？多个独立验收结果可拆成关联 Issue。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 列出可检查的结果及验证方式，避免仅写“完成开发”或“测试通过”。
+      placeholder: |
+        - [ ] 在……条件下，执行……后观察到……；通过……验证。
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依赖与阻塞
+      description: 列出前置 Issue、接口或待确认问题；无已知依赖时明确写“无”。
+    validations:
+      required: true
+  - type: textarea
+    id: decision_context
+    attributes:
+      label: 相关决定与已知疑问
+      description: 可先列候选决策 ID、可能的冲突或未知项；是否新增或修订由预检后负责开发者敲定。
+    validations:
+      required: false
