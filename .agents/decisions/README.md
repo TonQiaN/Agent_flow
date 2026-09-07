@@ -10,6 +10,6 @@
 | [共同模板](TEMPLATE.md) | 决策正文的起草结构 |
 | [维护指南](../../docs/development/documentation.md) | 当前文档操作说明 |
 
-两个分类中均有 proposed、accepted、implemented、archived、rejected 目录。各记录通过分类索引中的稳定 ID 定位；当前产品方向仍为提炼候选。
+两个分类中均有 proposed、implemented、archived、rejected 目录。proposed 收录尚未全部落实的决定，讨论、分工及审查确认由对应 Issue 承接。各记录通过分类索引中的稳定 ID 定位；当前产品方向仍为提炼候选。
 
-相关设计：[生命周期与审查取舍](development/README.md#d-20260907-decision-lifecycle) · [正文与唯一性](development/README.md#d-20260907-decision-record-content) · [AGENTS.md 的书写与分工](development/README.md#d-20260907-agents-writing)。
+相关设计：[生命周期](development/README.md#d-20260907-decision-lifecycle) · [开发与审查流程](development/README.md#d-20260907-development-workflow) · [正文与唯一性](development/README.md#d-20260907-decision-record-content) · [AGENTS.md 的书写与分工](development/README.md#d-20260907-agents-writing)。
