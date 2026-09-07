@@ -21,3 +21,7 @@
 ## D-20260907-agents-writing
 
 [AGENTS.md 的职责分层与唯一书写决策](implemented/D-20260907-agents-writing.md)
+
+## D-20260907-development-workflow
+
+[以 Issue 为起点的开发与 PR 闭环](proposed/D-20260907-development-workflow.md)

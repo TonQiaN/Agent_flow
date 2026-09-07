@@ -1,0 +1,53 @@
+name: 工程与文档维护
+description: 管理重构、文档治理、协作模板和其他工程维护。
+title: "[维护] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        维护工作也要有主责和验收标准。Issue 模板增删改属于非平凡改动；每个 PR 的实质决策文件变更要求同样适用。请同时设置 Assignees，原始资料链接不是必填项。
+  - type: input
+    id: owner
+    attributes:
+      label: 主负责开发者
+      description: 填写负责范围、改动及验收跟进的 GitHub 用户名。
+      placeholder: "@username"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 当前问题与目标
+      description: 说明现状、维护原因和预期结果，避免只写要修改哪些文件。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围与非目标
+      description: 说明受影响的规则、文档或模块，以及本次保持的行为边界。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收标准
+      description: 列出可检查的交付结果及验证方式；文档变更可以采用一致性、链接或结构检查。
+      placeholder: |
+        - [ ] ……规则在对应文档和入口中一致；通过……验证。
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依赖与阻塞
+      description: 列出前置 Issue 或待确认条件；无已知依赖时明确写“无”。
+    validations:
+      required: true
+  - type: textarea
+    id: decision_context
+    attributes:
+      label: 相关决定与已知疑问
+      description: 列出候选决策 ID；修改 AGENTS.md 时同时定位其唯一书写决定，不新增共同负责人。
+    validations:
+      required: false
