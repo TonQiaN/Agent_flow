@@ -34,6 +34,7 @@ export interface RawCapture {
   readonly files: Readonly<Record<string, CapturedFile>>;
   readonly outputsPath: string;
   readonly imageId: string | null;
+  readonly network?: { readonly kind: 'connect-proxy'; readonly proxyImageId: string | null; readonly allowedHosts: readonly string[] };
 }
 export interface ExecutionBackend {
   allocate(): Promise<ExecutionResource>;

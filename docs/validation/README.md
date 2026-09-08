@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [受控 CONNECT 联网](2026-09-09-controlled-egress.md) |
 | 2026-09-09 | [真实 Codex 内部沙箱与只读配置](2026-09-09-codex-sandbox.md) |
 | 2026-09-09 | [Harness / 认证接口与私有存储验证](2026-09-09-harness-auth-primitives.md) |
 | 2026-09-09 | [Docker Runner 脚本验证](2026-09-09-docker-runner.md) |
@@ -14,4 +15,4 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-当前产品验证覆盖确定性 Component、离线 Docker Runner、Harness parser 与凭据存储，不包含完整 Workflow 或真实 Agent 调用。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，不包含完整 Workflow 或真实 Agent 调用。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
