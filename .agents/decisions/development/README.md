@@ -29,3 +29,31 @@
 ## D-20260908-version-management
 
 [用轻量 Roadmap、变更记录和 Tag 管理版本](implemented/D-20260908-version-management.md)
+
+## D-20260908-issue-classification
+
+[用五类表达 Issue 的主要交付目标](proposed/D-20260908-issue-classification.md)
+
+## D-20260908-issue-template-common
+
+[共通规范与五份完整 Issue 表单](proposed/D-20260908-issue-template-common.md)
+
+## D-20260908-issue-template-feature
+
+[功能模板补充场景与行为契约](proposed/D-20260908-issue-template-feature.md)
+
+## D-20260908-issue-template-bug
+
+[缺陷模板保留契约差异、复现与环境](proposed/D-20260908-issue-template-bug.md)
+
+## D-20260908-issue-template-research
+
+[研究模板用证据问题与停止条件限定交付](proposed/D-20260908-issue-template-research.md)
+
+## D-20260908-issue-template-decision
+
+[决策模板补充真实比较与落实交接](proposed/D-20260908-issue-template-decision.md)
+
+## D-20260908-issue-template-maintenance
+
+[维护模板补充改动、兼容与验证计划](proposed/D-20260908-issue-template-maintenance.md)
