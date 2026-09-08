@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-08 文档管理与版本管理骨架。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。Roadmap 版本文件按实际规划创建，不预建空目录。
+状态：2026-09-09 首个 TypeScript 执行基础切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -8,6 +8,15 @@ Agent_flow/
 ├── CLAUDE.md -> AGENTS.md
 ├── README.md
 ├── CHANGELOG.md                   # 实际变化、Unreleased 与发布记录
+├── package.json / package-lock.json # npm workspaces 与固定依赖
+├── tsconfig*.json                 # 共享严格构建与独立测试检查
+├── src/
+│   ├── apps/cli/                  # 当前仅 demo 命令
+│   ├── packages/domain/           # 业务类型与执行身份
+│   ├── packages/engine/           # contracts、components；无环境依赖
+│   ├── examples/                  # 合成示例入口
+│   ├── tests/e2e/                 # 跨模块/CLI 测试
+│   └── tooling/                   # 依赖边界与测试发现工具
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
@@ -21,6 +30,7 @@ Agent_flow/
 │   └── development/              # 与 product 相同的生命周期树
 ├── .github/
 │   ├── ISSUE_TEMPLATE/           # 功能、缺陷、研究、决策、维护五份完整表单与配置
+│   ├── workflows/check.yml       # Node 24/26 基础 CI
 │   └── PULL_REQUEST_TEMPLATE.md  # Issue、决策增量、验收与评审交接
 ├── docs/
 │   ├── README.md

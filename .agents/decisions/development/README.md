@@ -2,6 +2,10 @@
 
 以下 ID 是稳定引用入口；正文位置表达生命周期。索引不单独维护状态或结论。
 
+## D-20260909-source-layout
+
+[根 src 下区分应用、业务定义、引擎与具体适配](proposed/D-20260909-source-layout.md)
+
 ## D-20260907-documentation-layers
 
 [决策、当前说明与宽松原始资料分层](implemented/D-20260907-documentation-layers.md)

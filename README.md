@@ -1,6 +1,6 @@
 # AgentFlow
 
-项目正在搭建文档管理骨架，尚无可运行产品。
+项目开始提供 TypeScript 运行基础：确定性 Component、JSON 契约校验及 CLI 示例。完整 Workflow、Docker 与真实 Agent 尚未接入，当前用法见 [使用指南](docs/guides/README.md)。
 
 | 入口 | 内容 |
 | --- | --- |
@@ -13,4 +13,4 @@
 | [Changelog](CHANGELOG.md) | 实际变化与发布记录 |
 | [版本维护指南](docs/development/versioning.md) | 计划、变更记录及发布 tag 的手工维护方式 |
 
-正式开发使用浓缩决定与当前说明，原始资料内部结构可自由变化。产品方向仍为提炼候选。
+正式开发使用浓缩决定与当前说明，原始资料内部结构可自由变化。已确认的八项实现范围和交付顺序见 Roadmap；规划不代表已完成。
