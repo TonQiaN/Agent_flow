@@ -234,7 +234,8 @@ async function writeNew(path: string, text: string): Promise<void> {
   try { await file.writeFile(text, 'utf8'); await file.sync(); } finally { await file.close(); }
 }
 
-async function readPrivate(path: string, limit: number): Promise<string> {
+/** Internal shared bounded reader; callers must first validate their controlled parent directories. */
+export async function readPrivate(path: string, limit: number): Promise<string> {
   const before = await lstat(path);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.uid !== process.getuid!()
     || (before.mode & 0o777) !== 0o600 || before.size > limit) throw new CredentialError('UNSAFE_CREDENTIAL_FILE');

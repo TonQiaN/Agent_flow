@@ -1,7 +1,10 @@
 export { DockerBackend } from './docker/backend.js';
 export type { DockerOptions } from './docker/backend.js';
+export type { PrivateStateBinding } from './execution/state-binding.js';
 export type { DockerEgressOptions } from './docker/egress.js';
 export { systemClock } from './system-clock.js';
 export { CodexAdapter, CODEX_VERSION } from './harness/codex.js';
 export { FileCredentialStore, CredentialError } from './auth/file-store.js';
 export type { CredentialCodec } from './auth/file-store.js';
+export { FileExecutionCredentialBinding } from './auth/execution-binding.js';
+export type { CredentialBindingOptions, BindingFinalization } from './auth/execution-binding.js';
