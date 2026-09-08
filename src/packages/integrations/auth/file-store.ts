@@ -12,6 +12,8 @@ export interface CredentialCodec {
   readonly method: string;
   /** Local format validation only. Must not perform remote calls or imply token validity. */
   validate(content: string): boolean;
+  /** Optional local refresh identity check. Explicit administrative configure is separate. */
+  validateRefresh?(previous: string, next: string): boolean;
 }
 export class CredentialError extends Error {
   constructor(readonly code: string) { super(code); this.name = 'CredentialError'; }
@@ -173,6 +175,12 @@ export class FileCredentialStore implements CredentialStore {
           async (expected, content) => {
             this.#validate(selected, content);
             const current = await check(expected);
+            const codec = this.#codec(selected); const refresh = codec.validateRefresh;
+            if (refresh) {
+              let accepted = false;
+              try { accepted = refresh.call(codec, current.payload, content) === true; } catch { /* Do not expose provider errors. */ }
+              if (!accepted) throw new CredentialError('CREDENTIAL_REFRESH_REJECTED');
+            }
             if (current.payload === content) return metadata(current);
             if (current.revision === Number.MAX_SAFE_INTEGER) throw new CredentialError('CREDENTIAL_REVISION_EXHAUSTED');
             const updated = { ...current, payload: content, revision: current.revision + 1 };
