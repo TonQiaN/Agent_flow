@@ -1,7 +1,7 @@
 # 完整表单；共通字段与同步方式见 docs/development/issue-templates.md。
-name: 功能与行为改进
-description: 要新增或改变什么产品能力？
-title: "[功能] "
+name: 研究与证据验证
+description: 哪个未知事实需要证据才能判断？
+title: "[研究] "
 body:
 - type: markdown
   attributes:
@@ -17,20 +17,37 @@ body:
 - type: textarea
   id: problem
   attributes:
-    label: 问题、场景与目标
-    description: 说明使用者当前遇到的问题与希望得到的结果，避免只写实现技术或文件名。
-    placeholder: 谁在什么场景遇到什么限制？本次新增或改变什么能力？
+    label: 研究问题与决策用途
+    description: 写清要减少哪项不确定性，以及证据将影响哪个功能、方案或开发安排。
+    placeholder: |-
+      要回答的问题：
+      当前已知 / 未知：
+      会影响的后续选择：
   validations:
     required: true
 - type: textarea
-  id: behavior_contract
+  id: evidence_plan
   attributes:
-    label: 行为与接口契约
-    description: 用输入、期望输出、边界/失败情况描述新行为；适用时说明读写副作用、兼容性和权限需求。
+    label: 方法、比较与证据计划
+    description: 写真实候选或假设、资料/实验方法、比较基线、关键控制条件及反例；单纯资料研究也需判断来源与适用版本。
     placeholder: |-
-      正常例：输入 → 输出
-      边界 / 失败例：
-      接口 / 配置 / 兼容影响：
+      候选 / 假设：
+      资料或实验方法：
+      基线、样本/版本与控制条件：
+      可能推翻判断的结果：
+  validations:
+    required: true
+- type: textarea
+  id: stop_rule
+  attributes:
+    label: 结束条件与投入边界
+    description: 限定问题及适用的时间、资源或样本边界。支持、不支持与仍不确定分别怎样交付？预算耗尽不等于验收完成；缺必要证据须补证或交接。有界不确定仅在原验收允许且约定方法已完成时可接受。
+    placeholder: |-
+      结束条件：
+      投入边界（按实际需要）：
+      支持 / 不支持 / 仍不确定时的交付：
+      证据不足的补证、交接或范围调整：
+      结论去向 / 重开条件：
   validations:
     required: true
 - type: textarea

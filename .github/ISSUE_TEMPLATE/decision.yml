@@ -1,7 +1,7 @@
 # 完整表单；共通字段与同步方式见 docs/development/issue-templates.md。
-name: 功能与行为改进
-description: 要新增或改变什么产品能力？
-title: "[功能] "
+name: 方案与决策讨论
+description: 团队现在需要选定什么及其边界？
+title: "[决策] "
 body:
 - type: markdown
   attributes:
@@ -17,20 +17,35 @@ body:
 - type: textarea
   id: problem
   attributes:
-    label: 问题、场景与目标
-    description: 说明使用者当前遇到的问题与希望得到的结果，避免只写实现技术或文件名。
-    placeholder: 谁在什么场景遇到什么限制？本次新增或改变什么能力？
+    label: 需要敲定的问题与适用范围
+    description: 说明为何现在要决定、影响谁，以及哪些要求已有明确确认。
+    placeholder: |-
+      要选择什么：
+      已有确认 / 约束：
+      本次仍待选择：
   validations:
     required: true
 - type: textarea
-  id: behavior_contract
+  id: options
   attributes:
-    label: 行为与接口契约
-    description: 用输入、期望输出、边界/失败情况描述新行为；适用时说明读写副作用、兼容性和权限需求。
+    label: 候选方案与比较依据
+    description: 比较真实存在的方案、代价和不改变现状的后果；已有否决理由优先引用。若仅有一种合理候选，解释原因，不编造替代方案。
     placeholder: |-
-      正常例：输入 → 输出
-      边界 / 失败例：
-      接口 / 配置 / 兼容影响：
+      方案及收益 / 代价：
+      已有事实与证据限度：
+      推荐及理由（未确认即建议）：
+  validations:
+    required: true
+- type: textarea
+  id: impact
+  attributes:
+    label: 影响、落实与重开条件
+    description: 说明对接口、文档、用户或开发流程的影响、实施交接，以及什么新事实值得重新讨论；决定被采纳不等于产品已实现。
+    placeholder: |-
+      影响范围 / 保留边界：
+      落实去向（可待登记，不虚构 Issue 号）：
+      是否还有必要研究：
+      重开条件：
   validations:
     required: true
 - type: textarea

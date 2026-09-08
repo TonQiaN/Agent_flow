@@ -4,9 +4,9 @@
 
 ## 建立和整理 Issue
 
-本地已有 [功能模板](../../.github/ISSUE_TEMPLATE/feature.yml)、[缺陷模板](../../.github/ISSUE_TEMPLATE/bug.yml) 和 [维护模板](../../.github/ISSUE_TEMPLATE/maintenance.yml)。模板进入默认分支后才能供 GitHub 对应入口使用；尚未进行线上表单验收。通过 CLI 或 API 建立的 Issue 也需补齐同样的信息。
+当前有功能、缺陷、研究、决策、维护五份完整表单。具体选类、八项共通信息、专用字段、交付与验收、Assignees 设置、网页和 CLI/API 同等填写方式，见 [Issue 分类与填写指南](issue-templates.md)。七份决定通过 [分类](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 与 [共通规范](../../.agents/decisions/development/README.md#d-20260908-issue-template-common) 入口查阅；本指南继续说明阶段和交接。
 
-负责开发者在 Assignees 中明确归属；正文有多名协作者时指出主责。创建时写明问题与目标、范围与非目标、验收标准、依赖和已知疑问；Bug 增加行为差异、步骤及版本/环境。候选决策可以稍后经预检补齐，不能用原始资料链接代替这些内容。
+研究和决策允许只交付自足的正式决定；若已承诺模板、代码或指南，仍须逐项完成。否定研究结论可以验收，缺少必要证据或预算耗尽不能直接算完成。负责人在正文写一名人类主责，并另设真实 Assignees；原始资料链接不能替代正文事实。填写演练和实际入口检查的范围见 [实施验证](../validation/2026-09-08-issue-templates.md)。
 
 当前采用人参与整理的方式：AI 和工具可归纳讨论、建议拆分、补齐字段及起草验收标准，人参与澄清、纠正并确认关键边界，再登记整理结果。可直接在 Issue 正文维护如下短记录；这不是新增 GitHub 状态、标签或自动触发器：
 
@@ -59,11 +59,11 @@ stacked PR 在模板中填写前后依赖、目标分支和各层验收。下层
 
 | 项目 | 当前具备 | 尚未完成 |
 | --- | --- | --- |
-| Issue 整理与审查 | 三类本地表单、字段、人参与整理及决策确认说明 | 线上表单验收、自动状态流转 |
+| Issue 整理与审查 | 五类完整表单、填写指南、人参与整理及决策确认说明 | 线上表单验收、自动状态流转 |
 | 预检 | 输入、结果及人处理的约定 | 自动运行器与 Bug 复现能力 |
 | 决策及 PR | 正式决定、PR 模板、人工审查步骤 | 决策增量自动检查、完整产品流程验证 |
 | 工程验证 | 文档与模板的局部静态校验 | 产品 CI/CD、测试矩阵、部署流程及 Skill 选择 |
 
 Issue 表单的 `required` 字段不能代替人参与整理与关键确认。当前仓库是私有仓库；GitHub 官方对该校验标注了公开仓库限制，CLI / API 和提交后的正文编辑也不能仅靠表单约束。负责人输入不会自动设置 Assignees。当前通过人参与的就绪核对保证必填内容，AI 和工具可协助检查；未来如接自动门禁再另行落实。[表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)、[Issue 表单说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)，2026-09-07 核对。
 
-本次检查的实际结果与未验证范围见 [开发流程文档验证](../validation/2026-09-07-development-workflow.md)。
+本次模板检查见 [Issue 模板实施验证](../validation/2026-09-08-issue-templates.md)；此前阶段见 [开发流程文档验证](../validation/2026-09-07-development-workflow.md)。
