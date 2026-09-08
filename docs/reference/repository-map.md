@@ -20,7 +20,7 @@ Agent_flow/
 │   │   └── rejected/
 │   └── development/              # 与 product 相同的生命周期树
 ├── .github/
-│   ├── ISSUE_TEMPLATE/           # 功能、缺陷、维护表单与入口配置
+│   ├── ISSUE_TEMPLATE/           # 功能、缺陷、研究、决策、维护五份完整表单与配置
 │   └── PULL_REQUEST_TEMPLATE.md  # Issue、决策增量、验收与评审交接
 ├── docs/
 │   ├── README.md
@@ -29,6 +29,7 @@ Agent_flow/
 │   ├── development/
 │   │   ├── documentation.md
 │   │   ├── workflow.md           # 当前协作流程、模板及能力边界
+│   │   ├── issue-templates.md    # 五类选择、填写、CLI/API 与同步维护
 │   │   └── versioning.md         # Roadmap、变更记录及手工发布维护
 │   ├── roadmap/README.md         # 当前规划；具体版本文件按需创建
 │   ├── reference/repository-map.md
