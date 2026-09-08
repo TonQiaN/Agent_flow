@@ -8,3 +8,7 @@ export { FileCredentialStore, CredentialError } from './auth/file-store.js';
 export type { CredentialCodec } from './auth/file-store.js';
 export { FileExecutionCredentialBinding } from './auth/execution-binding.js';
 export type { CredentialBindingOptions, BindingFinalization } from './auth/execution-binding.js';
+export { CodexSubscriptionCodec, CodexCredentialRedactor, codexSubscriptionProfile, CODEX_SUBSCRIPTION_HOSTS } from './auth/codex-subscription.js';
+export type { CodexSubscriptionProfile } from './auth/codex-subscription.js';
+export { CodexSubscriptionRunner, CodexExecution } from './execution/codex-runner.js';
+export type { CodexRunRequest, CodexExecutionResult } from './execution/codex-runner.js';

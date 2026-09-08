@@ -1,6 +1,6 @@
 # Harness 与凭据接口（首个组合实施中）
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。尚未完成真实 provider/Profile 和 Codex 联合执行，不能把以下接口当作已完成的认证 Runner。
+当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；真实账号模型验收尚未完成，不能把以下接口当作已完成的认证 Runner。
 
 ## Harness
 
@@ -25,7 +25,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 - `lease.release()`：幂等释放。释放后读写失败。执行绑定先证明旧执行已停止且清理成功；停止未知时不会释放给另一任务。
 - `delete(identity)`：与运行共用同一个锁，只删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
 
-不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。真实 provider codec、登录入口、备份恢复、Profile endpoint 管理及真实 provider 执行组合继续在 #11/#12 完成。
+不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；登录入口、备份恢复、持久 Profile 管理及真实账号联合验收继续在 #11/#12 完成。
 
 ## 执行凭据绑定
 
@@ -37,6 +37,18 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 
 finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未接纳新内容，原凭据不被损坏副本覆盖，调用方不能把它当作无异常完成。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
 
-普通序列化只提供凭据元数据和释放状态。真实刷新格式、事件脱敏和账号验证尚未在组合层完成；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
+普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实远端刷新和模型验收尚未完成；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 
 接口与真实证据边界见 [本次验证](../validation/2026-09-09-harness-auth-primitives.md)。取舍分别见 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 和 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
+
+## 首个 Codex 订阅组合 API
+
+CodexSubscriptionCodec 仅接纳 auth_mode=chatgpt、完整 id/access/refresh token 和 account_id；不是远端认证检查。存储的 validateRefresh 可选方法约束运行刷新，Codex codec 拒绝账号变更，显式 configure 仍可替换。
+
+CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage。run 的 Profile 必须完整提供 id、service=openai、method=subscription、credentialRef、endpoint=official、capacity=1。组合先在离线 Runner 中验证同一不可变镜像内的实际 codex --version，再申请租约并接通实际执行。只授权 chatgpt.com 与 auth.openai.com 的 443 CONNECT；不接受任意 endpoint 或环境凭据。
+
+返回 CodexExecution 句柄，result 是独立快照，分别保留版本、Runner、Harness、authentication 与 diagnostics。需要清理恢复时调用 retryCleanup，它先实际停止/删除资源再重试凭据收尾，不升级原业务结果；保存需要的产物/私有证据后 release。普通事件由绑定收集初始和刷新凭据的已知值后脱敏；刷新或脱敏失败不发布消息 payload。
+
+受信宿主可在 FileExecutionCredentialBinding.acquire 的第四参数传入材料观察器，供脱敏器记住本次值；该回调不来自 Workflow 配置，也不进入普通序列化。
+
+`src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。真实小任务仍受授权门槛阻塞；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。

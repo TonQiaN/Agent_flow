@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [Codex 订阅组合入口](2026-09-09-codex-composition.md) |
 | 2026-09-09 | [私有凭据执行绑定](2026-09-09-credential-binding.md) |
 | 2026-09-09 | [受控 CONNECT 联网](2026-09-09-controlled-egress.md) |
 | 2026-09-09 | [真实 Codex 内部沙箱与只读配置](2026-09-09-codex-sandbox.md) |

@@ -18,6 +18,8 @@ stdout JSONL 的 turn.completed 是 Harness 终态证据；还须 Runner 实际�
 
 单正常出口不要求模型写完成文件；结构化多出口通过 output-schema 约束最后响应的 outcome，实际输出仍放 outputs 并由独立 contract 验证。schema 通过只读配置注入，不能成为业务 artifacts 清单。本切片先实现独立接口、计划与 parser；真实 Runner/认证/网络、文件交付校验及可信前序证据须继续在 PR3/后续 Workflow 切片接通。
 
+首个联合执行入口在 integrations 中组合纯 Adapter、Profile、凭据绑定与 DockerBackend；不将 Codex 特例写入 engine Runner。先解析不可变镜像 ID，再用离线 Runner 在相同镜像内检查实际 CLI 版本，成功并清理后才申请真实租约。业务执行结果分别保留 Runner、Harness 与凭据收尾事实；正常 Harness 结束仍不代表文件 contract 接纳。失败后保留可操作的执行句柄用于可信停止/清理，不能因抛出异常丢失占用资源。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

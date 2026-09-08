@@ -22,6 +22,10 @@ endpoint 与允许目标由宿主配置；Codex 订阅首个组合只接受实�
 
 收尾消费宿主 RunnerResult，核对执行身份和资源；只有停止已确认且任务/代理清理成功，才读取工作副本、条件回存并移除副本，最后释放租约。取消或执行非零不等同凭据未刷新，仍需在满足停止和清理条件后处理；未知停止或清理失败保留租约，等待可信恢复结果，不能用传入布尔值跳过。格式损坏不覆盖原存储，报告刷新失败；副本无法安全移除时保留租约。初始化前可放弃绑定，一旦初始化开始则必须凭执行结果收尾。此接口本身不证明 provider 格式、真实远端刷新或整个 Agent 接纳已实现。
 
+首个实际组合仅接纳 Codex 管理的 ChatGPT auth.json（auth_mode=chatgpt、完整 token bundle），排除 API key 与外部 token host 模式。格式 codec 只做本地检查；刷新需保留原 account_id，管理 configure 可经显式授权替换账号。Profile 明确 id、service、method、credentialRef、official endpoint 和 capacity=1；当前组合不接受任意地址、额外字段或隐式环境凭据。官方目标限定为 chatgpt.com 与 auth.openai.com，Codex 自己进行远端刷新。
+
+秘密脱敏由绑定侧提供：只在受信内存中记住本次初始及刷新 token 和已知账号标识，普通事件经过替换；格式或脱敏失败时不发布消息 payload。原始日志仍私有，不能把值替换宣称为任意编码或业务 PII 的完整过滤。旧系统导入属于私有验证桥接，在原系统的独占锁期间读取/运行/同步刷新，不能使两套系统各自持锁却同时使用同一 token。产品实现不依赖旧系统模块。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

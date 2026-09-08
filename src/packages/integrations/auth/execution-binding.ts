@@ -29,6 +29,7 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
   readonly #stateFile: string;
   readonly #lease: CredentialLease;
   readonly #revision: number;
+  readonly #remember: ((content: string) => void) | undefined;
   #resource: string | null = null;
   #root: string | null = null;
   #copied = false;
@@ -39,17 +40,19 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
   #diagnostics: string[] = [];
   #queue: Promise<unknown> = Promise.resolve();
 
-  private constructor(options: CredentialBindingOptions, lease: CredentialLease) {
+  private constructor(options: CredentialBindingOptions, lease: CredentialLease, remember?: (content: string) => void) {
     this.#identity = Object.freeze({ ...options.identity }); this.#stateFile = options.stateFile;
     this.environment = options.environment; this.#lease = lease; this.#revision = lease.metadata.revision;
+    this.#remember = remember;
   }
-  static async acquire(store: CredentialStore, options: CredentialBindingOptions, waitMs = 0): Promise<FileExecutionCredentialBinding> {
+  static async acquire(store: CredentialStore, options: CredentialBindingOptions, waitMs = 0, remember?: (content: string) => void): Promise<FileExecutionCredentialBinding> {
     if (!options || Object.keys(options).sort().join(',') !== 'credential,environment,identity,stateFile'
       || !isExecutionIdentity(options.identity) || typeof options.stateFile !== 'string' || options.stateFile.length > 256
       || options.stateFile.split('/').length > 8 || !options.stateFile.split('/').every(part => /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(part))) throw new CredentialError('INVALID_CREDENTIAL_BINDING');
     const snapshot = { ...options, identity: Object.freeze({ ...options.identity }), credential: Object.freeze({ ...options.credential }), environment: stateEnvironment(options.environment) };
+    if (remember !== undefined && typeof remember !== 'function') throw new CredentialError('INVALID_SECRET_OBSERVER');
     const lease = await store.acquire(snapshot.credential, waitMs);
-    return new FileExecutionCredentialBinding(snapshot, lease);
+    return new FileExecutionCredentialBinding(snapshot, lease, remember);
   }
   get metadata(): CredentialMetadata { return this.#lease.metadata; }
   toJSON(): { credential: CredentialMetadata; released: boolean } { return { credential: this.metadata, released: this.#released }; }
@@ -78,6 +81,7 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
       try {
         const target = await this.#parents(true);
         const content = await this.#lease.readSecret();
+        this.#remember?.(content);
         const file = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
         this.#ownsFile = true;
         try { await file.writeFile(content, 'utf8'); await file.sync(); this.#copied = true; }
@@ -120,6 +124,7 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
           if (this.#copied) {
             try {
               const content = await readPrivate(target, 1024 * 1024);
+              this.#remember?.(content);
               const updated = await this.#lease.commitSecret(content, this.#revision);
               this.#refresh = updated.revision === this.#revision ? 'unchanged' : 'updated';
             } catch { this.#refresh = 'failed'; this.#diagnostics.push('CREDENTIAL_REFRESH_FAILED'); }

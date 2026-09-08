@@ -13,3 +13,5 @@ Run/NodeTask/Attempt 当前只有身份与校验，尚无分配器、调度或�
 engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 只映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。详见 [接口指南](../guides/harness-auth.md)。
 
 integrations/egress 负责独立 CONNECT 传输策略，integrations/docker/egress 负责每次执行的代理和网络资源。二者不读取认证存储或解释业务；宿主环境选择目标列表，后续 Profile 绑定再提供实际服务配置。见 [受控联网](../guides/controlled-egress.md)。
+
+integrations/execution/codex-runner 组合首个服务 Profile、纯 Adapter、私有绑定和 Docker。版本探测使用同一不可变镜像；返回可清理句柄，Runner/Harness/凭据状态分别保留。当前有合成组合证据，真实账号调用仍待授权验收。
