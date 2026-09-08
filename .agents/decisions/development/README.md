@@ -25,3 +25,7 @@
 ## D-20260907-development-workflow
 
 [以 Issue 为起点的开发与 PR 闭环](proposed/D-20260907-development-workflow.md)
+
+## D-20260908-version-management
+
+[用轻量 Roadmap、变更记录和 Tag 管理版本](implemented/D-20260908-version-management.md)
