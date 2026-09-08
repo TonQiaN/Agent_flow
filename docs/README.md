@@ -11,6 +11,7 @@
 | [仓库结构图](reference/repository-map.md) | 正式目录职责，原始区只列边界 |
 | [文档维护](development/documentation.md) | 决策的查找、记录、转换及校验 |
 | [开发工作指南](development/workflow.md) | Issue 整理、预检记录、PR 模板与当前能力边界 |
+| [Issue 分类与填写](development/issue-templates.md) | 五类表单、共同信息、仅决策交付与网页 / CLI / API 用法 |
 | [Roadmap](roadmap/README.md) | 阶段方向、版本安排与按需版本计划 |
 | [Changelog](../CHANGELOG.md) | 已实现的变化与发布记录 |
 | [版本维护](development/versioning.md) | 版本规划、PR 变更记录和手工发布步骤 |
