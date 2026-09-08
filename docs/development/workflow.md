@@ -1,6 +1,6 @@
 # 开发工作指南
 
-当前仓库具备开发流程决定、本地 Issue / PR 模板及协作操作说明，尚无可运行产品。自动预检、CI/CD、测试矩阵和开发 Skill 尚未配置，真实产品流程尚未验证；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。本指南说明目前怎样使用这些文档和模板，不表示自动流程已经存在。
+当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置 Node 24/26 基础 CI，自动预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。本指南说明目前怎样使用这些文档和模板，不表示自动流程已经存在。
 
 ## 建立和整理 Issue
 
@@ -41,7 +41,7 @@ Bug 复现：步骤、结果与证据 / 非 Bug 不适用
 
 Issue 同时保存决策讨论、分工和审核过程，负责开发者把已经敲定的取舍同步到唯一决策正文，只留下必要确认摘要和 Issue 定位。未全部落实的决定统一位于 proposed；判断能否实施时核对具体方案的确认依据，不能把 Issue 可开工、已关闭或目录位置当作所有建议已被采纳。共同审查及启动期安排见开发流程决定，当前没有固定人数门槛。
 
-然后按 [文档维护指南](documentation.md) 先写相应决定和开发约定，再开展实现和测试。决定可以与代码、测试、指南一起提交。当前没有统一测试命令或矩阵，验证方法按改动和验收范围确定，实际结果留在 PR 或需要长期保存的 [验证记录](../validation/README.md)。
+然后按 [文档维护指南](documentation.md) 先写相应决定和开发约定，再开展实现和测试。决定可以与代码、测试、指南一起提交。当前基础检查命令为 `npm run check`，包含依赖边界、构建、测试类型检查及 Node 测试；更完整的集成验证按改动和验收范围确定，实际结果留在 PR 或需要长期保存的 [验证记录](../validation/README.md)。
 
 ## 使用 PR 模板
 
@@ -62,7 +62,7 @@ stacked PR 在模板中填写前后依赖、目标分支和各层验收。下层
 | Issue 整理与审查 | 五类完整表单及线上展示验证、填写指南、人参与整理及决策确认说明 | 自动状态流转 |
 | 预检 | 输入、结果及人处理的约定 | 自动运行器与 Bug 复现能力 |
 | 决策及 PR | 正式决定、PR 模板、人工审查步骤 | 决策增量自动检查、完整产品流程验证 |
-| 工程验证 | 文档与模板的局部静态校验 | 产品 CI/CD、测试矩阵、部署流程及 Skill 选择 |
+| 工程验证 | 文档/模板局部校验、TypeScript 构建与 Node 测试、Node 24/26 CI 配置 | 完整产品集成矩阵、部署流程及自动预检 |
 
 Issue 表单的 `required` 字段不能代替人参与整理与关键确认。当前仓库是私有仓库；GitHub 官方对该校验标注了公开仓库限制，CLI / API 和提交后的正文编辑也不能仅靠表单约束。负责人输入不会自动设置 Assignees。当前通过人参与的就绪核对保证必填内容，AI 和工具可协助检查；未来如接自动门禁再另行落实。[表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)、[Issue 表单说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)，2026-09-07 核对。
 

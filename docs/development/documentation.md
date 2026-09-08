@@ -1,6 +1,6 @@
 # 文档维护指南
 
-适用阶段：2026-09-07 文档管理骨架。本文记录当前操作；规则的理由分别维护在 [生命周期决定](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)、[内容决定](../../.agents/decisions/development/README.md#d-20260907-decision-record-content)及 [分层决定](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)。
+适用范围：正式项目文档与决策。本文记录当前操作；规则的理由分别维护在 [生命周期决定](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)、[内容决定](../../.agents/decisions/development/README.md#d-20260907-decision-record-content)及 [分层决定](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)。
 
 决策目录的执行入口是 [.agents/decisions/AGENTS.md](../../.agents/decisions/AGENTS.md)，README 负责说明和导航；两者书写分工见 [唯一负责决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing)。
 
@@ -57,4 +57,4 @@ rg -n --hidden '关键词' .agents/decisions docs AGENTS.md
 - 当前说明反映实际行为，未完成事项如实标明；相关验证与重大事故复盘可独立阅读。
 - Issue 与 PR 的验收信息、决策正文实质改动及实际验证情况，按开发工作指南核对；Issue 模板增删改作为非平凡工作管理。
 
-这些检查目前按任务执行；Issue / PR 流程决定与本地模板已备齐，尚未接入自动预检或 CI，尚未完成真实产品流程验证。具体边界与本次检查见 [开发工作指南](workflow.md)。
+这些检查目前按任务执行；Issue / PR 流程决定与本地模板已备齐，尚未接入自动预检；基础代码 CI 已配置，完整真实产品流程尚未验证。具体边界与本次检查见 [开发工作指南](workflow.md)。
