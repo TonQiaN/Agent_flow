@@ -1,0 +1,155 @@
+{
+  "checked_at": "2026-09-08T17:44:39.496060+08:00",
+  "baseline": "f3bdd38d2da951de0e1f48646b9e49e7f7154855",
+  "branch": "codex/issue-6-template-decisions",
+  "status": "passed",
+  "checks": {
+    "seven_unique_bodies": {
+      "passed": true,
+      "detail": [
+        "D-20260908-issue-classification",
+        "D-20260908-issue-template-bug",
+        "D-20260908-issue-template-common",
+        "D-20260908-issue-template-decision",
+        "D-20260908-issue-template-feature",
+        "D-20260908-issue-template-maintenance",
+        "D-20260908-issue-template-research"
+      ]
+    },
+    "decision_structure": {
+      "passed": true,
+      "detail": "七份正文均有结论、实际方案比较、影响与验证、重开、确认及真实 Issue 定位；无独立 status 字段"
+    },
+    "index_unique_links": {
+      "passed": true,
+      "detail": "每个稳定 ID 恰有一个索引标题和唯一正文链接"
+    },
+    "common_field_contract": {
+      "passed": true,
+      "detail": [
+        "owner",
+        "problem",
+        "scope",
+        "deliverables",
+        "acceptance",
+        "dependencies",
+        "decision_context",
+        "handoff"
+      ]
+    },
+    "class_deltas": {
+      "passed": true,
+      "detail": {
+        "candidate_field_counts": {
+          "feature": 9,
+          "bug": 10,
+          "research": 10,
+          "decision": 10,
+          "maintenance": 9
+        },
+        "extra_fields": {
+          "feature": [
+            "behavior_contract"
+          ],
+          "bug": [
+            "reproduction",
+            "environment"
+          ],
+          "research": [
+            "evidence_plan",
+            "stop_rule"
+          ],
+          "decision": [
+            "options",
+            "impact"
+          ],
+          "maintenance": [
+            "change_plan"
+          ]
+        }
+      }
+    },
+    "shared_candidate_fields": {
+      "passed": true,
+      "detail": [
+        "owner",
+        "scope",
+        "deliverables",
+        "acceptance",
+        "dependencies",
+        "decision_context",
+        "handoff"
+      ]
+    },
+    "bug_migration": {
+      "passed": true,
+      "detail": "现有表单 behavior 保留未改；设计明确映射、历史正文与避免重复字段"
+    },
+    "workflow_ownership": {
+      "passed": true,
+      "detail": "细则移交新决定；每 PR 实质决定改动与原交接纪律保留"
+    },
+    "formal_links": {
+      "passed": true,
+      "detail": {
+        "files": 12,
+        "local_links": 68,
+        "anchors": 28,
+        "failures": []
+      }
+    },
+    "artifact_links": {
+      "passed": true,
+      "detail": {
+        "files": 3,
+        "local_links": 105,
+        "anchors": 66,
+        "failures": []
+      }
+    },
+    "templates_preserved": {
+      "passed": true,
+      "detail": [
+        ".github"
+      ]
+    },
+    "instructions_preserved": {
+      "passed": true,
+      "detail": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/decisions/AGENTS.md"
+      ]
+    },
+    "versions_preserved": {
+      "passed": true,
+      "detail": [
+        "CHANGELOG.md",
+        "docs/roadmap"
+      ]
+    },
+    "whitespace": {
+      "passed": true,
+      "detail": "已跟踪差异 git diff --check 与七份新正文行尾检查"
+    },
+    "artifact_status": {
+      "passed": true,
+      "detail": "七份正文与候选表单状态分开，旧未创建描述已替换"
+    }
+  },
+  "decision_sha256": {
+    ".agents/decisions/development/proposed/D-20260908-issue-classification.md": "050a229944f5fa11798e745ad72a382da787597817702434a5e354925f387878",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-bug.md": "127157cac17a74df6f888bee1c2d33179cbe88442df5d482ca7b6c7725804188",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-common.md": "9e9f312b66af2197e71100c07e762e5beee746f87f075952c28b86a2852eee52",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-decision.md": "8a5a49e1a9912d14337220cf08c6ccaf18f36c2b10de7df550af2e1f16426957",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-feature.md": "31e031df26897da90161f9e7e147812a670dbc06696e9d28ee054038d67ad1ac",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-maintenance.md": "96cbca2c7ec29b02cf0066d10a745923836dade4cde2976bf1800242beab7533",
+    ".agents/decisions/development/proposed/D-20260908-issue-template-research.md": "19087424dbbbc19503353293e756c211cc5319a02e7aecbd47e2549cf5f30c6d"
+  },
+  "not_run": [
+    "GitHub form UI",
+    "Product or Container experiments",
+    "Multiple-person review",
+    "PR merge and default-branch acceptance"
+  ]
+}

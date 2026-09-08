@@ -1,0 +1,148 @@
+{
+  "accessed_on": "2026-09-08",
+  "publication_dates": "Most live documentation pages did not provide a specific publication date; no inferred publication date",
+  "sources": [
+    {
+      "id": "GH-forms",
+      "title": "Syntax for issue forms",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms",
+      "observed_support": "顶层 type 为组织类型；labels 需已存在；assignees 为明确配置。",
+      "application_or_inference": "不把个人仓库类型或主责输入自动分配当成已实现能力。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-schema",
+      "title": "Syntax for GitHub's form schema",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema",
+      "observed_support": "input/textarea/dropdown 的 required 标注仅限公开仓库；markdown 提示不提交，render 包成代码块。",
+      "application_or_inference": "本仓库私有，保留人工就绪核对；验收不用 render；草案只用已记录字段。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-types",
+      "title": "Managing issue types in an organization",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-types-in-an-organization",
+      "observed_support": "Issue Types 是组织管理的能力。",
+      "application_or_inference": "实测仓库 owner 类型 User，草案省略顶层 type。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-config",
+      "title": "Configuring issue templates for your repository",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository",
+      "observed_support": "默认分支中的模板才可用；blank_issues_enabled=false 不禁用维护者的空白入口；文件按名称顺序展示。",
+      "application_or_inference": "保持现有路径和入口，不把本地候选当线上部署或权限控制。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-cli",
+      "title": "gh issue create",
+      "publisher": "GitHub CLI",
+      "url": "https://cli.github.com/manual/gh_issue_create",
+      "observed_support": "支持正文文件、显式主责等参数。",
+      "application_or_inference": "CLI 骨架补齐与网页一致的信息；不把表单提示当自动补齐。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-child",
+      "title": "Adding sub-issues",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues",
+      "observed_support": "支持父子组成关系。",
+      "application_or_inference": "Epic 不另作主类型；本轮未在本仓库实测原生关系。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-deps",
+      "title": "Creating issue dependencies",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-issue-dependencies",
+      "observed_support": "支持 blocked-by / blocking 关系。",
+      "application_or_inference": "与父子组成分开，具体所需交付仍写在正文。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "GH-discuss",
+      "title": "About discussions",
+      "publisher": "GitHub Docs",
+      "url": "https://docs.github.com/en/discussions/collaborating-with-your-community-using-discussions/about-discussions",
+      "observed_support": "用于开放式交流、问答等，需启用。",
+      "application_or_inference": "当前仓库未启用；不将启用新平台当成 Issue #6 前置。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "OSS-rfc-template",
+      "title": "RFC template",
+      "publisher": "rust-lang/rfcs",
+      "url": "https://github.com/rust-lang/rfcs/blob/master/0000-template.md",
+      "observed_support": "包含动机、用例、代价、替代方案、未决问题。",
+      "application_or_inference": "借鉴决策内容维度，不照搬大型社区治理；模板为独立编写。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "OSS-rfc-process",
+      "title": "Rust RFC process",
+      "publisher": "rust-lang/rfcs",
+      "url": "https://github.com/rust-lang/rfcs",
+      "observed_support": "RFC 采纳与实现追踪分开。",
+      "application_or_inference": "仅作交付事实区分参考，项目生命周期以本地现行决定为准。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "OSS-oh-bug",
+      "title": "Bug Report template (Agent Canvas)",
+      "publisher": "OpenHands/OpenHands",
+      "url": "https://github.com/OpenHands/OpenHands/blob/main/.github/ISSUE_TEMPLATE/bug_report.yml",
+      "observed_support": "当前文件收集版本、运行方式、行为差异、复现与验收。",
+      "application_or_inference": "借鉴条件信息，不采纳全部截图门槛和日志要求。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "OSS-oh-feature",
+      "title": "Feature Request template (Agent Canvas)",
+      "publisher": "OpenHands/OpenHands",
+      "url": "https://github.com/OpenHands/OpenHands/blob/main/.github/ISSUE_TEMPLATE/feature_request.yml",
+      "observed_support": "问题、期望行为与验收有独立职责。",
+      "application_or_inference": "用于对照本项目功能模板完整性，不复制原表单正文。",
+      "evidence_status": "primary source read"
+    },
+    {
+      "id": "OSS-vscode",
+      "title": "Contributing to VS Code",
+      "publisher": "microsoft/vscode",
+      "url": "https://github.com/microsoft/vscode/blob/main/CONTRIBUTING.md",
+      "observed_support": "建议一个独立问题一个 Issue，复现提供版本与运行条件。",
+      "application_or_inference": "不照搬自动过期关闭政策；项目仍按独立验收和现行 PR 规则拆分。",
+      "evidence_status": "primary source read"
+    }
+  ],
+  "gaps": [
+    {
+      "question": "五类是否比四类更适合长期两人团队",
+      "status": "研究建议，缺少本团队真实长期使用数据",
+      "next": "用实际 Issue 检查选类争议与字段负担"
+    },
+    {
+      "question": "私有仓库的新表单实际显示和校验",
+      "status": "官方文档已核对，本仓库候选未部署/实测",
+      "next": "正式合入默认分支后核对网页和 CLI"
+    },
+    {
+      "question": "30 场景和 8 演练是否证明缺陷/性能事实",
+      "status": "不能；明确的规划/推演/合成样例",
+      "next": "真实工作按对应验收获取证据"
+    }
+  ],
+  "search_scope": [
+    "GitHub 官方 issue form/schema、组织 types、默认分支与入口限制",
+    "原生子项/阻塞关系、Discussions、CLI",
+    "Rust RFC、VS Code 贡献指南、OpenHands 当前表单",
+    "本仓库当前 Issue/PR、现行决定、历史讨论和逐字稿定向片段"
+  ],
+  "stopping_reason": "关键平台假设已由官方来源覆盖；分类和字段已有项目场景映射。未决问题需要团队实际填写和上线验证，更多模板搜索不能替代。",
+  "method_limit": "No team interviews, long-term usability measurements, product runs or live deployment of candidate forms."
+}

@@ -1,0 +1,14 @@
+{
+  "files": [
+    "index.html",
+    "report.md",
+    "README.md",
+    "validation.md"
+  ],
+  "local_links": 194,
+  "anchors": 110,
+  "html_ids": 177,
+  "external_runtime_resources": 0,
+  "result": "passed",
+  "scope": "static content and links only; artifact browser layout not rerun"
+}

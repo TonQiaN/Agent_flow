@@ -1,0 +1,23 @@
+[
+  {
+    "mergedAt": "2026-09-08T03:46:31Z",
+    "number": 5,
+    "state": "MERGED",
+    "title": "[维护] 建立 Roadmap、CHANGELOG 与最小版本发布约定",
+    "url": "https://github.com/TonQiaN/Agent_flow/pull/5"
+  },
+  {
+    "mergedAt": "2026-09-07T09:57:11Z",
+    "number": 3,
+    "state": "MERGED",
+    "title": "确立以 Issue 为起点、由人参与整理的开发流程",
+    "url": "https://github.com/TonQiaN/Agent_flow/pull/3"
+  },
+  {
+    "mergedAt": "2026-09-07T07:28:52Z",
+    "number": 1,
+    "state": "MERGED",
+    "title": "搭建决策优先的文档管理骨架",
+    "url": "https://github.com/TonQiaN/Agent_flow/pull/1"
+  }
+]

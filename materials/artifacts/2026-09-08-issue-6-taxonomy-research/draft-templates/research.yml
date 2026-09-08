@@ -1,0 +1,104 @@
+# Issue #6 候选草案；未部署到 .github/ISSUE_TEMPLATE。
+name: "研究与证据验证"
+description: "哪个未知事实需要证据才能判断？"
+title: "[研究] "
+body:
+  -
+    type: "markdown"
+    attributes:
+      value: "提交后按项目流程经人参与整理、预检和确认具体范围。请设置 Assignees；模板填写不是开工或验收证明。研究材料链接可选，正文必须自足。"
+  -
+    type: "input"
+    id: "owner"
+    attributes:
+      label: "主负责开发者"
+      description: "填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。"
+      placeholder: "@GitHub 用户名；协作者及分工可另列。"
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "problem"
+    attributes:
+      label: "研究问题与决策用途"
+      description: "写清要减少哪项不确定性，以及证据将影响哪个功能、方案或开发安排。"
+      placeholder: "要回答的问题：\n当前已知 / 未知：\n会影响的后续选择："
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "evidence_plan"
+    attributes:
+      label: "方法、比较与证据计划"
+      description: "写真实候选或假设、资料/实验方法、比较基线、关键控制条件及反例；单纯资料研究也需判断来源与适用版本。"
+      placeholder: "候选 / 假设：\n资料或实验方法：\n基线、样本/版本与控制条件：\n可能推翻判断的结果："
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "stop_rule"
+    attributes:
+      label: "结束条件与投入边界"
+      description: "限定研究问题、时间/资源或样本边界；定义支持/不支持/仍不确定时分别交付什么，避免用“继续研究”无限延长。"
+      placeholder: "结束条件：\n投入边界（按实际需要）：\n证据不足时的处理：\n结论去向 / 重开条件："
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "scope"
+    attributes:
+      label: "范围与边界"
+      description: "写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。"
+      placeholder: "包含：\n不包含：\n受影响模块/调用方：\n必须保持的行为："
+    validations:
+      required: true
+  -
+    type: "dropdown"
+    id: "deliverables"
+    attributes:
+      label: "预期交付物"
+      description: "可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。"
+      options:
+        - "正式决策正文"
+        - "实现文件（代码 / 配置 / 模板）"
+        - "当前说明或使用指南"
+        - "研究 / 验证记录"
+      multiple: true
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "acceptance"
+    attributes:
+      label: "验收标准与验证方式"
+      description: "列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。"
+      placeholder: "- [ ] 在……条件下，观察到……；以……验证。\n- [ ] 对应交付物……可检查，未知项……有处理结论。"
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "dependencies"
+    attributes:
+      label: "依赖与阻塞"
+      description: "区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。"
+      placeholder: "阻塞：无 / #Issue，所需交付：\n相关参考：\n父子关系（适用时）："
+    validations:
+      required: true
+  -
+    type: "textarea"
+    id: "decision_context"
+    attributes:
+      label: "相关决定与待决问题"
+      description: "可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。"
+      placeholder: "已有决定 / 当前依据：\n本次可能修订的问题：\n已知分歧或新证据："
+    validations:
+      required: false
+  -
+    type: "textarea"
+    id: "handoff"
+    attributes:
+      label: "整理与续接记录"
+      description: "创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。"
+      placeholder: "当前阶段 / 已完成：\n主责与实际参与分工：\n已确认范围、确认人/日期/依据：\n待决或阻塞与处理人：\n实际基线、证据位置及未验证部分：\n下一步 / 交接位置："
+    validations:
+      required: false

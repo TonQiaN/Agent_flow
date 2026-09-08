@@ -1,0 +1,51 @@
+{
+  "date": "2026-09-08",
+  "default_head": "78514d91557acf8b892bb719205ba0bed9184d4d",
+  "issue": {
+    "assignees": [
+      {
+        "id": "U_kgDOBta2SA",
+        "login": "TonQiaN",
+        "name": "",
+        "databaseId": 114734664
+      }
+    ],
+    "closedAt": "2026-09-08T11:00:19Z",
+    "number": 6,
+    "state": "CLOSED",
+    "title": "[维护] 制定 Issue 分类与模板",
+    "url": "https://github.com/TonQiaN/Agent_flow/issues/6"
+  },
+  "pull_requests": [
+    {
+      "mergeCommit": {
+        "oid": "b131a6eacf67258bb33696d99ebb00a2c22745bb"
+      },
+      "mergedAt": "2026-09-08T10:50:12Z",
+      "number": 7,
+      "state": "MERGED",
+      "title": "落实五类 Issue 表单与共通填写规范",
+      "url": "https://github.com/TonQiaN/Agent_flow/pull/7"
+    },
+    {
+      "mergeCommit": {
+        "oid": "78514d91557acf8b892bb719205ba0bed9184d4d"
+      },
+      "mergedAt": "2026-09-08T10:59:29Z",
+      "number": 8,
+      "state": "MERGED",
+      "title": "记录五类 Issue 表单线上验收并完成七项决策",
+      "url": "https://github.com/TonQiaN/Agent_flow/pull/8"
+    }
+  ],
+  "formal_validation": "docs/validation/2026-09-08-issue-templates.md",
+  "web_form_counts": {
+    "feature": 9,
+    "bug": 10,
+    "research": 10,
+    "decision": 10,
+    "maintenance": 9
+  },
+  "new_sample_issues": 0,
+  "product_experiments": false
+}

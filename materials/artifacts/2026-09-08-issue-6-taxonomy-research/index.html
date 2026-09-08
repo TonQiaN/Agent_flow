@@ -1,0 +1,1515 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>AgentFlow · Issue #6 分类与模板研究</title><style>:root{--bg:#f4f4ef;--paper:#fff;--ink:#202924;--muted:#647068;--line:#dce2da;--accent:#24614c;--soft:#eaf2ec;--amber:#906521}*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:100px}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.85 system-ui,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}a{color:var(--accent);text-underline-offset:4px;overflow-wrap:anywhere}button,input,select{font:inherit}button{cursor:pointer}a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #c28f39;outline-offset:3px}.skip{position:absolute;left:20px;top:-70px;background:#fff;padding:8px;z-index:50}.skip:focus{top:10px}header{height:78px;position:sticky;top:0;z-index:10;background:#fcfdf9f5;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 36px;gap:20px;backdrop-filter:blur(12px)}header a{text-decoration:none}.brand{font-size:22px;font-weight:750;letter-spacing:-.5px}.brand small{font-size:10px;letter-spacing:1.8px;margin-left:18px;color:var(--muted);font-weight:600}header>div{display:flex;align-items:center;gap:24px;font-size:13px}.pill{padding:4px 11px;border-radius:20px;background:#fff3dc;color:#79571d;border:1px solid #eddbb2}.layout{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:38px;padding:30px 38px 70px}aside{position:sticky;top:104px;align-self:start;max-height:calc(100vh - 125px);overflow:auto;font-size:13px}.nav-title{letter-spacing:3px;color:var(--muted);font-size:11px;margin:0 0 14px}nav{display:flex;flex-direction:column;gap:3px}nav a{padding:8px 10px;color:#58645c;text-decoration:none;border-radius:6px}nav a:hover,nav a:focus{background:var(--soft);color:var(--accent)}nav span{font-size:10px;font-variant-numeric:tabular-nums;color:#8a958e;margin-right:12px}.nav-note{margin:24px 10px;color:var(--muted);font-size:12px;line-height:2}main{min-width:0;background:var(--paper);padding:42px 48px 58px;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 18px #23392805}h1{font-size:clamp(27px,2.8vw,39px);letter-spacing:-.7px;line-height:1.4;margin:6px 0 18px;max-width:850px}h2{font-size:25px;line-height:1.5;margin:60px 0 22px;border-top:1px solid var(--line);padding-top:28px}h3{font-size:20px;line-height:1.55;margin:32px 0 15px}p{margin:13px 0 18px}strong{font-weight:660}li{margin:7px 0}ul,ol{padding-left:1.5em}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.84em;background:#f1f4ef;border:1px solid #e8ece5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}pre{overflow:auto;padding:18px;border:1px solid var(--line);border-radius:7px;background:#f7f8f5;line-height:1.65}pre code{background:none;border:0;padding:0}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:26px 0 24px}.metrics>div{background:var(--soft);border:1px solid #dce8df;border-radius:9px;padding:16px}.metrics strong{display:block;font-size:29px;line-height:1.25;color:var(--accent)}.metrics span{font-size:12px;color:var(--muted);display:block;margin-top:7px}.table-wrap{overflow:auto;margin:20px 0 25px;max-width:100%;border:1px solid var(--line);border-radius:7px}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.8}th{text-align:left;background:#edf2ec;font-size:12px;letter-spacing:.4px;white-space:nowrap}th,td{border-bottom:1px solid var(--line);padding:12px 14px;vertical-align:top;min-width:110px}tr:last-child td{border-bottom:0}tbody tr:nth-child(even){background:#fafbf8}td:first-child{font-weight:550;min-width:145px}td code{font-size:12px}details{border:1px solid var(--line);border-radius:8px;margin:12px 0;overflow:hidden;background:#fcfdfa}summary{cursor:pointer;line-height:1.65;padding:15px 18px;font-weight:620}summary:hover{background:var(--soft)}details>p,details>h1,details>h2,details>h3,details>ul,details>ol{margin-left:22px;margin-right:22px}details h1{font-size:21px}details h2{font-size:17px;margin-top:22px;padding-top:18px}details[open]{padding-bottom:12px}.scenario summary{display:flex;align-items:center;gap:12px;font-size:14px}.scenario summary::before{content:'＋';font-size:15px;color:#809186}.scenario[open] summary::before{content:'−'}.scenario summary strong{flex:1}.scenario-body{padding:0 22px;font-size:14px}.sid{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}.tag{font-size:11px;font-weight:500;padding:3px 9px;background:var(--soft);border-radius:15px;color:var(--accent)}.basis{font-size:12px;color:var(--muted)}.filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap;padding:16px;background:#f2f5f0;border:1px solid var(--line);border-radius:8px;margin-bottom:18px}.filters label{font-size:12px;display:flex;flex-direction:column;gap:5px}.filters input,.filters select,.chooser select{padding:8px 11px;border:1px solid #bbcabe;border-radius:5px;background:white;max-width:100%;min-height:42px}.filters input{width:220px}.filters button{font-size:12px;padding:10px;border:1px solid #bbcabe;border-radius:5px;background:white;color:var(--accent);min-height:42px}#scenario-count{font-size:12px;color:var(--muted);align-self:center}.chooser{padding:19px 22px;border:1px solid #cbdccd;border-radius:8px;background:var(--soft);margin:22px 0}.chooser label{display:block;font-size:13px;font-weight:650;margin-bottom:12px}.chooser select{width:100%;max-width:650px}.chooser p{font-size:14px;margin-bottom:0}.chooser a{margin-left:12px}footer{border-top:1px solid var(--line);padding:24px 30px;text-align:center;color:var(--muted);font-size:12px}[hidden]{display:none!important}input[type=checkbox]{accent-color:var(--accent)}
+@media(max-width:1100px){.layout{grid-template-columns:190px minmax(0,1fr);gap:22px;padding:24px}main{padding:32px 30px}.brand small{display:none}.metrics{gap:8px}.metrics>div{padding:13px}}
+@media(max-width:760px){header{height:auto;min-height:70px;padding:12px 18px;align-items:center}header>div{gap:12px;font-size:12px}.pill{display:none}.layout{display:block;padding:14px}aside{position:static;max-height:none;margin-bottom:16px}aside nav{flex-direction:row;flex-wrap:wrap;gap:2px}aside nav a{padding:4px 8px;font-size:11px}aside nav span,.nav-title,.nav-note{display:none}main{padding:25px 20px;border-radius:8px}h1{font-size:27px}h2{font-size:22px;margin-top:45px}.metrics{grid-template-columns:repeat(2,1fr)}.scenario summary{flex-wrap:wrap;padding:12px}.scenario summary strong{min-width:160px}.tag{margin-left:40px}.filters{padding:12px}.filters label{flex:1;min-width:130px}.filters input,.filters select{width:100%}.table-wrap{margin-right:0}td{min-width:165px}.chooser{padding:14px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+@media print{body{background:white;font-size:10pt}header,aside,.filters,.chooser,footer{display:none}.layout{display:block;padding:0}main{border:0;box-shadow:none;padding:0}h1{font-size:23pt}h2{break-after:avoid;font-size:17pt}table{font-size:9pt}.table-wrap{overflow:visible}details{break-inside:avoid}.metrics{break-inside:avoid}a{color:inherit}}
+</style></head><body><a class="skip" href="#content">跳到正文</a><header><a href="#answer" class="brand">AgentFlow <small>ISSUE 06 / RESEARCH</small></a><div><span class="pill">已实施 · Issue #6 已关闭</span><a href="report.md">完整文本 ↗</a></div></header><div class="layout"><aside><div class="nav-title">研究导航</div><nav><a href="#answer"><span>01</span>确认与研究边界</a><a href="#current"><span>02</span>研究时的基线快照</a><a href="#options"><span>03</span>分类方案比较</a><a href="#routing"><span>04</span>分类与拆分规则</a><a href="#scenarios"><span>05</span>30 个协作场景</a><a href="#fields"><span>06</span>共通字段与负担</a><a href="#maintenance-design"><span>07</span>七项决定与存放设计</a><a href="#templates"><span>08</span>五类模板内容</a><a href="#examples"><span>09</span>填写演练</a><a href="#handoff"><span>10</span>长周期协作与关闭</a><a href="#platform"><span>11</span>GitHub 落地限制</a><a href="#mapping"><span>12</span>原 25 项映射</a><a href="#delivery"><span>13</span>Issue #6 落地与验收</a><a href="#sources"><span>14</span>来源与局限</a></nav><div class="nav-note">5 类主工作项<br>7 份正式决定<br>30 个场景<br>12 份正式演练<br><a href="https://github.com/TonQiaN/Agent_flow/issues/6">Issue #6 ↗</a></div></aside><main id="content"><p><a id="answer"></a></p>
+<h1 id="issue-6面向长期-vibe-coding-团队的分类与模板研究">Issue #6：面向长期 vibe coding 团队的分类与模板研究</h1>
+<p>2026-09-08 · AgentFlow · 研究基线 <code>main@f3bdd38</code> · 主负责开发者 TonQiaN</p>
+<p><strong>用户已明确采用「功能、缺陷、研究、决策、维护」五类与“共通规范＋五类差异”，七份正式决定已落实并位于开发流程类的 implemented。</strong> 共同规则集中维护，每类仍提供完整表单；分类回答“主要完成什么”，交付物回答“最后交出什么”。本页保留研究与比较，正式取舍以对应决定正文为准。<a href="#maintenance-design">七份决定与存放设计</a> · <a href="sources/user-template-structure.md">用户确认</a></p>
+<div class="metrics"><div><strong>5</strong><span>正式模板入口</span></div><div><strong>30</strong><span>协作场景</span></div><div><strong>12</strong><span>正式填写演练</span></div><div><strong>25</strong><span>已有候选逐项映射</span></div></div>
+
+<p><a href="https://github.com/TonQiaN/Agent_flow/issues/6">Issue #6</a> 已完成全部七项验收并关闭。<a href="https://github.com/TonQiaN/Agent_flow/pull/7">实现 PR #7</a> 与 <a href="https://github.com/TonQiaN/Agent_flow/pull/8">验证收尾 PR #8</a> 已合并到默认分支，最终核对提交 <code>78514d9</code>。本页保留研究、比较和原候选，同时集中提供最终交付与验证入口；研究候选不作为第二套正式规范。</p>
+<p><strong>实际交付：五份完整 YAML、七份决定、使用指南、12 个正式填写演练和默认分支 GitHub 展示验证。</strong> 共同内容手工同步，没有部署生成器或 common.yml；原三入口保留，新增研究/决策。Bug behavior 已迁移为 problem，历史正文保留。</p>
+<p><a href="../../../docs/development/issue-templates.md">分类与填写指南</a> · <a href="../../../.github/ISSUE_TEMPLATE/">五份正式表单</a> · <a href="../../../docs/validation/2026-09-08-issue-template-examples.md">正式填写演练</a> · <a href="../../../docs/validation/2026-09-08-issue-templates.md">完整实施验证</a> · <a href="sources/implementation-provenance.json">最终仓库快照</a></p>
+<p>最关键的三项判断：</p>
+<ul>
+<li><strong>研究与决策分开，但不强制分 Issue。</strong> 前者需要证据回答未知事实，后者需要对方案作出有边界的选择；如果它们只是同一交付的小步骤，可在一个 Issue 内推进。</li>
+<li><strong>“仅决策交付”是合法完成方式，但不是任何 Issue 都能据此结束。</strong> high level 确认可以只交付决定；Issue #6 已承诺模板和指南，因此整体属于维护，写完研究稿不能关闭。</li>
+<li><strong>模板应支持人的判断和 AI 的续接。</strong> 提供必要上下文、范围、验收和短交接记录；不要求每次保存全量聊天，不把表单、目录或勾选状态当作事实证据。</li>
+</ul>
+<p><a id="current"></a></p>
+<h2 id="01--研究与设计时的基线快照">01 · 研究与设计时的基线快照</h2>
+<p>下表保留研究与设计阶段事实；最新实现与关闭结果以上方及第 11 节为准。研究启动时执行 <code>git pull --ff-only</code>，从 <code>ec967fd</code> 快进到 <code>f3bdd38d2da951de0e1f48646b9e49e7f7154855</code>，保留既有未跟踪聊天与 artifact；当时决定设计位于 <code>codex/issue-6-template-decisions</code>。已核对远端 Issue / PR、默认分支、模板和相关决定。项目仍是文档与流程骨架，<strong>没有可运行产品、已实现 Harness、产品 CI 或真实运行历史</strong>。<a href="../../../docs/README.md">项目当前说明</a> · <a href="sources/provenance.json">初次核对快照</a> · <a href="../../../docs/validation/2026-09-08-issue-template-decisions.md">本轮设计验证</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>对象</th>
+<th>研究/设计时的事实</th>
+<th>当时对 Issue #6 的影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Issue #6</td>
+<td>Open，Assignee 为 TonQiaN；正文有七项验收，要求决定、模板、指南和验证</td>
+<td>研究只是其中一个阶段；完整交付需实际文件进入默认分支并验证入口</td>
+</tr>
+<tr>
+<td>七份决定正文</td>
+<td>分类、共通和五类差异已在工作分支 proposed 成稿；索引和原流程引用已同步</td>
+<td>设计可以集中审阅；尚未部署新表单，不能按文件成稿关闭整项</td>
+</tr>
+<tr>
+<td>Issue #2 / PR #3</td>
+<td>协作流程已建立，Issue 已关闭、PR 已合并</td>
+<td>沿用主责、人参与整理、预检和实质决策增量，不另造一套审批状态</td>
+</tr>
+<tr>
+<td>Issue #4 / PR #5</td>
+<td>版本管理骨架已合并，Issue 已关闭</td>
+<td>不能再把“完全没有版本管理”列为现状；模板需衔接已落地 roadmap / CHANGELOG 维护</td>
+</tr>
+<tr>
+<td>三份现有表单</td>
+<td><code>feature.yml</code>、<code>bug.yml</code>、<code>maintenance.yml</code>，含主责、问题、范围、验收、依赖、可选决定字段；Bug 有复现与环境</td>
+<td>这是可迭代起点，新增研究/决策差异字段；保留已经有用的字段</td>
+</tr>
+<tr>
+<td>当前缺口</td>
+<td>没有明确的交付物选择、研究问题/停止条件、方案比较/落实交接、短续接记录</td>
+<td>分类、共通字段和差异字段需要一起设计，不能只增加一个名称</td>
+</tr>
+<tr>
+<td>文档制度</td>
+<td>决策唯一、自足；materials 宽松；未全部落实留 proposed；Issue 承接确认</td>
+<td>不要求每个 Issue 新建一份决定；不要求原始资料路径，也不恢复 accepted</td>
+</tr>
+<tr>
+<td>GitHub 配置</td>
+<td>私有、owner 类型为 User、Discussions 未启用</td>
+<td>首版不能依赖组织级 Issue Types，也不把新沟通平台当作前置条件</td>
+</tr>
+</tbody>
+</table></div>
+<p><a href="sources/issues.json">Issue 快照</a> · <a href="sources/pull-requests.json">PR 快照</a> · <a href="../../../docs/development/workflow.md">当前工作指南</a> · <a href="../../../.agents/decisions/development/README.md#d-20260908-version-management">版本管理决定</a></p>
+<p>资料按以下顺序解释：当前用户明确要求与澄清 → 现行决定及默认分支事实 → 已有 Issue / PR 的具体确认 → 历史聊天与 artifact。旧稿中的建议不是自动生效的规则。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>项目至今的线索</th>
+<th>对这次模板研究的具体要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9/5 会议：晚上讨论、白天异步，人与 AI 一起推进，有的工作本身就是研究</td>
+<td>Issue 离开会议上下文后仍能说明目的、边界与下一步；研究有主责和有限结束条件。<a href="../coe-meeting-2026-09-05/transcript.html#t-01-31-13">01:31:13–01:34:43</a></td>
+</tr>
+<tr>
+<td>9/5 会议：Bug、Feature、大方向调整；小团队先用最小工程框架</td>
+<td>类型来自不同验收目标，避免复制几十人团队的全套状态和表单。<a href="../coe-meeting-2026-09-05/transcript.html#t-01-40-17">01:40:17–01:42:58</a></td>
+</tr>
+<tr>
+<td>9/7：AI 可能反复推荐已放弃的方案；希望事实唯一、材料低噪声</td>
+<td>模板提示查现行决定和否决边界，不强制复制历史；交接保留结论与定位。<a href="../../discussions/2026-09-07-decision-lifecycle/user-request.md">用户原文</a></td>
+</tr>
+<tr>
+<td>9/7 早期 artifact 曾建议强制资料关联、另一种状态组织</td>
+<td>这些已被后续规则修正；本研究不沿用过时建议。<a href="../../../.agents/decisions/development/rejected/D-20260907-mandatory-source-traceability.md">明确拒绝的资料关联要求</a></td>
+</tr>
+<tr>
+<td>9/8：前端只读、回放只录外围、镜像与节点能力分开、三 Harness 独立模块</td>
+<td>运行问题的模板分别描述这些条件；不收集容器内 agent 原始日志，不把节点设置需求变成前端编辑功能。<a href="../2026-09-08-high-level-and-issues/sources/user-clarifications.md">U2 澄清</a></td>
+</tr>
+<tr>
+<td>9/8：版本是开发流程决定；Issue 可交付研究或决定；模板本身应持续迭代</td>
+<td>类型与交付物独立；本项须落地模板文件，不能只改分类文案。<a href="../2026-09-08-high-level-and-issues/sources/user-request.md">初始要求</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>旧版功能/Issue artifact 中“未创建”“没有版本规则”等描述属于当时快照：现在 E03 已由 #6 承接，#4 已落实版本管理骨架。本研究保留原文，不回写历史，把变化体现在当前对照与逐项映射里。</p>
+<p><a id="options"></a></p>
+<h2 id="02--分类方案比较后为什么推荐五类">02 · 分类方案：比较后为什么推荐五类</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优点</th>
+<th>对本项目的代价</th>
+<th>研究判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一张万能模板，正文自选类别</td>
+<td>入口最少，共通字段只维护一处</td>
+<td>Bug、证据研究、方案取舍差异大；无关问题会塞进所有人的表单，AI 也容易省略差异信息</td>
+<td>不推荐作为当前主入口；CLI 可共享公共骨架</td>
+</tr>
+<tr>
+<td>保留三类，把研究/讨论全放维护</td>
+<td>迁移最小，工程事项集中</td>
+<td>“修复/交付文件”和“只回答未知/作选择”混杂；需要靠长说明纠正验收方式</td>
+<td>可用的保守备选，但正是现有讨论暴露的缺口</td>
+</tr>
+<tr>
+<td>四类：功能、缺陷、研究/决策、维护</td>
+<td>少一个入口，探索工作集中</td>
+<td>需要同一表单里区分实验证据和方案选择；纯决策易被要求做实验，纯研究也可能被迫给采纳结论</td>
+<td>若五类使用中频繁选错，可合并；目前作为主要备选</td>
+</tr>
+<tr>
+<td><strong>五类：功能、缺陷、研究、决策、维护</strong></td>
+<td>每类有清楚的主要问题和完成条件；三类旧入口保留，只新增两个</td>
+<td>增加两个文件，需要防止强制把每个阶段拆成新 Issue</td>
+<td><strong>用户已认可方向；按七项决定细化，字段与实际使用仍需验证</strong></td>
+</tr>
+<tr>
+<td>很多专类：Prompt、文档、测试、重构、性能、安全、发布、Epic 等</td>
+<td>名称看起来细致</td>
+<td>把实现载体、质量目标、风险和结构关系混到一个层级，交叉选择与重复维护明显增多</td>
+<td>首期不采用；特定差异用条件字段，真实反复失配再拆</td>
+</tr>
+</tbody>
+</table></div>
+<p>五类方向已获确认，上表保留选择时的比较依据；四类方案不再与五类并列为当前待选项，只有出现具体重开理由时再评估。这不是行业唯一标准，也没有两人团队长期运行统计证明“五类最优”。选择依据是本项目已经出现独立研究和独立范围确认需求，并且现有三个入口仍有价值。原 25 项映射中暂得 14 功能、8 决策、2 研究、1 维护、0 Bug，<strong>这是对候选清单的解释，不是未来工作分布预测</strong>。当前无产品实现，也不能把假设 Bug 当作已发生问题。</p>
+<p>外部资料提供的是设计参照：</p>
+<ul>
+<li>Rust RFC 模板要求说明动机、具体用例、方案代价、替代方案和未决问题，适合借鉴“决策必须回答什么”；其大型社区治理流程不直接照搬到这里。<a href="https://github.com/rust-lang/rfcs/blob/master/0000-template.md">Rust RFC 模板</a></li>
+<li>Rust 的 RFC 采纳和实现追踪分开，提示“方案完成”与“功能完成”应有不同交付事实；AgentFlow 沿用自己的 proposed / implemented 规则，无需复制其生命周期。<a href="https://github.com/rust-lang/rfcs">Rust RFC 流程</a></li>
+<li>本轮读取的 OpenHands 仓库表单面向 Agent Canvas：Bug 收集版本、运行方式、实际/期望、复现和验收；Feature 收集问题、期望行为和验收。可以借鉴字段职责，不照搬其截图门槛、ready-for-dev 标签或全量日志要求。<a href="https://github.com/OpenHands/OpenHands/blob/main/.github/ISSUE_TEMPLATE/bug_report.yml">Bug 表单</a> · <a href="https://github.com/OpenHands/OpenHands/blob/main/.github/ISSUE_TEMPLATE/feature_request.yml">Feature 表单</a></li>
+<li>VS Code 指南强调一个独立问题一个 Issue，复现应包含相关版本与条件；这支持按验收结果拆分。它的自动过期关闭机制不适合未经验证就套到当前异步小团队。<a href="https://github.com/microsoft/vscode/blob/main/CONTRIBUTING.md#writing-good-bug-reports-and-feature-requests">VS Code 贡献指南</a></li>
+</ul>
+<p><a id="routing"></a></p>
+<h2 id="03--怎么选类看主要结果不看正在做哪一步">03 · 怎么选类：看主要结果，不看正在做哪一步</h2>
+<div class="chooser"><label for="work-question">按主要完成条件定位模板</label><select id="work-question"><option value="">选择当前最需要回答的问题</option><option value="feature">要新增或改变什么产品能力？</option><option value="bug">什么已约定的行为没有成立？</option><option value="research">哪个未知事实需要证据才能判断？</option><option value="decision">团队现在需要选定什么及其边界？</option><option value="maintenance">要落实什么工程、文档或协作改进？</option></select><p id="chooser-result" aria-live="polite">这是分类辅助，不替代范围判断；混合工作按主结果分类。</p></div>
+
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>主类型</th>
+<th>关键问题</th>
+<th>典型交付</th>
+<th>不能据此自动推断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>功能</td>
+<td>要新增或改变什么产品能力？</td>
+<td>可用行为/接口、对应决定与验证</td>
+<td>写的是 Prompt/配置就不是开发；功能必须一次交付所有未来版本</td>
+</tr>
+<tr>
+<td>缺陷</td>
+<td>哪个已约定的行为没有成立？</td>
+<td>复现/调查证据、修复、回归验证</td>
+<td>无法复现就不是 Bug；看见异常就知道根因</td>
+</tr>
+<tr>
+<td>研究</td>
+<td>哪个未知事实需要证据？</td>
+<td>有界研究结论与适用限制，可包含决定</td>
+<td>必须写产品代码；必须证明原设想可行；证据不足等于已完成</td>
+</tr>
+<tr>
+<td>决策</td>
+<td>团队现在要选定什么？</td>
+<td>自足的正式决定、确认范围与落实交接</td>
+<td>决定被采纳等于功能实现；没有实验证据也能编造比较结果</td>
+</tr>
+<tr>
+<td>维护</td>
+<td>要落实什么工程、文档或协作改进？</td>
+<td>代码/配置/模板/指南与适当验证</td>
+<td>维护只是小改动；可以不受 Issue/决定/PR 规则约束</td>
+</tr>
+</tbody>
+</table></div>
+<p>选择时先核对期望是否为已有契约：如果已承诺行为被破坏，通常是缺陷；如果期望本身尚未选定，先澄清范围。独立工作只需证据回答问题时选研究，只需选择方案与形成规范时选决策；其余按产品行为交付或工程改善选择功能/维护。</p>
+<p><strong>文件名、模块名和工具名不决定类型。</strong> 修改 Prompt 以满足新业务规则是功能；修复违反既有 schema 的 Prompt 可以是 Bug；优化团队开发用 AGENTS/skill 是维护。新建三 Harness 执行模块在当前“尚无产品实现”的基线下属于功能；未来对已实现适配层进行不改变契约的重构，则通常是维护。性能任务同理：恢复已有时限是 Bug，未知瓶颈定位是研究，既有契约内优化是维护，承诺新的容量/行为边界是功能。</p>
+<h3 id="什么时候拆成多个-issue">什么时候拆成多个 Issue</h3>
+<p>满足以下具体条件再考虑拆分：不同主责能独立交付；研究结论会决定是否还有实现工作；某项是其他工作的明确阻塞；各自有不同验收时间且单独交付有价值。父项负责共同结果和整体验收，子项保留自己的主责、范围与证据。</p>
+<p>当主目标、主责和验收仍相同，调研、方案选择、实现、评审修正与 AI 会话切换可留在一个 Issue 内。不能为每个 Agent、新分支、文件、PR 或工作阶段机械建项。Issue #6 就是一个例子：当前做研究，最终仍要交付模板与指南，因此无需因研究阶段把整个 Issue 改成“仅研究”，也无需先创建 E04。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>容易混淆的维度</th>
+<th>推荐表达</th>
+<th>为什么不当作主类型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端、Runner、Harness、环境、流程文档</td>
+<td>正文模块范围；确有筛选需求时加少量 area 标签</td>
+<td>一个 Bug 可跨前后端，一份决定也可跨模块</td>
+</tr>
+<tr>
+<td>决定、代码、模板、指南、验证记录</td>
+<td>可多选交付物 + 对应验收</td>
+<td>所有主类型都可能需要决定或说明</td>
+</tr>
+<tr>
+<td>紧急、阻塞、低优先级</td>
+<td>影响/优先级及依赖；具体排序由主责判断</td>
+<td>紧急不会改变“修复什么”</td>
+</tr>
+<tr>
+<td>0.1.x、某次发布</td>
+<td>roadmap / milestone 或已有版本入口</td>
+<td>版本目标与任务性质不同，不在表单内复制整份 roadmap</td>
+</tr>
+<tr>
+<td>Epic、父项、子项</td>
+<td>组成关系；父项仍有主要工作类型</td>
+<td>结构层级不能代替交付定义</td>
+</tr>
+<tr>
+<td>待整理、研究中、实现中、待审阅</td>
+<td>阶段摘要/现有状态</td>
+<td>不把阶段变化变成类型变化或决策目录变化</td>
+</tr>
+<tr>
+<td>已完成、取消、重复、不采用、延期</td>
+<td>关闭/继续处理依据与去向</td>
+<td>“研究后不采用”可完成研究；撤回计划不代表功能实现</td>
+</tr>
+</tbody>
+</table></div>
+<p><a id="scenarios"></a></p>
+<h2 id="04--30-个长期协作场景覆盖与反例">04 · 30 个长期协作场景：覆盖与反例</h2>
+<p>“已发生”来自当前仓库/Issue；“已讨论”来自项目资料；“长期推演”是假设场景，用来检查模板能否表达需求，<strong>不是声称这些事故已经发生</strong>。每条包含分类理由与额外信息需求；有些场景应更新原项或继续讨论，不应该新建 Issue。项目来源见前文与<a href="#mapping">原候选映射</a>。</p>
+<div class="filters"><label>搜索场景<input type="search" id="scenario-search" placeholder="例如 Prompt、交接、回放"></label><label>分类<select id="scenario-kind"><option value="all">全部</option><option value="feature">功能</option><option value="bug">缺陷</option><option value="research">研究</option><option value="decision">决策</option><option value="maintenance">维护</option><option value="none">不新建 Issue / 更新原项</option></select></label><button type="button" id="scenarios-expand">展开当前结果</button><button type="button" id="scenarios-reset">重置</button><span id="scenario-count" role="status" aria-live="polite">30 个场景</span></div><p id="no-scenarios" hidden>没有匹配场景，请调整筛选。</p><div class="scenario-list"><details class="scenario" data-kinds="feature" data-search="S01 新增外围历史回放 已讨论：E08/E12 功能 交付的是用户能查看的外围时间/I/O 回放能力。 输入提交、输出返回时点、历史快照、失败/缺失态；禁止内部 agent 轨迹采集。" id="scenario-S01"><summary><span class="sid">S01</span><strong>新增外围历史回放</strong><span class="tag">功能</span></summary><div class="scenario-body"><p class="basis">已讨论：E08/E12</p><p>交付的是用户能查看的外围时间/I/O 回放能力。</p><p><b>应补内容：</b>输入提交、输出返回时点、历史快照、失败/缺失态；禁止内部 agent 轨迹采集。</p></div></details><details class="scenario" data-kinds="bug" data-search="S02 回放提前显示尚未返回的结果 长期推演：基于 U2 边界 缺陷 违反已明确的外围时间语义；不因根因未知而改成泛研究。 最小事件序列、目标时点、实际/期望显示、版本与回归用例。" id="scenario-S02"><summary><span class="sid">S02</span><strong>回放提前显示尚未返回的结果</strong><span class="tag">缺陷</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 U2 边界</p><p>违反已明确的外围时间语义；不因根因未知而改成泛研究。</p><p><b>应补内容：</b>最小事件序列、目标时点、实际/期望显示、版本与回归用例。</p></div></details><details class="scenario" data-kinds="research" data-search="S03 验证 DSH 插件的节点配置隔离 已讨论：E07 研究 先回答实际接口能否隔离，而不是先承诺实现。 版本/配置组合、正反例、外围 I/O、证据限度和结束条件。" id="scenario-S03"><summary><span class="sid">S03</span><strong>验证 DSH 插件的节点配置隔离</strong><span class="tag">研究</span></summary><div class="scenario-body"><p class="basis">已讨论：E07</p><p>先回答实际接口能否隔离，而不是先承诺实现。</p><p><b>应补内容：</b>版本/配置组合、正反例、外围 I/O、证据限度和结束条件。</p></div></details><details class="scenario" data-kinds="decision" data-search="S04 敲定镜像与节点能力的配置边界 已讨论：E06 / U2 决策 分层方向已明确，仍需选择字段、覆盖规则及模块交接。 已确认边界、待选格式、真实方案比较、配置生效条件与交接。" id="scenario-S04"><summary><span class="sid">S04</span><strong>敲定镜像与节点能力的配置边界</strong><span class="tag">决策</span></summary><div class="scenario-body"><p class="basis">已讨论：E06 / U2</p><p>分层方向已明确，仍需选择字段、覆盖规则及模块交接。</p><p><b>应补内容：</b>已确认边界、待选格式、真实方案比较、配置生效条件与交接。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S05 制定并部署 Issue 分类与模板 已发生：Issue #6 维护 最终交付含正式决定、模板文件、指南与入口验证。 保留场景、模板变更、CLI/API 等价内容、同源字段与验证证据。" id="scenario-S05"><summary><span class="sid">S05</span><strong>制定并部署 Issue 分类与模板</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">已发生：Issue #6</p><p>最终交付含正式决定、模板文件、指南与入口验证。</p><p><b>应补内容：</b>保留场景、模板变更、CLI/API 等价内容、同源字段与验证证据。</p></div></details><details class="scenario" data-kinds="decision" data-search="S06 敲定第一版 high level 范围 已讨论：E01 决策 完成点是明确用户结果、版本切片与非目标。 只读前端、外围历史、三 Harness 和环境分层；决定与后续实施去向。" id="scenario-S06"><summary><span class="sid">S06</span><strong>敲定第一版 high level 范围</strong><span class="tag">决策</span></summary><div class="scenario-body"><p class="basis">已讨论：E01</p><p>完成点是明确用户结果、版本切片与非目标。</p><p><b>应补内容：</b>只读前端、外围历史、三 Harness 和环境分层；决定与后续实施去向。</p></div></details><details class="scenario" data-kinds="research" data-search="S07 比较粗粒度与细粒度工作流收益 已讨论：E15 研究 会议没有实测结论，需要质量、耗时与修正量证据。 可比输入、评分规则、模型/配置基线、反例、停止条件。" id="scenario-S07"><summary><span class="sid">S07</span><strong>比较粗粒度与细粒度工作流收益</strong><span class="tag">研究</span></summary><div class="scenario-body"><p class="basis">已讨论：E15</p><p>会议没有实测结论，需要质量、耗时与修正量证据。</p><p><b>应补内容：</b>可比输入、评分规则、模型/配置基线、反例、停止条件。</p></div></details><details class="scenario" data-kinds="feature" data-search="S08 节点新增所选 Harness 的 MCP 设置 已讨论：B04 功能 在能力已验证的范围内交付配置入口和实际行为。 节点设置与镜像依赖分离；不支持项错误、生成配置与只读显示。" id="scenario-S08"><summary><span class="sid">S08</span><strong>节点新增所选 Harness 的 MCP 设置</strong><span class="tag">功能</span></summary><div class="scenario-body"><p class="basis">已讨论：B04</p><p>在能力已验证的范围内交付配置入口和实际行为。</p><p><b>应补内容：</b>节点设置与镜像依赖分离；不支持项错误、生成配置与只读显示。</p></div></details><details class="scenario" data-kinds="feature" data-search="S09 建立 DSH/Codex/Claude 独立模块 已讨论：B01 功能 当前无产品实现，本项交付三种目标 Harness 的执行能力与适配边界。 共享最小契约、各自原生配置、支持组合与外围结果映射。" id="scenario-S09"><summary><span class="sid">S09</span><strong>建立 DSH/Codex/Claude 独立模块</strong><span class="tag">功能</span></summary><div class="scenario-body"><p class="basis">已讨论：B01</p><p>当前无产品实现，本项交付三种目标 Harness 的执行能力与适配边界。</p><p><b>应补内容：</b>共享最小契约、各自原生配置、支持组合与外围结果映射。</p></div></details><details class="scenario" data-kinds="bug" data-search="S10 Harness 升级后原支持行为失效 长期推演：基于 E17 缺陷 已经承诺的行为被升级破坏，目标是恢复兼容。 最后正常/首个异常版本、相关配置差异、可回退范围和回归证据。" id="scenario-S10"><summary><span class="sid">S10</span><strong>Harness 升级后原支持行为失效</strong><span class="tag">缺陷</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 E17</p><p>已经承诺的行为被升级破坏，目标是恢复兼容。</p><p><b>应补内容：</b>最后正常/首个异常版本、相关配置差异、可回退范围和回归证据。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S11 例行升级依赖并保持既有契约 长期推演：基于 E17 维护 更新工程基线，产品契约保持；若承诺新能力则另按功能范围处理。 依赖版本、兼容矩阵、迁移/回退、实际验证而非只改锁文件。" id="scenario-S11"><summary><span class="sid">S11</span><strong>例行升级依赖并保持既有契约</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 E17</p><p>更新工程基线，产品契约保持；若承诺新能力则另按功能范围处理。</p><p><b>应补内容：</b>依赖版本、兼容矩阵、迁移/回退、实际验证而非只改锁文件。</p></div></details><details class="scenario" data-kinds="feature" data-search="S12 修改节点 Prompt 满足新增业务规则 长期推演：基于 B04 功能 Prompt 是实现载体，主结果是新增业务行为。 新规则、输入/输出与业务校验、Prompt/节点配置身份、反例。" id="scenario-S12"><summary><span class="sid">S12</span><strong>修改节点 Prompt 满足新增业务规则</strong><span class="tag">功能</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 B04</p><p>Prompt 是实现载体，主结果是新增业务行为。</p><p><b>应补内容：</b>新规则、输入/输出与业务校验、Prompt/节点配置身份、反例。</p></div></details><details class="scenario" data-kinds="bug" data-search="S13 模型输出偶发违反既有 schema 长期推演：基于 Gate 契约 缺陷 偶发和根因未知不改变“恢复已约定行为”的目标。 样本与失败频次，外围输入输出、版本和已尝试；无内部日志前置。" id="scenario-S13"><summary><span class="sid">S13</span><strong>模型输出偶发违反既有 schema</strong><span class="tag">缺陷</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 Gate 契约</p><p>偶发和根因未知不改变“恢复已约定行为”的目标。</p><p><b>应补内容：</b>样本与失败频次，外围输入输出、版本和已尝试；无内部日志前置。</p></div></details><details class="scenario" data-kinds="decision" data-search="S14 先决定业务评估准则与通过边界 长期推演：基于 E15 决策 团队需要先选质量定义；随后实验回答是否达标。 目标用户、可接受/不可接受输出、取舍与后续量化方法。" id="scenario-S14"><summary><span class="sid">S14</span><strong>先决定业务评估准则与通过边界</strong><span class="tag">决策</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 E15</p><p>团队需要先选质量定义；随后实验回答是否达标。</p><p><b>应补内容：</b>目标用户、可接受/不可接受输出、取舍与后续量化方法。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S15 补契约测试与 CI 实施 已讨论增量：E16 的后续实现 维护 交付工程验证能力；只有规则研究时才归决策。 实际可运行命令、基线、适用矩阵、失败样例和未覆盖项。" id="scenario-S15"><summary><span class="sid">S15</span><strong>补契约测试与 CI 实施</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">已讨论增量：E16 的后续实现</p><p>交付工程验证能力；只有规则研究时才归决策。</p><p><b>应补内容：</b>实际可运行命令、基线、适用矩阵、失败样例和未覆盖项。</p></div></details><details class="scenario" data-kinds="research" data-search="S16 定位 PDF 任务的资源瓶颈 已讨论：M05 / E07 研究 尚不清楚瓶颈，需要有限测量来选择后续优化。 同输入/环境、峰值与准备耗时、观测位置、预算和停止条件。" id="scenario-S16"><summary><span class="sid">S16</span><strong>定位 PDF 任务的资源瓶颈</strong><span class="tag">研究</span></summary><div class="scenario-body"><p class="basis">已讨论：M05 / E07</p><p>尚不清楚瓶颈，需要有限测量来选择后续优化。</p><p><b>应补内容：</b>同输入/环境、峰值与准备耗时、观测位置、预算和停止条件。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S17 在既有契约内优化缓存与启动 长期推演：基于 B03 维护 优化工程实现并保持承诺；若违反现有时限则按 Bug，新增容量承诺则按功能。 等价结果、污染/隔离反例、前后可比证据及回退。" id="scenario-S17"><summary><span class="sid">S17</span><strong>在既有契约内优化缓存与启动</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 B03</p><p>优化工程实现并保持承诺；若违反现有时限则按 Bug，新增容量承诺则按功能。</p><p><b>应补内容：</b>等价结果、污染/隔离反例、前后可比证据及回退。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S18 迁移历史 schema 并保留旧运行可读 长期推演：基于 E08/B05 维护 主目标是安全演进存储且保持旧数据契约。 旧数据样例、迁移/备份与失败处理、两类配置快照、兼容验证。" id="scenario-S18"><summary><span class="sid">S18</span><strong>迁移历史 schema 并保留旧运行可读</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 E08/B05</p><p>主目标是安全演进存储且保持旧数据契约。</p><p><b>应补内容：</b>旧数据样例、迁移/备份与失败处理、两类配置快照、兼容验证。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S19 执行一次产品发布准备与核对 长期推演：已有版本管理骨架 维护 发布是工程交付；版本规则选择与某次发布执行分开。 版本/提交、实际验收、roadmap/CHANGELOG/tag 对应、失败处理；不自动获得发布授权。" id="scenario-S19"><summary><span class="sid">S19</span><strong>执行一次产品发布准备与核对</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">长期推演：已有版本管理骨架</p><p>发布是工程交付；版本规则选择与某次发布执行分开。</p><p><b>应补内容：</b>版本/提交、实际验收、roadmap/CHANGELOG/tag 对应、失败处理；不自动获得发布授权。</p></div></details><details class="scenario" data-kinds="bug" data-search="S20 发现凭据出现在外围结果中 长期推演：基于 B02/E13 缺陷 + 敏感处理 仍是缺陷；敏感性是处理约束，不需要为每种风险新增主类型。 影响范围和脱敏证据；禁止粘贴凭据，实际权限/共享范围另核对。" id="scenario-S20"><summary><span class="sid">S20</span><strong>发现凭据出现在外围结果中</strong><span class="tag">缺陷 + 敏感处理</span></summary><div class="scenario-body"><p class="basis">长期推演：基于 B02/E13</p><p>仍是缺陷；敏感性是处理约束，不需要为每种风险新增主类型。</p><p><b>应补内容：</b>影响范围和脱敏证据；禁止粘贴凭据，实际权限/共享范围另核对。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S21 重大故障后的永久复盘与改进 长期推演：既有 docs/postmortems 边界 维护；修复项可关联 复盘沉淀机制遗漏，修复行为仍由 Bug 验收，避免复盘替代修复。 已知事实、影响时间线、根因与未知、漏检原因、改进归属和复验。" id="scenario-S21"><summary><span class="sid">S21</span><strong>重大故障后的永久复盘与改进</strong><span class="tag">维护；修复项可关联</span></summary><div class="scenario-body"><p class="basis">长期推演：既有 docs/postmortems 边界</p><p>复盘沉淀机制遗漏，修复行为仍由 Bug 验收，避免复盘替代修复。</p><p><b>应补内容：</b>已知事实、影响时间线、根因与未知、漏检原因、改进归属和复验。</p></div></details><details class="scenario" data-kinds="feature" data-search="S22 只读前端作为多子项的交付总览 已讨论：E09–E14 功能父项 / 结构关系 Epic 表达汇总结构，不是与功能/研究并列的工作性质。 子项的独立主责、接口依赖、共同整体验收；父项不复制全部进度。" id="scenario-S22"><summary><span class="sid">S22</span><strong>只读前端作为多子项的交付总览</strong><span class="tag">功能父项 / 结构关系</span></summary><div class="scenario-body"><p class="basis">已讨论：E09–E14</p><p>Epic 表达汇总结构，不是与功能/研究并列的工作性质。</p><p><b>应补内容：</b>子项的独立主责、接口依赖、共同整体验收；父项不复制全部进度。</p></div></details><details class="scenario" data-kinds="decision" data-search="S23 并行 AI 修改暴露接口解释冲突 长期推演：基于三模块协作 决策或原项澄清 若已有明确合同，按原合同修正；若真实改选边界，更新对应决定和受影响工作项。 冲突的确切字段、双方依据、影响范围、确认及旧选择理由。" id="scenario-S23"><summary><span class="sid">S23</span><strong>并行 AI 修改暴露接口解释冲突</strong><span class="tag">决策或原项澄清</span></summary><div class="scenario-body"><p class="basis">长期推演：基于三模块协作</p><p>若已有明确合同，按原合同修正；若真实改选边界，更新对应决定和受影响工作项。</p><p><b>应补内容：</b>冲突的确切字段、双方依据、影响范围、确认及旧选择理由。</p></div></details><details class="scenario" data-kinds="none" data-search="S24 更换 AI/开发者后接续未完工作 长期推演：M10 异步协作 更新原 Issue 换会话不等于新工作项；主结果没变就补最小续接记录。 当前基线、确认范围、已做/未做、证据、阻塞和下一步；不贴全量会话。" id="scenario-S24"><summary><span class="sid">S24</span><strong>更换 AI/开发者后接续未完工作</strong><span class="tag">更新原 Issue</span></summary><div class="scenario-body"><p class="basis">长期推演：M10 异步协作</p><p>换会话不等于新工作项；主结果没变就补最小续接记录。</p><p><b>应补内容：</b>当前基线、确认范围、已做/未做、证据、阻塞和下一步；不贴全量会话。</p></div></details><details class="scenario" data-kinds="none" data-search="S25 AI 再次推荐已明确否决的设计 已知需求：9/7 决策生命周期讨论 先查旧决定；有新证据再重开 相同问题复用原 ID；没有新事实时不把重复建议登记为新研究。 既有否决边界、新证据或适用范围变化；避免只换措辞重开。" id="scenario-S25"><summary><span class="sid">S25</span><strong>AI 再次推荐已明确否决的设计</strong><span class="tag">先查旧决定；有新证据再重开</span></summary><div class="scenario-body"><p class="basis">已知需求：9/7 决策生命周期讨论</p><p>相同问题复用原 ID；没有新事实时不把重复建议登记为新研究。</p><p><b>应补内容：</b>既有否决边界、新证据或适用范围变化；避免只换措辞重开。</p></div></details><details class="scenario" data-kinds="none" data-search="S26 临时问用法或发散一个新点子 长期协作场景 聊天 / materials 尚无主责、可交付问题或结束条件时先讨论；形成有界研究后再登记。 保留问题与必要背景即可，不强制新 Discussion 平台或登记表。" id="scenario-S26"><summary><span class="sid">S26</span><strong>临时问用法或发散一个新点子</strong><span class="tag">聊天 / materials</span></summary><div class="scenario-body"><p class="basis">长期协作场景</p><p>尚无主责、可交付问题或结束条件时先讨论；形成有界研究后再登记。</p><p><b>应补内容：</b>保留问题与必要背景即可，不强制新 Discussion 平台或登记表。</p></div></details><details class="scenario" data-kinds="none" data-search="S27 多人同时开始解决同一问题 长期协作场景 查重并更新原项归属 避免按 AI 会话或分支重复建立同一验收任务；相似现象不同原因仍可分项。 原 Issue、主责/协作分工、各自范围和暂停重复工作的依据。" id="scenario-S27"><summary><span class="sid">S27</span><strong>多人同时开始解决同一问题</strong><span class="tag">查重并更新原项归属</span></summary><div class="scenario-body"><p class="basis">长期协作场景</p><p>避免按 AI 会话或分支重复建立同一验收任务；相似现象不同原因仍可分项。</p><p><b>应补内容：</b>原 Issue、主责/协作分工、各自范围和暂停重复工作的依据。</p></div></details><details class="scenario" data-kinds="none" data-search="S28 计划延期、重复、撤回或不再需要 长期协作场景 更新原项状态与理由 这些是处理结果，不是工作类型；计划结束不能伪装成实现完成。 未交付范围、保留证据、替代/后续去向、重开条件。" id="scenario-S28"><summary><span class="sid">S28</span><strong>计划延期、重复、撤回或不再需要</strong><span class="tag">更新原项状态与理由</span></summary><div class="scenario-body"><p class="basis">长期协作场景</p><p>这些是处理结果，不是工作类型；计划结束不能伪装成实现完成。</p><p><b>应补内容：</b>未交付范围、保留证据、替代/后续去向、重开条件。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S29 修改开发用 AGENTS 或团队 skill 已知需求：唯一书写决定 维护 团队开发指令治理归工程流程；与产品运行时节点 Harness 配置分开。 定位唯一负责决定、受影响指令与交接；不为一个文件增加多个权威来源。" id="scenario-S29"><summary><span class="sid">S29</span><strong>修改开发用 AGENTS 或团队 skill</strong><span class="tag">维护</span></summary><div class="scenario-body"><p class="basis">已知需求：唯一书写决定</p><p>团队开发指令治理归工程流程；与产品运行时节点 Harness 配置分开。</p><p><b>应补内容：</b>定位唯一负责决定、受影响指令与交接；不为一个文件增加多个权威来源。</p></div></details><details class="scenario" data-kinds="maintenance" data-search="S30 首次接手项目时补一段使用指南 长期协作场景 维护；也可并入相关功能 现有能力的说明修正可属于维护；功能交付本就承诺的指南留在原功能 Issue。 真实当前行为、复核路径与读者场景；不因写文档虚构产品功能。" id="scenario-S30"><summary><span class="sid">S30</span><strong>首次接手项目时补一段使用指南</strong><span class="tag">维护；也可并入相关功能</span></summary><div class="scenario-body"><p class="basis">长期协作场景</p><p>现有能力的说明修正可属于维护；功能交付本就承诺的指南留在原功能 Issue。</p><p><b>应补内容：</b>真实当前行为、复核路径与读者场景；不因写文档虚构产品功能。</p></div></details></div>
+<p><a id="fields"></a></p>
+<h2 id="05--共通字段够用但不把整套流程塞进创建表单">05 · 共通字段：够用，但不把整套流程塞进创建表单</h2>
+<p>推荐八个共通信息块（其中问题描述按类型调整），再加一至两个差异块。YAML 中最终为功能 9、缺陷 10、研究 10、决策 10、维护 9 个输入块；其中“相关决定”和“整理与续接”可按阶段补充。不是要求每次创建都填写一篇设计文档。下面的字段数量是草案结构计数，不是填表耗时测量。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>信息</th>
+<th>创建时</th>
+<th>开工 / 实施前</th>
+<th>交接 / 结题时</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主责</td>
+<td>一名人类主责，设置 Assignees</td>
+<td>范围调整时核对责任</td>
+<td>接手者与主责变更留简短说明</td>
+</tr>
+<tr>
+<td>问题、目标与该类关键问题</td>
+<td>足以判断这是哪项工作；未知如实写</td>
+<td>从宽泛愿望收敛到具体交付切片</td>
+<td>不用实现结果倒写最初的问题</td>
+</tr>
+<tr>
+<td>范围与保留边界</td>
+<td>包含/排除、受影响接口或模块</td>
+<td>明确不可默改的已确认行为</td>
+<td>遗留范围有去向，不能隐形删除验收</td>
+</tr>
+<tr>
+<td>交付物</td>
+<td>明确预计交付内容</td>
+<td>指向所需实际内容/文件，不靠占位路径凑数</td>
+<td>对照真实进入默认分支或确认的产物</td>
+</tr>
+<tr>
+<td>验收</td>
+<td>可检查结果与方法</td>
+<td>补齐基线、反例和适用测试</td>
+<td>填实际结果、版本、未测部分及原因</td>
+</tr>
+<tr>
+<td>依赖</td>
+<td>无 / 具体所需交付；参考与阻塞分开</td>
+<td>阻塞有处理人及解除条件</td>
+<td>子项结束不自动清除未满足的依赖</td>
+</tr>
+<tr>
+<td>相关决定与待决问题</td>
+<td>可先列候选 ID 或待查问题</td>
+<td>查现行正文/alternatives/rejected；必要取舍先写清</td>
+<td>记录实质改变与具体确认；同问题唯一正文</td>
+</tr>
+<tr>
+<td>整理与续接</td>
+<td>可空，不填“默认已确认”</td>
+<td>人参与确认范围；已有授权直接登记</td>
+<td>保留当前基线、已做/未做、阻塞与下一步</td>
+</tr>
+</tbody>
+</table></div>
+<p>AI 可以提取材料、拟分类、补字段、对照决定、提出验收和执行检查；人负责主责归属、目标和关键取舍。续接记录不需要保存“每一步 AI 思考”或整段会话。影响判断的证据需要可核对，但原始聊天路径不是必填项。<a href="../../../docs/development/workflow.md">现行工作指南</a> · <a href="../../../.agents/decisions/development/rejected/D-20260907-mandatory-source-traceability.md">资料关联的拒绝边界</a></p>
+<h3 id="条件信息放在哪一块">条件信息放在哪一块</h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>触发条件</th>
+<th>在相关字段补充</th>
+<th>不作为所有 Issue 的必填项</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>运行错误 / Harness 能力实验</td>
+<td>提交与 Harness 版本、镜像依赖、节点 skill/MCP 配置分别列出；外围 Run/NodeTask/Attempt、时间与 I/O</td>
+<td>不要求容器内 agent 会话、工具调用轨迹或所有开发工具版本</td>
+</tr>
+<tr>
+<td>修改接口、配置或历史 schema</td>
+<td>调用方、兼容策略、旧数据样例、迁移/失败/回退路径</td>
+<td>无数据迁移的文字修正不填一套回滚手册</td>
+</tr>
+<tr>
+<td>非确定性结果</td>
+<td>评分规则、样本/控制条件、实际重复次数与失败次数、外部变化</td>
+<td>不把一次跑通写成稳定；没有观测时写未知，不造数字</td>
+</tr>
+<tr>
+<td>会造成外部写入或资源消耗</td>
+<td>哪些动作在本次范围内、dry-run/预算/权限条件（适用时）</td>
+<td>不把建立 Issue 本身视为所有外部动作的无限授权</td>
+</tr>
+<tr>
+<td>影响多个开发者/Agent 的共享契约</td>
+<td>接口边界、协作分工、并行改动约束、明确交接点</td>
+<td>不为每名执行 Agent 新增一个主责类型</td>
+</tr>
+<tr>
+<td>敏感数据或凭据问题</td>
+<td>脱敏证据、影响范围、实际可共享范围</td>
+<td>不粘贴密钥，也不在本次凭空建立新合规流程</td>
+</tr>
+</tbody>
+</table></div>
+<p>字段按实际问题增减。采用 <code>placeholder</code> 引导填写，不用默认 <code>value</code> 填入“无阻塞 / 已确认 / 已测试”；否则默认文字容易被误作真实判断。后续若有自动化读取字段，稳定的字段 ID 比复杂目录更有用；当前不承诺这种自动化已经存在。</p>
+<p><a id="maintenance-design"></a></p>
+<h3 id="共通加差异还是五类各自维护">共通加差异，还是五类各自维护？</h3>
+<p><strong>本项目更适合“共通规范＋五类差异”，填写入口则保留五份独立完整的模板。</strong> 这里要区分三件事：共同规则在哪里解释、填写者拿到什么、文件是否由工具生成。前两项可以分别采用集中规范和完整表单，不必为了共通规范马上引入生成器。</p>
+<p>现有候选每类有 9–10 个字段。<code>owner</code>、<code>scope</code>、<code>deliverables</code>、<code>acceptance</code>、<code>dependencies</code>、<code>decision_context</code>、<code>handoff</code> 这七项的字段结构与文字完全相同；<code>problem</code> 有共同职责、按类别改写提示；每类再增加 1–2 项专用字段。这个重合度说明共同规则真实存在，适合集中维护。这只是结构对比，并非填表效率测量。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>维护方式</th>
+<th>修改一项共同规则</th>
+<th>修改一类专有需求</th>
+<th>当前成本与判断</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>五类各自定义，不考虑共性</td>
+<td>五份决定和五份表单分别判断，容易漏改或形成不同解释</td>
+<td>类内自由，局部修改直接</td>
+<td>初期最直观；当前共性很多，长期容易反复讨论同一问题，不推荐</td>
+</tr>
+<tr>
+<td><strong>共通决定＋五类差异决定；五份完整表单</strong></td>
+<td>在共通决定修改一次理由，再核对并同步受影响表单；只有某类的例外理由变化时才改其差异决定</td>
+<td>修改该类决定与该类表单</td>
+<td><strong>推荐首版。规则集中、表单可独立阅读；接受手工同步五份表单的成本</strong></td>
+</tr>
+<tr>
+<td>共通数据文件＋五类覆盖数据，生成完整表单</td>
+<td>改共同数据后重建，减少逐份同步</td>
+<td>改该类覆盖数据后重建</td>
+<td>改动频繁时有价值；当前会新增合成规则、工具依赖、生成结果与来源定位的维护成本，先保留为升级方案</td>
+</tr>
+</tbody>
+</table></div>
+<p>完全独立的方式也有适用条件：各类别由不同团队负责、共享字段很少，或同名字段的含义实际不同。当前五类属于同一开发流程、共同主责与验收原则，尚不具备这些条件。另一边也不应把所有差异硬塞进共同模板：复现只对 Bug 有用，研究停止条件只对研究有用，它们保持类内定义。</p>
+<h3 id="七项决定分别负责什么">七项决定分别负责什么</h3>
+<p>以下七个稳定 ID 均已有正式正文，实施并验证后已位于开发流程类的 <code>implemented/</code>；点击可通过稳定索引定位。生命周期按实际落实情况处理。<strong>共同字段和存放/同步方式归第二项，不另增第八份决定。</strong> 原开发流程决定已改为引用分类与模板规范，继续负责 Issue 到 PR 的阶段和交接。正文成稿与表单部署分别记录。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>正式决定的稳定入口</th>
+<th>唯一负责的问题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-classification">D-20260908-issue-classification</a></td>
+<td>五类各自解决什么问题、为什么是这五类、与交付物/模块/阶段的区别、交叉场景及拆分原则；保留三类、四类与多专类的比较理由</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-common">D-20260908-issue-template-common</a></td>
+<td>八个共同字段的职责、必填意图与填写时点、稳定 ID、允许的类内差异、模板存放与同步规则；说明为什么采用共同基线</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-feature">D-20260908-issue-template-feature</a></td>
+<td>功能模板相对共同基线的增删改：用户场景、行为契约、正常/边界结果与交付验收</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-bug">D-20260908-issue-template-bug</a></td>
+<td>缺陷模板相对共同基线的增删改：实际/期望、复现、相关环境、未知证据与恢复既有契约的验收；旧 behavior→problem 迁移</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-research">D-20260908-issue-template-research</a></td>
+<td>研究模板相对共同基线的增删改：未知问题、证据计划、停止条件、否定/不确定结论与结论去向</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-decision">D-20260908-issue-template-decision</a></td>
+<td>决策模板相对共同基线的增删改：需要选择的问题、真实方案比较、影响与落实；仅决策交付的完成边界</td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="../../../.agents/decisions/development/README.md#d-20260908-issue-template-maintenance">D-20260908-issue-template-maintenance</a></td>
+<td>维护模板相对共同基线的增删改：工程目标、改动/兼容/验证计划，及文件实际落地的验收</td>
+</tr>
+</tbody>
+</table></div>
+<p>五份差异决定引用共同基线，只记录本类为何保留、增加、删除或改写字段，以及这些选择对验收的影响。它们不复制共同字段的全部理由。正式表单展开完整内容，填写者不需要先拼接决定或模板片段。</p>
+<h3 id="五类相对共同基线的具体变化">五类相对共同基线的具体变化</h3>
+<p>共同基线的八个字段是 <code>owner</code>、<code>problem</code>、<code>scope</code>、<code>deliverables</code>、<code>acceptance</code>、<code>dependencies</code>、<code>decision_context</code>、<code>handoff</code>。<code>problem</code> 表达“当前问题与目标”，允许类型调整提示。其余共同字段的统一要求由共通决定负责，类内填写解释与必要例外由类决定说明。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>类型</th>
+<th>增加</th>
+<th>改写</th>
+<th>删除</th>
+<th>为什么这样改；本类验收解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>功能</td>
+<td><code>behavior_contract</code></td>
+<td><code>problem</code> 改为用户、场景与新增/改变能力</td>
+<td>无</td>
+<td>“想做什么”不足以实现；补输入输出、正常/失败与接口边界。<code>acceptance</code> 填行为可观察的结果</td>
+</tr>
+<tr>
+<td>缺陷</td>
+<td><code>reproduction</code>、<code>environment</code></td>
+<td><code>problem</code> 改为触发、实际/期望及依据</td>
+<td>无</td>
+<td>修复需要失败条件和相关基线；允许未知或未复现。<code>acceptance</code> 保留恢复契约及回归目标，调查结束不自动等于修复</td>
+</tr>
+<tr>
+<td>研究</td>
+<td><code>evidence_plan</code>、<code>stop_rule</code></td>
+<td><code>problem</code> 改为未知问题与结论用途</td>
+<td>无</td>
+<td>研究需说明怎样取证、何时结束；支持否定结论。<code>acceptance</code> 验有界结论与证据限制，不强制产品实现</td>
+</tr>
+<tr>
+<td>决策</td>
+<td><code>options</code>、<code>impact</code></td>
+<td><code>problem</code> 改为需要选定什么、哪些已确认</td>
+<td>无</td>
+<td>比较选择与落实后果需要单独交代。<code>acceptance</code> 可以只验正式决定，明确已采纳与未实现部分</td>
+</tr>
+<tr>
+<td>维护</td>
+<td><code>change_plan</code></td>
+<td><code>problem</code> 改为当前工程问题与改进目标</td>
+<td>无</td>
+<td>保留改动入口、兼容、适用迁移/回退和验证；<code>acceptance</code> 核对所承诺文件与行为实际落地</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>“增删改考量”不要求每类都制造删除。</strong> 当前没有充分理由删除共同字段：例如研究不写产品代码，仍然需要主责、范围、交付物与验收。某类将来确实不适用某字段时，在其差异决定说明为什么、原字段职责如何处理；若五类都不需要，直接修订共同基线。仅更换提示但含义不变，保留原 ID；职责实质改变则评估迁移，不能用同名掩盖含义变化。</p>
+<h3 id="模板在项目里的存放设计">模板在项目里的存放设计</h3>
+<p>下面是<strong>已落实结构</strong>：七份决定及索引、五份完整表单、issue-templates 使用页与验证记录均已进入默认分支。继续使用既有的 decisions / docs / materials 分工，不增加 AGENTS.md 或新的指令层。</p>
+<pre class="text"><code>Agent_flow/
+├── .agents/decisions/development/
+│   ├── README.md                         # 七个稳定 ID 的导航
+│   └── implemented/
+│       ├── D-20260908-issue-classification.md
+│       ├── D-20260908-issue-template-common.md
+│       ├── D-20260908-issue-template-feature.md
+│       ├── D-20260908-issue-template-bug.md
+│       ├── D-20260908-issue-template-research.md
+│       ├── D-20260908-issue-template-decision.md
+│       └── D-20260908-issue-template-maintenance.md
+├── .github/ISSUE_TEMPLATE/
+│   ├── config.yml
+│   ├── feature.yml                       # 可独立使用的完整表单
+│   ├── bug.yml
+│   ├── research.yml
+│   ├── decision.yml
+│   └── maintenance.yml
+├── docs/development/
+│   ├── workflow.md                       # 协作流程，链接模板用法
+│   └── issue-templates.md                # 选类、填写、CLI/API 使用和简短例子
+├── docs/validation/
+│   ├── 2026-09-08-issue-templates.md      # 实际检查与线上验证
+│   └── 2026-09-08-issue-template-examples.md # 12 例填写验证
+└── materials/artifacts/
+    └── 2026-09-08-issue-6-taxonomy-research/</code></pre>
+<p>第二份决定是共同规范的唯一理由与字段职责来源；五份 YAML 是可直接使用的表单。首版不再放一份需要和它们同步的 <code>common.yml</code>，也不把共通基线暴露成第六类提交入口。共通字段在五份完整表单中有受控重复，接受这一成本以保持直接可读、无需构建即可修改。</p>
+<p><code>docs/development/issue-templates.md</code> 说明怎么使用与实际限制，不重写七份决定的比较理由；CLI/API 参照相应完整表单准备正文，不额外维护第二套五类正式 Markdown 模板。研究 artifact 内的 YAML、Markdown 骨架、填写示例和生成器继续作为候选与研究资料；正式迁入时只选择所需文件，不整包复制或形成第二个正式维护入口。</p>
+<h3 id="以后改一次具体要维护哪里">以后改一次，具体要维护哪里</h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>改动</th>
+<th>需要修改与核对</th>
+<th>不需顺手改动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>修改主责、交付物或交接等共同要求</td>
+<td>共通决定及受影响的五份 YAML；核对字段 ID、控件、必填意图、提示与指南</td>
+<td>没有改变本类例外理由时，不改五份差异决定凑数</td>
+</tr>
+<tr>
+<td>Bug 增加一个确有必要的环境提示</td>
+<td>Bug 差异决定、<code>bug.yml</code> 和受影响示例/说明</td>
+<td>共通决定与其他四类表单</td>
+</tr>
+<tr>
+<td>减少全部类型都不必要的字段</td>
+<td>共通决定、五份 YAML 和引用该字段的说明；查清是否有类内例外</td>
+<td>分类决定，除非分类本身也变了</td>
+</tr>
+<tr>
+<td>调整研究/决策边界或新增主类</td>
+<td>分类决定及实际受影响的类决定、模板和指南</td>
+<td>不机械重写无关决定</td>
+</tr>
+</tbody>
+</table></div>
+<p>首版同步核对的最低内容是：共同字段 ID 是否齐全且无重复、类型与必填意图是否一致、共同文字是否偏移、每类新增/改写是否符合自己的差异决定。由实施 PR 留下实际比较结果；本轮尚未新增自动检查或 CI。现有 artifact 生成脚本已复用共通定义，但它只证明候选可以生成，不证明维护正式生成器更省成本。</p>
+<p>如果共同字段经常变化、出现真实漏同步，或确实要同时交付多个平台格式，再在共通决定中重开“单一数据源生成五份表单”的方案。届时再敲定源文件位置、允许的覆盖规则和生成检查，避免现在先建立一套尚无持续需求的模板框架。</p>
+<p><a id="templates"></a></p>
+<h2 id="06--五类模板逐字段内容与完整文件">06 · 五类模板：逐字段内容与完整文件</h2>
+<p>以下保留研究阶段的候选字段和八份演练，与 <code>draft-templates/*.yml</code> 同源生成；对应 <code>.md</code> 只是当时 CLI/API 正文骨架。正式 <code>.github</code> 已有五份完整 YAML，实际文字与边界以<a href="../../../docs/development/issue-templates.md">使用指南</a>和<a href="../../../.github/ISSUE_TEMPLATE/">正式表单</a>为准，尤其研究的预算耗尽/必要证据边界已有进一步明确。候选目录不整包部署，也不继续作为正式表单的生成来源。</p>
+<p>共通字段的重复说明用于让每份模板可独立填写，不代表未来必须引入模板生成器。这个 artifact 的构建脚本用于保持研究内容一致，是否把生成器纳入正式开发另看维护收益。</p>
+<p><a id="template-feature"></a></p>
+<h3 id="功能与行为改进">功能与行为改进</h3>
+<p><strong>核心问题：要新增或改变什么产品能力？</strong> 完成条件：确认范围内的行为、契约和使用说明已实现并验证。 实现方案中的小范围探索和决策可同项完成；只有独立交付或阻塞其他工作时才拆分。</p>
+<p><a href="draft-templates/feature.yml">查看完整 YAML 候选</a> · <a href="#example-feature">对应填写演练</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填写时点</th>
+<th>内容与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owner</code> · 主负责开发者</td>
+<td>创建必填意图</td>
+<td>填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。</td>
+</tr>
+<tr>
+<td><code>problem</code> · 问题、场景与目标</td>
+<td>创建必填意图</td>
+<td>说明使用者当前遇到的问题与希望得到的结果，避免只写实现技术或文件名。</td>
+</tr>
+<tr>
+<td><code>behavior_contract</code> · 行为与接口契约</td>
+<td>创建必填意图</td>
+<td>用输入、期望输出、边界/失败情况描述新行为；适用时说明读写副作用、兼容性和权限需求。</td>
+</tr>
+<tr>
+<td><code>scope</code> · 范围与边界</td>
+<td>创建必填意图</td>
+<td>写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。</td>
+</tr>
+<tr>
+<td><code>deliverables</code> · 预期交付物</td>
+<td>创建必填意图</td>
+<td>可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。</td>
+</tr>
+<tr>
+<td><code>acceptance</code> · 验收标准与验证方式</td>
+<td>创建必填意图</td>
+<td>列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。</td>
+</tr>
+<tr>
+<td><code>dependencies</code> · 依赖与阻塞</td>
+<td>创建必填意图</td>
+<td>区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。</td>
+</tr>
+<tr>
+<td><code>decision_context</code> · 相关决定与待决问题</td>
+<td>按阶段补充</td>
+<td>可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。</td>
+</tr>
+<tr>
+<td><code>handoff</code> · 整理与续接记录</td>
+<td>按阶段补充</td>
+<td>创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。</td>
+</tr>
+</tbody>
+</table></div>
+<p>创建必填意图表示团队希望创建时具备的信息；当前私有仓库仍须人工就绪核对，不能据此声称 GitHub 会强制阻止提交。</p>
+<p><a id="template-bug"></a></p>
+<h3 id="缺陷与回归修复">缺陷与回归修复</h3>
+<p><strong>核心问题：什么已约定的行为没有成立？</strong> 完成条件：原失败条件下恢复约定行为，相关回归范围有证据。 尚未复现、根因未知仍可以是 Bug；不能用“研究完成”代替修复验收。</p>
+<p><a href="draft-templates/bug.yml">查看完整 YAML 候选</a> · <a href="#example-bug">对应填写演练</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填写时点</th>
+<th>内容与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owner</code> · 主负责开发者</td>
+<td>创建必填意图</td>
+<td>填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。</td>
+</tr>
+<tr>
+<td><code>problem</code> · 实际与期望行为</td>
+<td>创建必填意图</td>
+<td>给出失败现象及现行契约/已确认要求。区分观察与根因猜测，说明影响范围；未确定的期望标为待核对。</td>
+</tr>
+<tr>
+<td><code>reproduction</code> · 复现步骤与已有证据</td>
+<td>创建必填意图</td>
+<td>写可执行步骤、最小输入、发生频次及尝试；未复现如实说明缺什么，不把假设写成根因。</td>
+</tr>
+<tr>
+<td><code>environment</code> · 版本与相关运行条件</td>
+<td>创建必填意图</td>
+<td>只填与问题相关的提交/版本和条件。AgentFlow 运行问题分开记录 Harness、镜像依赖、节点 skill/MCP 配置与外围 I/O；不要求 agent 内部会话日志。</td>
+</tr>
+<tr>
+<td><code>scope</code> · 范围与边界</td>
+<td>创建必填意图</td>
+<td>写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。</td>
+</tr>
+<tr>
+<td><code>deliverables</code> · 预期交付物</td>
+<td>创建必填意图</td>
+<td>可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。</td>
+</tr>
+<tr>
+<td><code>acceptance</code> · 验收标准与验证方式</td>
+<td>创建必填意图</td>
+<td>列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。</td>
+</tr>
+<tr>
+<td><code>dependencies</code> · 依赖与阻塞</td>
+<td>创建必填意图</td>
+<td>区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。</td>
+</tr>
+<tr>
+<td><code>decision_context</code> · 相关决定与待决问题</td>
+<td>按阶段补充</td>
+<td>可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。</td>
+</tr>
+<tr>
+<td><code>handoff</code> · 整理与续接记录</td>
+<td>按阶段补充</td>
+<td>创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。</td>
+</tr>
+</tbody>
+</table></div>
+<p>创建必填意图表示团队希望创建时具备的信息；当前私有仓库仍须人工就绪核对，不能据此声称 GitHub 会强制阻止提交。</p>
+<p><a id="template-research"></a></p>
+<h3 id="研究与证据验证">研究与证据验证</h3>
+<p><strong>核心问题：哪个未知事实需要证据才能判断？</strong> 完成条件：按预定方法回答有界问题，说明结论、证据限度与后续动作；结论可以是否定。 研究产物能独立验收；不要求为每项实现另建研究 Issue。</p>
+<p><a href="draft-templates/research.yml">查看完整 YAML 候选</a> · <a href="#example-research">对应填写演练</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填写时点</th>
+<th>内容与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owner</code> · 主负责开发者</td>
+<td>创建必填意图</td>
+<td>填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。</td>
+</tr>
+<tr>
+<td><code>problem</code> · 研究问题与决策用途</td>
+<td>创建必填意图</td>
+<td>写清要减少哪项不确定性，以及证据将影响哪个功能、方案或开发安排。</td>
+</tr>
+<tr>
+<td><code>evidence_plan</code> · 方法、比较与证据计划</td>
+<td>创建必填意图</td>
+<td>写真实候选或假设、资料/实验方法、比较基线、关键控制条件及反例；单纯资料研究也需判断来源与适用版本。</td>
+</tr>
+<tr>
+<td><code>stop_rule</code> · 结束条件与投入边界</td>
+<td>创建必填意图</td>
+<td>限定研究问题、时间/资源或样本边界；定义支持/不支持/仍不确定时分别交付什么，避免用“继续研究”无限延长。</td>
+</tr>
+<tr>
+<td><code>scope</code> · 范围与边界</td>
+<td>创建必填意图</td>
+<td>写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。</td>
+</tr>
+<tr>
+<td><code>deliverables</code> · 预期交付物</td>
+<td>创建必填意图</td>
+<td>可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。</td>
+</tr>
+<tr>
+<td><code>acceptance</code> · 验收标准与验证方式</td>
+<td>创建必填意图</td>
+<td>列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。</td>
+</tr>
+<tr>
+<td><code>dependencies</code> · 依赖与阻塞</td>
+<td>创建必填意图</td>
+<td>区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。</td>
+</tr>
+<tr>
+<td><code>decision_context</code> · 相关决定与待决问题</td>
+<td>按阶段补充</td>
+<td>可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。</td>
+</tr>
+<tr>
+<td><code>handoff</code> · 整理与续接记录</td>
+<td>按阶段补充</td>
+<td>创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。</td>
+</tr>
+</tbody>
+</table></div>
+<p>创建必填意图表示团队希望创建时具备的信息；当前私有仓库仍须人工就绪核对，不能据此声称 GitHub 会强制阻止提交。</p>
+<p><a id="template-decision"></a></p>
+<h3 id="方案与决策讨论">方案与决策讨论</h3>
+<p><strong>核心问题：团队现在需要选定什么及其边界？</strong> 完成条件：形成自足的正式决定，记录真实比较、理由、确认范围和落实交接。 有主责和结束条件的讨论才是此类；开放式聊天与问答无需一律登记。</p>
+<p><a href="draft-templates/decision.yml">查看完整 YAML 候选</a> · <a href="#example-decision">对应填写演练</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填写时点</th>
+<th>内容与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owner</code> · 主负责开发者</td>
+<td>创建必填意图</td>
+<td>填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。</td>
+</tr>
+<tr>
+<td><code>problem</code> · 需要敲定的问题与适用范围</td>
+<td>创建必填意图</td>
+<td>说明为何现在要决定、影响谁，以及哪些要求已有明确确认。</td>
+</tr>
+<tr>
+<td><code>options</code> · 候选方案与比较依据</td>
+<td>创建必填意图</td>
+<td>比较真实存在的方案、代价和不改变现状的后果；已有否决理由优先引用。若仅有一种合理候选，解释原因，不编造替代方案。</td>
+</tr>
+<tr>
+<td><code>impact</code> · 影响、落实与重开条件</td>
+<td>创建必填意图</td>
+<td>说明对接口、文档、用户或开发流程的影响、实施交接，以及什么新事实值得重新讨论；决定被采纳不等于产品已实现。</td>
+</tr>
+<tr>
+<td><code>scope</code> · 范围与边界</td>
+<td>创建必填意图</td>
+<td>写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。</td>
+</tr>
+<tr>
+<td><code>deliverables</code> · 预期交付物</td>
+<td>创建必填意图</td>
+<td>可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。</td>
+</tr>
+<tr>
+<td><code>acceptance</code> · 验收标准与验证方式</td>
+<td>创建必填意图</td>
+<td>列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。</td>
+</tr>
+<tr>
+<td><code>dependencies</code> · 依赖与阻塞</td>
+<td>创建必填意图</td>
+<td>区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。</td>
+</tr>
+<tr>
+<td><code>decision_context</code> · 相关决定与待决问题</td>
+<td>按阶段补充</td>
+<td>可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。</td>
+</tr>
+<tr>
+<td><code>handoff</code> · 整理与续接记录</td>
+<td>按阶段补充</td>
+<td>创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。</td>
+</tr>
+</tbody>
+</table></div>
+<p>创建必填意图表示团队希望创建时具备的信息；当前私有仓库仍须人工就绪核对，不能据此声称 GitHub 会强制阻止提交。</p>
+<p><a id="template-maintenance"></a></p>
+<h3 id="工程与流程维护">工程与流程维护</h3>
+<p><strong>核心问题：要落实什么工程、文档或协作改进？</strong> 完成条件：指定工程结果和文档/配置已落地并完成适当验证。 不按文件扩展名分类；Prompt 改动也可能是功能或 Bug，模板和开发指令治理通常属于维护。</p>
+<p><a href="draft-templates/maintenance.yml">查看完整 YAML 候选</a> · <a href="#example-maintenance">对应填写演练</a></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>填写时点</th>
+<th>内容与边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>owner</code> · 主负责开发者</td>
+<td>创建必填意图</td>
+<td>填写一名人类主责，并设置 GitHub Assignees；AI/工具可以协助，不能替代责任归属。</td>
+</tr>
+<tr>
+<td><code>problem</code> · 当前问题与工程目标</td>
+<td>创建必填意图</td>
+<td>说明维护原因和可观察改进；适用于重构、依赖升级、文档、测试设施、开发流程与模板。</td>
+</tr>
+<tr>
+<td><code>change_plan</code> · 改动、兼容与验证计划</td>
+<td>创建必填意图</td>
+<td>列受影响入口、必须保持的契约、适用的迁移/回退方式和验证方法；小文档任务可注明不涉及迁移。</td>
+</tr>
+<tr>
+<td><code>scope</code> · 范围与边界</td>
+<td>创建必填意图</td>
+<td>写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。</td>
+</tr>
+<tr>
+<td><code>deliverables</code> · 预期交付物</td>
+<td>创建必填意图</td>
+<td>可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。</td>
+</tr>
+<tr>
+<td><code>acceptance</code> · 验收标准与验证方式</td>
+<td>创建必填意图</td>
+<td>列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。</td>
+</tr>
+<tr>
+<td><code>dependencies</code> · 依赖与阻塞</td>
+<td>创建必填意图</td>
+<td>区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；内部未知项写清由谁处理及何时影响下一步。</td>
+</tr>
+<tr>
+<td><code>decision_context</code> · 相关决定与待决问题</td>
+<td>按阶段补充</td>
+<td>可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。</td>
+</tr>
+<tr>
+<td><code>handoff</code> · 整理与续接记录</td>
+<td>按阶段补充</td>
+<td>创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。</td>
+</tr>
+</tbody>
+</table></div>
+<p>创建必填意图表示团队希望创建时具备的信息；当前私有仓库仍须人工就绪核对，不能据此声称 GitHub 会强制阻止提交。</p>
+<p><a id="examples"></a></p>
+<h2 id="07--八份填写演练包含仅决策否定结论和证据不足">07 · 八份填写演练：包含仅决策、否定结论和证据不足</h2>
+<p>这些是<strong>按候选字段完成的内容演练</strong>，没有提交真实样例 Issue，也没有运行产品或 Container 实验。它们验证“能否把所需信息和未完成事实写清楚”，不能证明 GitHub 表单已经可用或团队填表效率已改善。各例既可展开查看，也在 <code>examples/</code> 保留独立 Markdown。</p>
+<p><a id="example-feature"></a></p>
+<details>
+<summary>[功能] 只读展示一次 Run 的外围时间回放</summary>
+
+<h1 id="功能-只读展示一次-run-的外围时间回放">[功能] 只读展示一次 Run 的外围时间回放</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 取自 E08/E12 方向；只演练验收表达，不声称产品已存在。</p>
+<h2 id="主负责开发者">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="问题场景与目标">问题、场景与目标</h2>
+<p>用户需要理解某次工作流何时提交输入、开始执行和返回结果。第一版只读查看外围节点状态与输入输出。</p>
+<h2 id="行为与接口契约">行为与接口契约</h2>
+<p>模拟事件：10:00 提交输入，10:01 开始，10:04 返回输出。 停在 10:02 时只显示已提交输入、执行中和经过时间；10:04 才显示返回结果。 空历史、缺失事件和失败返回有明确状态；不执行模型或外部写入。</p>
+<h2 id="范围与边界">范围与边界</h2>
+<p>包含历史选择、暂停/跳转及外围 I/O。排除工作流编辑、运行控制、容器内 agent 会话/工具记录；关联当次镜像与节点能力快照。</p>
+<h2 id="预期交付物">预期交付物</h2>
+<p>正式决策正文；实现文件（代码 / 配置 / 模板）；当前说明或使用指南；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />对上述模拟事件，前后跳转恢复相同外围状态，不提前暴露输出。</label></li>
+<li><label><input type="checkbox" />当前配置改变后旧 Run 仍读当次两类快照。</label></li>
+<li><label><input type="checkbox" />无历史/部分记录缺失状态可读；回放不产生新 Run 或外部动作。</label></li>
+</ul>
+<h2 id="依赖与阻塞">依赖与阻塞</h2>
+<p>阻塞：外围历史查询协议可读后才能联调；候选 E08 不是 GitHub Issue 号，正式登记后再关联。</p>
+<h2 id="相关决定与待决问题">相关决定与待决问题</h2>
+<p>用户 U2 已确认外围回放及只读边界；正式产品决定的字段与排序策略待该工作项敲定。</p>
+<h2 id="整理与续接记录">整理与续接记录</h2>
+<p>阶段：待整理的填写演练。 已做：只形成样例文字，未执行产品实验或实现。 确认：示例范围尚未成为真实工作项。 下一步：真实使用时核对主责、基线、范围和实际证据。</p>
+</details>
+
+<p><a id="example-bug"></a></p>
+<details>
+<summary>[缺陷] 跳到结果返回前的时间点仍显示输出</summary>
+
+<h1 id="缺陷-跳到结果返回前的时间点仍显示输出">[缺陷] 跳到结果返回前的时间点仍显示输出</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 基于用户已确认边界构造的未来缺陷，不是实际发现。</p>
+<h2 id="主负责开发者-1">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="实际与期望行为">实际与期望行为</h2>
+<p>假设已有回放实现：停在 10:02 时可看到 10:04 才返回的结果。期望依据是外围接收时间，不应提前出现。影响历史解释。</p>
+<h2 id="复现步骤与已有证据">复现步骤与已有证据</h2>
+<p>使用上一个样例的三条模拟事件。</p>
+<ol type="1">
+<li>加载记录。2. 跳至 10:04。3. 回退至 10:02。 待观察是否残留输出。此处是复现设计，未运行，发生频次未知。</li>
+</ol>
+<h2 id="版本与相关运行条件">版本与相关运行条件</h2>
+<p>产品提交：演练未指定。 前端与历史 schema：真实调查时填。 Harness/镜像/节点配置：若问题仅是模拟记录视图，可注明不适用；不要求内部 agent 日志。</p>
+<h2 id="范围与边界-1">范围与边界</h2>
+<p>修复历史时点状态一致性；保持原输入输出快照，不重设计回放范围。</p>
+<h2 id="预期交付物-1">预期交付物</h2>
+<p>正式决策正文；实现文件（代码 / 配置 / 模板）；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-1">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />先证实缺陷或记录无法复现的条件，不能将设想写成真实故障。</label></li>
+<li><label><input type="checkbox" />已确认复现后，回退至 10:02 不显示 10:04 的输出，再前进可恢复。</label></li>
+<li><label><input type="checkbox" />覆盖直接跳转和从未来回退两条路径。</label></li>
+</ul>
+<h2 id="依赖与阻塞-1">依赖与阻塞</h2>
+<p>需要可运行前端或模拟视图；当前项目尚无运行实现，不能把本样例标为真实可修复 Bug。</p>
+<h2 id="相关决定与待决问题-1">相关决定与待决问题</h2>
+<p>复用外围回放对应决定；若只是恢复原取舍，不新建同问题决定，但交付 PR 仍按现行实质决策增量规则处理。</p>
+<h2 id="整理与续接记录-1">整理与续接记录</h2>
+<p>阶段：待整理的填写演练。 已做：只形成样例文字，未执行产品实验或实现。 确认：示例范围尚未成为真实工作项。 下一步：真实使用时核对主责、基线、范围和实际证据。</p>
+</details>
+
+<p><a id="example-research"></a></p>
+<details>
+<summary>[研究] 验证 DSH 插件能否实现节点能力隔离</summary>
+
+<h1 id="研究-验证-dsh-插件能否实现节点能力隔离">[研究] 验证 DSH 插件能否实现节点能力隔离</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 对应 E07 的一个有界研究切片。</p>
+<h2 id="主负责开发者-2">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="研究问题与决策用途">研究问题与决策用途</h2>
+<p>镜像和节点配置分层已明确；未知的是所选 DSH 版本能否为同镜像的两个节点分别启用/禁用目标插件能力。证据决定首期支持范围。</p>
+<h2 id="方法比较与证据计划">方法、比较与证据计划</h2>
+<p>先固定 DSH 版本和候选配置接口，核对官方接口。 对同一镜像配置节点 A 与 B 的不同能力集合，用规定任务输入输出检查允许与禁止行为。 区分依赖缺失、配置不支持和隔离失效；不读取 agent 内部轨迹。</p>
+<h2 id="结束条件与投入边界">结束条件与投入边界</h2>
+<p>首轮只覆盖一个 Harness 版本、一种环境和两种节点配置，不扩展三 Harness 全矩阵。 当目标问题有支持/不支持/证据不足的依据及限制说明时结束本轮；必要条件缺失则记录阻塞与补证计划，不能标支持。</p>
+<h2 id="范围与边界-2">范围与边界</h2>
+<p>包含接口核对、最小配置实验与支持边界结论；不交付通用插件平台或产品 Runner。</p>
+<h2 id="预期交付物-2">预期交付物</h2>
+<p>正式决策正文；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-2">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />每个结论能关联版本、配置和外围输入输出结果，包含禁止能力的反例检查。</label></li>
+<li><label><input type="checkbox" />明确哪些组合支持、不支持、未测；未知不当成失败或成功。</label></li>
+<li><label><input type="checkbox" />将适用结论浓缩到对应决定，原始实验记录可单独保存。</label></li>
+</ul>
+<h2 id="依赖与阻塞-2">依赖与阻塞</h2>
+<p>真实执行前需具备选定版本、环境及必要认证；实验预算和允许副作用按具体环境确认。</p>
+<h2 id="相关决定与待决问题-2">相关决定与待决问题</h2>
+<p>镜像/能力分层不重开；对 DSH 插件支持范围形成有证据的取舍。</p>
+<h2 id="整理与续接记录-2">整理与续接记录</h2>
+<p>阶段：待整理的填写演练。 已做：只形成样例文字，未执行产品实验或实现。 确认：示例范围尚未成为真实工作项。 下一步：真实使用时核对主责、基线、范围和实际证据。</p>
+</details>
+
+<p><a id="example-decision"></a></p>
+<details>
+<summary>[决策] 敲定首个可用切片的 high level 验收</summary>
+
+<h1 id="决策-敲定首个可用切片的-high-level-验收">[决策] 敲定首个可用切片的 high level 验收</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 对应 E01；已明确边界不重复作为未决项。</p>
+<h2 id="主负责开发者-3">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="需要敲定的问题与适用范围">需要敲定的问题与适用范围</h2>
+<p>团队需选定首个端到端结果及验收切片。已确认三 Harness 模块化、镜像与节点能力分层、前端只读和外围回放；未确认的是首批支持组合、具体版本绑定与验收样例。</p>
+<h2 id="候选方案与比较依据">候选方案与比较依据</h2>
+<p>方案 A：最小执行链路与只读历史同批验收；反馈闭环完整，首批范围较大。 方案 B：执行链路先行，随后单独界面切片；前期范围小，用户检查结果路径需临时入口。 比较依据：实际用户任务、可用开发时间、数据依赖和可验证性；目前没有工作量实测。</p>
+<h2 id="影响落实与重开条件">影响、落实与重开条件</h2>
+<p>明确本次用户结果、每项纳入/延期理由及 E08 的数据依赖。 将产品取舍提炼到唯一正式正文，后续实施项分别交付。 若首批环境验证或用户任务发生实质变化，再评估切片。</p>
+<h2 id="范围与边界-3">范围与边界</h2>
+<p>敲定产品范围与验收；不通过本项声称已有前端或实现全部 Harness。</p>
+<h2 id="预期交付物-3">预期交付物</h2>
+<p>正式决策正文</p>
+<h2 id="验收标准与验证方式-3">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />决定自足地说明用户、场景、范围、非目标、真实比较与最终确认。</label></li>
+<li><label><input type="checkbox" />每个纳入结果有可观察验收和后续归属，不要求为了讨论先建全部 Issue。</label></li>
+<li><label><input type="checkbox" />采纳但未实现的产品方案仍区分于实际能力；必要未知项明确交接。</label></li>
+</ul>
+<h2 id="依赖与阻塞-3">依赖与阻塞</h2>
+<p>环境支持证据可能影响首批矩阵；不阻塞先明确共同边界。</p>
+<h2 id="相关决定与待决问题-3">相关决定与待决问题</h2>
+<p>从 P-20260905-initial-direction 提炼独立问题；不新增 accepted 状态。</p>
+<h2 id="整理与续接记录-3">整理与续接记录</h2>
+<p>阶段：待整理的填写演练。 已做：只形成样例文字，未执行产品实验或实现。 确认：示例范围尚未成为真实工作项。 下一步：真实使用时核对主责、基线、范围和实际证据。</p>
+</details>
+
+<p><a id="example-maintenance"></a></p>
+<details>
+<summary>[维护] 制定并落地 Issue 分类与模板</summary>
+
+<h1 id="维护-制定并落地-issue-分类与模板">[维护] 制定并落地 Issue 分类与模板</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 直接演练 Issue #6 的后续整体交付，当前只完成研究 artifact。</p>
+<h2 id="主负责开发者-4">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="当前问题与工程目标">当前问题与工程目标</h2>
+<p>现有三模板未明确研究、决策及组合交付。目标是形成分类、模板文件、指南与验证的完整闭环。</p>
+<h2 id="改动兼容与验证计划">改动、兼容与验证计划</h2>
+<p>比较现有三类、合并研究/决策的四类、独立五类方案；先采用可审阅候选进行填写演练。 如采用五类，保留 feature/bug/maintenance 路径，新增 research/decision；各文件的共通字段一致。 已有 Issue 保留历史，活跃项按缺口补齐；当前不建立自动门禁。</p>
+<h2 id="范围与边界-4">范围与边界</h2>
+<p>包含相关决定的实质修订、YAML 模板、指南与入口核对；不把所有产品候选一起提交。</p>
+<h2 id="预期交付物-4">预期交付物</h2>
+<p>正式决策正文；实现文件（代码 / 配置 / 模板）；当前说明或使用指南；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-4">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />正式决定确认分类边界、字段与迭代方式，记录取舍。</label></li>
+<li><label><input type="checkbox" />实际 .github 模板与指南落地，并通过结构、链接及样例核对。</label></li>
+<li><label><input type="checkbox" />默认分支合入后核对真实 GitHub 入口再结束 Issue；本 artifact 不能替代完整验收。</label></li>
+</ul>
+<h2 id="依赖与阻塞-4">依赖与阻塞</h2>
+<p>无已知外部阻塞；五类方案及字段本身是本项要研究敲定的内容。</p>
+<h2 id="相关决定与待决问题-4">相关决定与待决问题</h2>
+<p>优先修订 D-20260907-development-workflow；文档生命周期与唯一正文规则沿用，独立问题才另立决定。</p>
+<h2 id="整理与续接记录-4">整理与续接记录</h2>
+<p>当前用户已授权启动 Issue #6，并要求本阶段整理研究 artifact。 本阶段执行：现状核对、分类研究、候选模板与填写演练。 未完成：正式规则落地、PR、GitHub 线上表单验收和 Issue 关闭。</p>
+</details>
+
+<p><a id="example-research-rejected"></a></p>
+<details>
+<summary>[研究演练] 证据支持“不采用当前细拆方案”时如何结束</summary>
+
+<h1 id="研究演练-证据支持不采用当前细拆方案时如何结束">[研究演练] 证据支持“不采用当前细拆方案”时如何结束</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 用于检验否定结论的合法交付路径。下述结题摘要为模拟文字，没有真实实验数据。</p>
+<h2 id="主负责开发者-5">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="研究问题与决策用途-1">研究问题与决策用途</h2>
+<p>比较粗粒度和细粒度是否改善指定样本的结果稳定性，并评估人工修正代价。</p>
+<h2 id="方法比较与证据计划-1">方法、比较与证据计划</h2>
+<p>固定同一数据集、模型/Prompt/环境和评分方式，比较两种方案；保留失败样例。具体样本量和重复次数在研究范围内明确，不在模板写死。</p>
+<h2 id="结束条件与投入边界-1">结束条件与投入边界</h2>
+<p>完成确认过的比较即可回答是否值得当前细拆；若结果不支持，交付不采用的边界与重开条件。材料不足则不能宣称比较完成。</p>
+<h2 id="范围与边界-5">范围与边界</h2>
+<p>只回答当前任务/配置下是否值得细拆，不推广为所有 Agent 工作流结论。</p>
+<h2 id="预期交付物-5">预期交付物</h2>
+<p>正式决策正文；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-5">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />真实执行后记录可核对的比较条件、结果及局限。</label></li>
+<li><label><input type="checkbox" />若不支持细拆，决定保留粗粒度并说明条件及后续重开信号。</label></li>
+<li><label><input type="checkbox" />不创建不需要的实现代码，不将否定结论当作未完成研究。</label></li>
+</ul>
+<h2 id="依赖与阻塞-5">依赖与阻塞</h2>
+<p>依赖可比较切片；本填写演练没有运行它。</p>
+<h2 id="相关决定与待决问题-5">相关决定与待决问题</h2>
+<p>同一问题的未选方案进入 alternatives；只有独立且明确拒绝的方向才归 rejected。</p>
+<h2 id="整理与续接记录-5">整理与续接记录</h2>
+<p>【模拟结题摘要】假设确认范围内的比较已完成，证据不支持当前细拆，选择保留粗粒度；适用范围和重开条件已记录。 这段只验证模板能表达否定结论，未进行真实研究，不能用于关闭任何真实 Issue。</p>
+</details>
+
+<p><a id="example-bug-unreproduced"></a></p>
+<details>
+<summary>[缺陷演练] 尚未复现的节点输入输出串用</summary>
+
+<h1 id="缺陷演练-尚未复现的节点输入输出串用">[缺陷演练] 尚未复现的节点输入输出串用</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 检验模板能保存未知与阻塞；不是实际故障报告。</p>
+<h2 id="主负责开发者-6">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="实际与期望行为-1">实际与期望行为</h2>
+<p>假设用户报告两个并发节点输出串用，违反节点身份与产物归属契约。当前只有脱敏描述，根因未知。</p>
+<h2 id="复现步骤与已有证据-1">复现步骤与已有证据</h2>
+<p>先请求最小外围输入输出及相关 Run/NodeTask/Attempt 身份，再用合成数据尝试复现。 尚未获得实际记录；没有运行复现。不能宣称某模块出错。</p>
+<h2 id="版本与相关运行条件-1">版本与相关运行条件</h2>
+<p>提交、Harness 版本、镜像摘要、节点能力配置均待提供。需要区分三者，不能只写“用的是 Docker”。不要求 agent 内部运行记录。</p>
+<h2 id="范围与边界-6">范围与边界</h2>
+<p>保留缺陷调查和最终修复目标；缺少证据时先补证，不改成没有修复义务的“研究完成”。</p>
+<h2 id="预期交付物-6">预期交付物</h2>
+<p>正式决策正文；实现文件（代码 / 配置 / 模板）；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-6">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />记录补证和复现的实际结果；若仍不能复现，说明下一步与处理依据。</label></li>
+<li><label><input type="checkbox" />在确认触发条件后验证节点归属和并发隔离恢复。</label></li>
+</ul>
+<h2 id="依赖与阻塞-6">依赖与阻塞</h2>
+<p>阻塞：缺少最小输入输出和版本；主责跟进补证。</p>
+<h2 id="相关决定与待决问题-6">相关决定与待决问题</h2>
+<p>核对既有节点隔离与产物契约；无新边界选择时沿用。</p>
+<h2 id="整理与续接记录-6">整理与续接记录</h2>
+<p>待补证；未确认根因、未修复、未验收。缺陷状态与证据状态分别记录。</p>
+</details>
+
+<p><a id="example-parent-workflow"></a></p>
+<details>
+<summary>[功能总览演练] 只读前端完整切片与子项交接</summary>
+
+<h1 id="功能总览演练-只读前端完整切片与子项交接">[功能总览演练] 只读前端完整切片与子项交接</h1>
+<p><strong>填写演练，不是真实 Issue 或执行结果。</strong> 展示父子结构如何复用主类型；不新增 Epic 分类，也未新建子 Issue。</p>
+<h2 id="主负责开发者-7">主负责开发者</h2>
+<p>@TonQiaN（仅填写演练，不代表真实任务分配）</p>
+<h2 id="问题场景与目标-1">问题、场景与目标</h2>
+<p>用户需要从流程总览看到节点配置、镜像环境和外围回放，子模块需独立推进并共同验收。</p>
+<h2 id="行为与接口契约-1">行为与接口契约</h2>
+<p>同一 Run 的流程/Prompt/节点能力/镜像与历史读取保持一致；从页面定位到当次外围结果。</p>
+<h2 id="范围与边界-7">范围与边界</h2>
+<p>父项汇总整体验收和跨模块接口；子项按 E10–E13 等实际独立范围登记，各有主责和验收。</p>
+<h2 id="预期交付物-7">预期交付物</h2>
+<p>正式决策正文；实现文件（代码 / 配置 / 模板）；当前说明或使用指南；研究 / 验证记录</p>
+<h2 id="验收标准与验证方式-7">验收标准与验证方式</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />真实子项各自完成约定交付，父项核对端到端联动与共享身份。</label></li>
+<li><label><input type="checkbox" />未交付子范围明示延期；关闭任一子项不自动表示整个前端完成。</label></li>
+</ul>
+<h2 id="依赖与阻塞-7">依赖与阻塞</h2>
+<p>父子关系表示组成；历史 API 对页面的阻塞另写清所需交付。当前 E 编号只是候选索引。</p>
+<h2 id="相关决定与待决问题-7">相关决定与待决问题</h2>
+<p>父项引用共同范围与接口决定；子项不复制全部决定正文。</p>
+<h2 id="整理与续接记录-7">整理与续接记录</h2>
+<p>阶段：待整理的填写演练。 已做：只形成样例文字，未执行产品实验或实现。 确认：示例范围尚未成为真实工作项。 下一步：真实使用时核对主责、基线、范围和实际证据。</p>
+</details>
+
+<p><a id="handoff"></a></p>
+<h2 id="08--长期维护分类之后如何避免信息再次失效">08 · 长期维护：分类之后如何避免信息再次失效</h2>
+<p>一个 Issue 要能让几天后的另一个人或另一个 AI 找回当前事实，推荐在实质节点更新一段短记录：<strong>当前基线 → 已确认范围 → 已完成与证据 → 未完成/阻塞 → 下一步和责任人</strong>。优先覆盖过时摘要，并在必要处保留变更原因；不要把每次工具调用都变成评论。外部假设变化、接口范围变更和关键审阅意见需要说明影响，普通进度无需制造审批。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>情况</th>
+<th>处理建议</th>
+<th>需要保留的事实</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>研究发现原设想不可行</td>
+<td>研究可按预定问题验收；实现目标需要调整时更新原项或后续范围</td>
+<td>真实证据、适用边界、否定理由与重开条件</td>
+</tr>
+<tr>
+<td>决定采纳，实施另行推进</td>
+<td>决策类 Issue 可在其文件交付和确认范围满足后结束；产品决定仍可留 proposed</td>
+<td>后续实施去向、明确未实现部分；无需虚构新 Issue 号</td>
+</tr>
+<tr>
+<td>调查仍无法复现</td>
+<td>保留 Bug 目标，主责选择补证、缩小调查或按证据处理</td>
+<td>尝试、缺少条件与处理依据，不写“已修复”</td>
+</tr>
+<tr>
+<td>多个 PR 分批交付</td>
+<td>部分 PR 引用工作项；最终对完整验收核对</td>
+<td>每个 PR 自己的 base、决定增量和验证范围</td>
+</tr>
+<tr>
+<td>一个子项已完成</td>
+<td>更新组成关系，父项再验共同结果</td>
+<td>端到端集成、尚未交付子范围，不能只看勾选数</td>
+</tr>
+<tr>
+<td>合并后出现回归</td>
+<td>关联原项/PR，按具体缺陷重新跟进；重大事故留永久复盘</td>
+<td>回归版本、触发条件、修复/回退证据</td>
+</tr>
+<tr>
+<td>重复、取消或延期</td>
+<td>更新原项并说明结果和去向；不创建“重复类 / 延期类”模板</td>
+<td>没做的范围、替代项/后续安排及重开条件</td>
+</tr>
+</tbody>
+</table></div>
+<p>研究/决策的验收与结束边界已在各自正式决定中形成设计，仍需模板和真实使用验证。现行边界包括：每个正式 PR 对自身 base 的实质决策改动、人参与关键确认、同问题唯一决定、proposed 不等于未同意或可自动实施。小改动不为凑规则制造无意义决策；是否合并到相关工作项，应看真实共同问题。<a href="../../../.agents/decisions/development/README.md#d-20260907-development-workflow">开发流程决定</a> · <a href="../../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle">生命周期决定</a></p>
+<h3 id="模板怎样继续完善">模板怎样继续完善</h3>
+<p>建议先用之后一小批真实工作项检查：选类争议在哪里、哪些必要信息要追问、哪些字段总是不适用、是否有人把决定完成误作实现完成、AI 能否凭短摘要续接。可先观察约 10 项作为讨论起点，<strong>不是当前生效的配额或统计承诺</strong>。若研究/决策常分不清且字段高度重合，可回到四类备选；若某种场景反复需要独特验收，再考虑拆模板。</p>
+<p>模板修订本身沿用 Issue → 相关决定 → 模板/指南 → 验证流程。保留既有字段 ID 和文件路径可降低迁移成本；必须变更时明确映射。已关闭 Issue 不批量重写历史；活跃项仅在当前工作需要时补缺口，原始确认和验收不能被新默认值覆盖。功能模板内曾经缺少一个字段，不意味着此前所有工作都自动无效。</p>
+<p><a id="platform"></a></p>
+<h2 id="09--github-落地研究哪些可用哪些不能假定">09 · GitHub 落地研究：哪些可用，哪些不能假定</h2>
+<p>本节是 2026-09-08 对官方文档与当前仓库的核对。平台能力可能继续变化；这里区分公开文档所述能力和本仓库实际验证。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>核对结论</th>
+<th>本次草案处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顶层 <code>type</code></td>
+<td>GitHub 的 Issue Types 在组织层定义；本仓库 owner 为 User</td>
+<td>不写组织级 <code>type:</code>。先用模板入口及标题前缀表示主类；本项尚未新建类别标签。<a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms">表单语法</a> · <a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/managing-issue-types-in-an-organization">组织类型</a></td>
+</tr>
+<tr>
+<td>必填校验</td>
+<td>官方 schema 对 input/textarea/dropdown 的 required 注明仅适用于公开仓库</td>
+<td>保留字段的必填意图，但以人参与的就绪核对保证完整性；不能将私有仓库表单当作门禁。<a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema">表单 schema</a></td>
+</tr>
+<tr>
+<td><code>markdown</code> / <code>render</code></td>
+<td>markdown 说明不随提交保存；textarea 的 render 会把正文放入代码块</td>
+<td>必要信息放实际输入字段。验收不用 <code>render: markdown</code>，保留正常清单语义。<a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema">表单 schema</a></td>
+</tr>
+<tr>
+<td>标签与 Assignees</td>
+<td>自动标签须已存在；顶层 Assignees 是明确配置，不会由“主责”输入自动计算</td>
+<td>候选不预置新标签或固定分配某个人；创建后核对真实 Assignees，未来标签方案按需求补充。<a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms">表单语法</a></td>
+</tr>
+<tr>
+<td>默认分支与空白入口</td>
+<td>模板进入默认分支才可用；blank_issues_enabled=false 也不是禁止所有维护者使用空白入口</td>
+<td>保持原设置，不将它视为访问或就绪控制；最终必须核对真实入口。<a href="https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository">模板配置</a></td>
+</tr>
+<tr>
+<td>条件分支</td>
+<td>本次官方 schema 的已列字段没有提供我们所需的动态显隐方案</td>
+<td>草案使用五份明确表单与条件填写说明，不依赖未经验证的字段联动</td>
+</tr>
+<tr>
+<td>CLI/API</td>
+<td>CLI 可直接给正文文件并指定主责等信息</td>
+<td>五份 Markdown 骨架覆盖同等信息，使用 body-file 提交后回读；不假定网页表单会自动补齐 CLI 正文。<a href="https://cli.github.com/manual/gh_issue_create">GitHub CLI</a></td>
+</tr>
+<tr>
+<td>父子 / 阻塞关系</td>
+<td>GitHub 分别提供 sub-issues 与 blocked-by/blocking</td>
+<td>可作为后续结构表达，正文仍需写清交接条件；本轮未在 #6 创建这些关系或验证本仓库 UI。<a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues">子项</a> · <a href="https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-issue-dependencies">依赖</a></td>
+</tr>
+<tr>
+<td>开放式讨论</td>
+<td>Discussions 适合问答与开放对话，需要启用；本仓库未启用</td>
+<td>沿用飞书/materials 自由讨论；有明确产出与结束条件的决策工作仍放 Issue，不强制启用新入口。<a href="https://docs.github.com/en/discussions/collaborating-with-your-community-using-discussions/about-discussions">Discussions</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>标题前缀是首版轻量选择，也会有被随手改掉的风险。当前用主责整理核对分类；若长期检索/自动化确需稳定机器字段，再比较少量 <code>kind:*</code> 标签与平台原生类型，不同时维护三套互相竞争的权威分类。模块标签、优先级标签和交付物标签也不预先铺满仓库。</p>
+<p>候选表单优先沿用 <code>feature.yml</code> / <code>bug.yml</code> / <code>maintenance.yml</code>，新增 <code>research.yml</code> / <code>decision.yml</code>，避免仅为排序重命名旧入口。每份模板内字段 ID 唯一，同一概念在不同模板中复用相同 ID；不使用跨文件 YAML include 或未验证的继承机制。</p>
+<p><a id="mapping"></a></p>
+<h2 id="10--将原-25-项候选放入新分类">10 · 将原 25 项候选放入新分类</h2>
+<p>映射依据是各候选实际承诺的完成条件，<strong>不是把原来的标签机械翻译</strong>。这张表为研究用重新解释，不直接改写既有 artifact 或批量建立 Issue。尤其注意：原称“产品研究”的 E06 主要输出决定，实验证据在 E07；E03/#6 包含研究阶段但最终是维护交付。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>原候选</th>
+<th>本研究分类</th>
+<th>判断依据 / 当前去向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B01">B01 · DSH / Codex / Claude 独立 Harness 模块与 Adapter</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B02">B02 · 认证 profile、订阅、API key 与 endpoint</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B03">B03 · Runner 与镜像环境核心能力</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B04">B04 · 最小 Workflow、Component 与节点能力配置</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B05">B05 · 运行持久化与节点级恢复</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B06">B06 · 节点任务队列、Worker 与角色共享额度</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B07">B07 · 统一节点自动重试</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#B08">B08 · Workflow 内 Map 与固定 Fork 并行</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E01">E01 · 敲定 high level 功能、目标用户与首个验收切片</a></td>
+<td>决策</td>
+<td>完成点是敲定范围、接口或规则并形成正式决定。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E02">E02 · 版本号、roadmap、changelog 与发布责任</a></td>
+<td>决策</td>
+<td>初版仅决策范围归决策；后来实际版本管理 #4 含文件实施且已关闭，不再把“完全缺少版本管理”当现状。首发/升版语义剩余问题按新范围讨论。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E03">E03 · 尽早敲定并迭代 Issue 类型与模板</a></td>
+<td>维护</td>
+<td>本项已由正式 Issue #6 承接；研究和决定是阶段，最终仍须模板/指南落地。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E04">E04 · 仅决策 Issue 的验收、关闭与审查边界</a></td>
+<td>决策</td>
+<td>模板必需的最小决策验收已纳入 #6，不自动新建重复工作项；其余制度改动另按独立问题判断。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E05">E05 · 统一领域术语、模块责任与最小接口</a></td>
+<td>决策</td>
+<td>完成点是敲定范围、接口或规则并形成正式决定。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E06">E06 · 镜像环境与节点 Harness 配置的需求分层</a></td>
+<td>决策</td>
+<td>虽原称“产品研究”，当前交付是配置边界决定；真正未知能力实验另属 E07。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E07">E07 · 验证镜像环境、节点能力与三种 Harness 配置</a></td>
+<td>研究</td>
+<td>完成点是有界验证与结论，不预先承诺产品实现。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E08">E08 · 外围历史、输入输出与配置快照底座</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E09">E09 · 前端 v1 信息结构与只读验收范围</a></td>
+<td>决策</td>
+<td>完成点是敲定范围、接口或规则并形成正式决定。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E10">E10 · 前端：编排、Prompt 与节点 Harness 能力展示</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E11">E11 · 前端：Container 镜像与物理环境详情</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E12">E12 · 前端：外围运行历史与时间回放</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E13">E13 · 前端：产物、失败证据与运行摘要</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E14">E14 · 前端：队列、角色额度与并行/恢复状态</a></td>
+<td>功能</td>
+<td>完成点是交付产品行为、接口或只读展示，并完成验证。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E15">E15 · 验证工作流拆分粒度与实际业务收益</a></td>
+<td>研究</td>
+<td>完成点是有界验证与结论，不预先承诺产品实现。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E16">E16 · 测试矩阵、预检与版本验收流程</a></td>
+<td>决策</td>
+<td>当前主交付为测试/预检流程决定；若同项明确承诺 CI 实现，可改按维护或按独立验收拆分。</td>
+</tr>
+<tr>
+<td><a href="../2026-09-08-high-level-and-issues/index.html#E17">E17 · 上游 Harness 版本与参考代码更新流程</a></td>
+<td>决策</td>
+<td>当前要求选择上游更新策略，仅决定交付；每次实际升级则通常是维护。</td>
+</tr>
+</tbody>
+</table></div>
+<p><a id="delivery"></a></p>
+<h2 id="11--issue-6-最终交付与验收">11 · Issue #6 最终交付与验收</h2>
+<p>用户要求按七份决定及 Issue 验收实施后，已完成五表、指南、正式填写例、PR 合并和真实 GitHub 页面核对。没有为七份决定另建七个 Issue，也未新建样例 Issue。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="可横向滚动的表格"><table>
+<thead>
+<tr>
+<th>Issue #6 验收</th>
+<th>最终交付与证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 分类与适用示例</td>
+<td>五类按主要完成条件分类，交付物独立；七份决定、30 场景研究与正式指南覆盖交叉归类和拆分</td>
+</tr>
+<tr>
+<td>2. 正式决策正文</td>
+<td>分类、共通、五类差异恰好七份，实际落地后移入 implemented；原流程保留阶段责任并继续 proposed</td>
+</tr>
+<tr>
+<td>3. 可用模板文件</td>
+<td>五份完整 YAML，9 / 10 / 10 / 10 / 9 输入块；共通七字段完全一致，problem 与专有内容按类变化</td>
+</tr>
+<tr>
+<td>4. 使用指南</td>
+<td><a href="../../../docs/development/issue-templates.md">Issue 填写指南</a>解释网页、CLI/API、Assignees、仅决定交付、迁移和手工同步</td>
+</tr>
+<tr>
+<td>5. 代表性填写验证</td>
+<td><a href="../../../docs/validation/2026-09-08-issue-template-examples.md">12 个正式演练</a>，114 填写块；覆盖功能、缺陷、Container 研究、high level、版本/流程维护、否定、缺证据及未复现</td>
+</tr>
+<tr>
+<td>6. 入口与一致性</td>
+<td>6 YAML 校验；收尾核对 41 正式 Markdown、211 本地链接、70 锚点；浏览器实际核对选择器、五表及四交付选项，研究多选与清单 Preview 正常</td>
+</tr>
+<tr>
+<td>7. 完整交付核对</td>
+<td>PR #7 / #8 已合并，默认分支文件读回一致，七项验收已在 Issue 更新并关闭；<a href="sources/issue-6-completed.json">关闭快照</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>研究/决策可仅选择正式决定；已承诺模板或代码仍须交付。实际研究可以否定原假设，但缺必要证据或预算耗尽不自动完成。此项只落实模板与文档能力：没有产品运行、Container 实验、CLI/API 样例创建或长期维护成本实测；私有仓库 required 不能视作自动门禁。</p>
+<p>正式维护位置保持唯一：分类与共通/类差异理由归七份决定，实际五表归 <code>.github/ISSUE_TEMPLATE/</code>，指南说明当前使用，验证记录保存真实证据。本 artifact 继续保存研究和历史比较。后续以真实选类冲突、字段负担、漏同步或交接问题触发修订。</p>
+<p><a id="sources"></a></p>
+<h2 id="12--来源研究方法与限度">12 · 来源、研究方法与限度</h2>
+<p>本研究优先使用当前仓库、用户明确要求和真实 Issue / PR；外部仅选官方文档与项目自身模板。检索与取样覆盖了项目材料到当前默认分支的主要流程演变，并定向阅读会议中的异步协作、研究任务、分类与轻量流程段落。没有重新下载飞书聊天或云端逐字稿，没有将旧 AI 纪要作为事实补充。材料源的摘要保存在 <a href="sources/provenance.json">provenance.json</a>，研究阶段 Issue 正文保存在 <a href="sources/issue-6.json">Issue #6 快照</a>。</p>
+<p>初轮查找 GitHub 表单/类型能力、真实开源模板与 RFC 工作方式；随后针对个人仓库、私有表单校验、主责/标签、父子依赖、CLI 和研究/决策差异做定向核对。停止检索的原因是：当前分类和字段涉及的主要平台假设已经有官方依据，项目场景能够映射，剩余不确定性主要需要本团队真实填写和实施验证，继续搜更多模板难以替代这些证据。</p>
+<ul>
+<li><strong>事实来源</strong>：当前仓库与远端快照、用户原话、所列会议时间段、官方文档。</li>
+<li><strong>确认与具体设计</strong>：用户已认可五类、共通规范＋五类差异及七项决定组织方式；据此写出正式设计正文，具体字段与验收解释没有冒充用户逐条独立批准。研究原稿不成为第二套正式规则。</li>
+<li><strong>推演与演练</strong>：30 场景中已标明未来假设，八份样例不是真实提交或故障；没有采集团队效率指标或运行性能实验。</li>
+<li><strong>已验证与限度</strong>：GitHub 选择器、五类表单展示、多选与 Markdown 清单预览已实际核对；未试验空白提交拦截、CLI/API 新建样例、长期分类一致性、真实填表负担或多人审阅效果。静态/展示检查不能证明这些结果。</li>
+<li><strong>时间性</strong>：外部主分支和 GitHub 文档可能变化，访问日为 2026-09-08；页面未给明确更新日时不编造发布日期。当前仓库状态与较早 artifact 快照分别表达。</li>
+</ul>
+<p><a href="sources/research-ledger.json">研究来源与主张索引</a> · <a href="validation.md">构建与验证记录</a> · <a href="README.md">artifact 入口说明</a></p>
+</main></div><footer>2026-09-08 · 五类模板已实施并验证；本页保留研究与比较 · 外部链接需网络，正文与交互可离线使用</footer><script>'use strict';
+(() => {
+  const search = document.getElementById('scenario-search');
+  const kind = document.getElementById('scenario-kind');
+  const cards = Array.from(document.querySelectorAll('.scenario'));
+  const count = document.getElementById('scenario-count');
+  const empty = document.getElementById('no-scenarios');
+  function filter() {
+    const query = search.value.trim().toLocaleLowerCase();
+    let n = 0;
+    cards.forEach(card => {
+      const visible = (kind.value === 'all' || card.dataset.kinds.split(',').includes(kind.value)) && card.dataset.search.toLocaleLowerCase().includes(query);
+      card.hidden = !visible;
+      if (visible) n++;
+    });
+    count.textContent = `${n} / ${cards.length} 个场景`;
+    empty.hidden = n !== 0;
+  }
+  search.addEventListener('input', filter);
+  kind.addEventListener('change', filter);
+  document.getElementById('scenarios-expand').addEventListener('click', () => cards.forEach(card => {if (!card.hidden) card.open = true;}));
+  document.getElementById('scenarios-reset').addEventListener('click', () => {search.value = '';kind.value = 'all';cards.forEach(card => {card.open = false;});filter();});
+  const meanings = {
+    feature: '建议归为功能：交付新增或改变的产品行为，范围内可以包含必要研究与决策。',
+    bug: '建议归为缺陷：先核对已约定行为；根因未知或尚未复现仍须保留修复目标。',
+    research: '建议归为研究：回答有界未知事实，明确证据方法、限制与停止条件。',
+    decision: '建议归为决策：比较真实方案，形成自足决定、确认范围和落实交接。',
+    maintenance: '建议归为维护：落实工程、模板或指南等结果；不是只写研究结论。'
+  };
+  const chooser = document.getElementById('work-question');
+  const result = document.getElementById('chooser-result');
+  chooser.addEventListener('change', () => {
+    result.textContent = meanings[chooser.value] || '这是分类辅助，不替代范围判断；混合工作按主结果分类。';
+    if (meanings[chooser.value]) {
+      const a = document.createElement('a');
+      a.href = '#template-' + chooser.value;
+      a.textContent = '查看模板 →';
+      result.appendChild(a);
+    }
+  });
+  function revealAnchor() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id) return;
+    const element = document.getElementById(id);
+    if (!element) return;
+    if (element.matches('.scenario') && element.hidden) {search.value='';kind.value='all';filter();}
+    if (element.tagName === 'DETAILS') element.open = true;
+    if (id.startsWith('example-')) {
+      const block = element.parentElement.tagName === 'P' ? element.parentElement : element;
+      const next = block.nextElementSibling;
+      if (next && next.tagName === 'DETAILS') next.open = true;
+    }
+  }
+  window.addEventListener('hashchange', revealAnchor);
+  window.addEventListener('beforeprint', () => document.querySelectorAll('details').forEach(d => {d.dataset.wasOpen = String(d.open);d.open = true;}));
+  window.addEventListener('afterprint', () => document.querySelectorAll('details').forEach(d => {d.open = d.dataset.wasOpen === 'true';}));
+  filter();revealAnchor();
+})();
+</script></body></html>

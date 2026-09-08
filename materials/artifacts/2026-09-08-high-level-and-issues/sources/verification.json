@@ -1,0 +1,98 @@
+{
+  "artifact_status": "discussion only; no issue creation, formal decisions, templates, product code, experiments, PR or release actions",
+  "created_at": "2026-09-08T15:09:04.741243+08:00",
+  "chat": {
+    "retrieved_at": "2026-09-08T14:51:48+08:00",
+    "method": "lark-cli im +chat-messages-list --chat-id oc_eb140c121212f8735df117ba5bb4ffad --as user --order asc --page-size 50 --page-all --page-limit 20 --format json",
+    "ok": true,
+    "pagination": {
+      "complete": true,
+      "pages": 1,
+      "items": 27
+    },
+    "has_more": false,
+    "message_count": 27,
+    "project_message_count": 25,
+    "latest_message_time": "2026-09-08 12:34",
+    "changed_or_new_project_messages": [],
+    "compared_fields": [
+      "content",
+      "updated",
+      "update_time",
+      "deleted"
+    ],
+    "archive_reference": "materials/chats/2026-09-08-feishu-xuan/messages.json",
+    "read_scope": "All API-visible messages in the named P2P; two early greetings excluded from project analysis; no thread IDs returned; no guarantee for deleted or inaccessible history"
+  },
+  "meeting": {
+    "source_kind": "Previously saved original Feishu Minutes TXT export, fully reread during initial artifact preparation; cloud transcript not refreshed",
+    "meeting_date": "2026-09-05",
+    "organization_from_saved_metadata": "COE",
+    "title": "AgentFlow项目启动筹备会议",
+    "duration_seconds_metadata": 6931,
+    "duration_seconds_export_header": 6930,
+    "blocks": 619,
+    "first_utterance": "01:06",
+    "last_utterance": "01:54:51",
+    "ai_summary_used": false
+  },
+  "repository": {
+    "head": "ec967fdc7a0e5447a43239652f339f50112b342d",
+    "branch": "main",
+    "remote_refreshed": false,
+    "preexisting_changes": "Untracked materials/chats/ left unchanged"
+  },
+  "source_file_hashes": [
+    {
+      "path": "materials/chats/2026-09-08-feishu-xuan/messages.json",
+      "bytes": 29648,
+      "sha256": "8383688ddf2a3fb53cef8f363039b82ca4054fd1b4cb06757d5e2888a68e32f8"
+    },
+    {
+      "path": "materials/chats/2026-09-08-feishu-xuan/chat.md",
+      "bytes": 21124,
+      "sha256": "1f64dba68ea0fe1b93ab1fb25bd2a3546027c81854ac576765f95d45684f1497"
+    },
+    {
+      "path": "materials/artifacts/coe-meeting-2026-09-05/sources/transcript.txt",
+      "bytes": 96314,
+      "sha256": "ed194b641e999593b459944b0c3666b57a0a1911bf57c326663f242d690d6ee2"
+    },
+    {
+      "path": "materials/artifacts/coe-meeting-2026-09-05/sources/metadata.json",
+      "bytes": 826,
+      "sha256": "7e791f90bf0aba6276622182d6560a24df2514b272d48333e8ec7cbd5489ae7b"
+    },
+    {
+      "path": "materials/chats/2026-09-08-feishu-xuan/references/layerfs-0.1.4-roadmap.md",
+      "bytes": 8476,
+      "sha256": "c7da178028c59e6d6d3feb91243753c5037af5ef4f50636c0567a732042194bc"
+    },
+    {
+      "path": "docs/README.md",
+      "bytes": 1177,
+      "sha256": "d9d82e344f5532faf6f848a891e27564d6c404443893019fd3d6d240065ed8ea"
+    },
+    {
+      "path": "docs/development/workflow.md",
+      "bytes": 6448,
+      "sha256": "f949a40de44fe2b1109fc211cf1a7a437263961d921e0a20892a4fc429475da3"
+    },
+    {
+      "path": ".agents/decisions/development/proposed/D-20260907-development-workflow.md",
+      "bytes": 13895,
+      "sha256": "7cbcadab0015e91fb914cb4a4faa49eea09d09a619d741938708b84987437a52"
+    }
+  ],
+  "clarification_revision": {
+    "updated_at": "2026-09-08T15:55:00+08:00",
+    "source": "sources/user-clarifications.md",
+    "source_sha256": "b7f880e5e9d187d4fb81fb1875e56abee1f526a6510fda04467fbe595e37aeab",
+    "affected_candidate_count": 19,
+    "candidate_count_unchanged": 25,
+    "chat_refetched": false,
+    "cloud_transcript_refetched": false,
+    "original_source_hashes_rechecked": "8 of 8 unchanged",
+    "scope": "Artifact content only; no Issue or formal decision workflow started"
+  }
+}

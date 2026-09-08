@@ -1,0 +1,294 @@
+{
+  "checked_at": "2026-09-08T17:17:19.014011+08:00",
+  "scope": "Static syntax, content consistency, local references and preserved source files; not browser or GitHub UI QA",
+  "status": "passed",
+  "checks": {
+    "yaml_round_trip_feature": {
+      "passed": true,
+      "detail": "Ruby YAML.safe_load 与 JSON 字段规格逐值比较"
+    },
+    "form_structure_feature": {
+      "passed": true,
+      "detail": {
+        "input_blocks": 9,
+        "ids": [
+          "owner",
+          "problem",
+          "behavior_contract",
+          "scope",
+          "deliverables",
+          "acceptance",
+          "dependencies",
+          "decision_context",
+          "handoff"
+        ],
+        "fixed_assignees_labels_type": false
+      }
+    },
+    "yaml_round_trip_bug": {
+      "passed": true,
+      "detail": "Ruby YAML.safe_load 与 JSON 字段规格逐值比较"
+    },
+    "form_structure_bug": {
+      "passed": true,
+      "detail": {
+        "input_blocks": 10,
+        "ids": [
+          "owner",
+          "problem",
+          "reproduction",
+          "environment",
+          "scope",
+          "deliverables",
+          "acceptance",
+          "dependencies",
+          "decision_context",
+          "handoff"
+        ],
+        "fixed_assignees_labels_type": false
+      }
+    },
+    "yaml_round_trip_research": {
+      "passed": true,
+      "detail": "Ruby YAML.safe_load 与 JSON 字段规格逐值比较"
+    },
+    "form_structure_research": {
+      "passed": true,
+      "detail": {
+        "input_blocks": 10,
+        "ids": [
+          "owner",
+          "problem",
+          "evidence_plan",
+          "stop_rule",
+          "scope",
+          "deliverables",
+          "acceptance",
+          "dependencies",
+          "decision_context",
+          "handoff"
+        ],
+        "fixed_assignees_labels_type": false
+      }
+    },
+    "yaml_round_trip_decision": {
+      "passed": true,
+      "detail": "Ruby YAML.safe_load 与 JSON 字段规格逐值比较"
+    },
+    "form_structure_decision": {
+      "passed": true,
+      "detail": {
+        "input_blocks": 10,
+        "ids": [
+          "owner",
+          "problem",
+          "options",
+          "impact",
+          "scope",
+          "deliverables",
+          "acceptance",
+          "dependencies",
+          "decision_context",
+          "handoff"
+        ],
+        "fixed_assignees_labels_type": false
+      }
+    },
+    "yaml_round_trip_maintenance": {
+      "passed": true,
+      "detail": "Ruby YAML.safe_load 与 JSON 字段规格逐值比较"
+    },
+    "form_structure_maintenance": {
+      "passed": true,
+      "detail": {
+        "input_blocks": 9,
+        "ids": [
+          "owner",
+          "problem",
+          "change_plan",
+          "scope",
+          "deliverables",
+          "acceptance",
+          "dependencies",
+          "decision_context",
+          "handoff"
+        ],
+        "fixed_assignees_labels_type": false
+      }
+    },
+    "entry_config": {
+      "passed": true,
+      "detail": {
+        "blank_issues_enabled": false
+      }
+    },
+    "example_feature": {
+      "passed": true,
+      "detail": {
+        "kind": "feature",
+        "fields": 9,
+        "real_product_test": false
+      }
+    },
+    "example_bug": {
+      "passed": true,
+      "detail": {
+        "kind": "bug",
+        "fields": 10,
+        "real_product_test": false
+      }
+    },
+    "example_research": {
+      "passed": true,
+      "detail": {
+        "kind": "research",
+        "fields": 10,
+        "real_product_test": false
+      }
+    },
+    "example_decision": {
+      "passed": true,
+      "detail": {
+        "kind": "decision",
+        "fields": 10,
+        "real_product_test": false
+      }
+    },
+    "example_maintenance": {
+      "passed": true,
+      "detail": {
+        "kind": "maintenance",
+        "fields": 9,
+        "real_product_test": false
+      }
+    },
+    "example_research-rejected": {
+      "passed": true,
+      "detail": {
+        "kind": "research",
+        "fields": 10,
+        "real_product_test": false
+      }
+    },
+    "example_bug-unreproduced": {
+      "passed": true,
+      "detail": {
+        "kind": "bug",
+        "fields": 10,
+        "real_product_test": false
+      }
+    },
+    "example_parent-workflow": {
+      "passed": true,
+      "detail": {
+        "kind": "feature",
+        "fields": 9,
+        "real_product_test": false
+      }
+    },
+    "scenario_data": {
+      "passed": true,
+      "detail": {
+        "count": 30,
+        "basis_counts": {
+          "已讨论：E08/E12": 1,
+          "长期推演：基于 U2 边界": 1,
+          "已讨论：E07": 1,
+          "已讨论：E06 / U2": 1,
+          "已发生：Issue #6": 1,
+          "已讨论：E01": 1,
+          "已讨论：E15": 1,
+          "已讨论：B04": 1,
+          "已讨论：B01": 1,
+          "长期推演：基于 E17": 2,
+          "长期推演：基于 B04": 1,
+          "长期推演：基于 Gate 契约": 1,
+          "长期推演：基于 E15": 1,
+          "已讨论增量：E16 的后续实现": 1,
+          "已讨论：M05 / E07": 1,
+          "长期推演：基于 B03": 1,
+          "长期推演：基于 E08/B05": 1,
+          "长期推演：已有版本管理骨架": 1,
+          "长期推演：基于 B02/E13": 1,
+          "长期推演：既有 docs/postmortems 边界": 1,
+          "已讨论：E09–E14": 1,
+          "长期推演：基于三模块协作": 1,
+          "长期推演：M10 异步协作": 1,
+          "已知需求：9/7 决策生命周期讨论": 1,
+          "长期协作场景": 4,
+          "已知需求：唯一书写决定": 1
+        }
+      }
+    },
+    "candidate_mapping": {
+      "passed": true,
+      "detail": {
+        "count": 25,
+        "kind_counts": {
+          "功能": 14,
+          "决策": 8,
+          "维护": 1,
+          "研究": 2
+        }
+      }
+    },
+    "html_unique_ids": {
+      "passed": true,
+      "detail": {
+        "ids": 171
+      }
+    },
+    "html_scenario_coverage": {
+      "passed": true,
+      "detail": {
+        "cards": 30
+      }
+    },
+    "local_links": {
+      "passed": true,
+      "detail": {
+        "local_links_checked": 73,
+        "anchors_checked": 51,
+        "failures": []
+      }
+    },
+    "offline_assets": {
+      "passed": true,
+      "detail": {
+        "inline_scripts": 1,
+        "inline_styles": 1,
+        "external_assets": [],
+        "network_runtime_verified": false
+      }
+    },
+    "no_unexpanded_sections": {
+      "passed": true,
+      "detail": "HTML 与完整 Markdown 均无构建占位标记；已移除 Markdown 中的交互插槽注释"
+    },
+    "source_files_unchanged": {
+      "passed": true,
+      "detail": {
+        "files_checked": 26,
+        "changed": []
+      }
+    },
+    "tracked_worktree_unchanged": {
+      "passed": true,
+      "detail": "当前 HEAD 上正式文件无暂存或未暂存修改"
+    },
+    "baseline": {
+      "passed": true,
+      "detail": "f3bdd38d2da951de0e1f48646b9e49e7f7154855"
+    },
+    "javascript_syntax": {
+      "passed": true,
+      "detail": "node --check；未执行浏览器交互"
+    }
+  },
+  "not_verified": [
+    "Browser layout, filters and interaction behavior",
+    "GitHub template chooser and form enforcement",
+    "Long-term taxonomy usability and real filling effort",
+    "Product or Container experiments"
+  ]
+}
