@@ -12,6 +12,8 @@ import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
 import { DockerEgress, egressOptions } from './egress.js';
 import type { DockerEgressOptions } from './egress.js';
+import { stateEnvironment } from '../execution/state-binding.js';
+import type { PrivateStateBinding } from '../execution/state-binding.js';
 
 export interface DockerOptions {
   readonly workspaceRoot: string;
@@ -42,8 +44,10 @@ export class DockerBackend implements ExecutionBackend {
   readonly #resources = new Map<string, OwnedResource>();
   readonly #released = new Set<string>();
   readonly #options: Required<DockerOptions>;
+  readonly #binding: PrivateStateBinding | undefined;
+  readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions) {
+  constructor(options: DockerOptions, binding?: PrivateStateBinding) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
       uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024 };
     const config = { ...defaults, ...options };
@@ -58,6 +62,9 @@ export class DockerBackend implements ExecutionBackend {
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
     this.#options = Object.freeze({ ...config, network: config.network === 'none' ? 'none' : egressOptions(config.network) });
+    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    this.#binding = binding;
+    this.#stateEnv = stateEnvironment(binding?.environment ?? {});
   }
 
   #owned(resource: ExecutionResource): OwnedResource {
@@ -104,6 +111,7 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#options.sandbox === 'nested-userns-v1') {
       await writeFile(join(owned.directory, 'sandbox-policy.json'), nestedUserNamespacePolicy(), { flag: 'wx', mode: 0o600 });
     }
+    await this.#binding?.prepare(resource, join(owned.directory, 'state'));
   }
 
   async create(resource: ExecutionResource, request: RunnerRequest): Promise<void> {
@@ -129,6 +137,7 @@ export class DockerBackend implements ExecutionBackend {
       '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
     for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
+    for (const [key, value] of Object.entries(this.#stateEnv)) args.push('--env', `${key}=${value}`);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));
     await docker(args);
   }
@@ -242,6 +251,7 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#released.has(resource.id)) return;
     const owned = this.#owned(resource);
     if (!owned.removed) throw new Error('RESOURCE_STILL_OWNED_BY_EXECUTION');
+    await this.#binding?.beforeRelease(resource);
     await rm(owned.directory, { recursive: true, force: true });
     this.#resources.delete(resource.id);
     this.#released.add(resource.id);

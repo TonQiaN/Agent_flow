@@ -1,6 +1,6 @@
 # Harness 与凭据接口（首个组合实施中）
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，现有 DockerBackend 仍拒绝 CODEX_HOME 等未接通的环境配置。不能把以下接口当作已完成的认证 Runner。
+当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。尚未完成真实 provider/Profile 和 Codex 联合执行，不能把以下接口当作已完成的认证 Runner。
 
 ## Harness
 
@@ -22,9 +22,21 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 - `inspect(identity)`：返回身份、generation、revision、remoteStatus=unknown 或 null；不验证远端订阅、token 或额度。
 - `acquire(identity, waitMs)`：按 credentialRef 跨进程独占，默认立即报 busy，最多等待 60 秒。返回的 lease 普通序列化只含元数据。`readSecret()` 仅供受信执行绑定使用。
 - `lease.commitSecret(content, expectedRevision)`：在同一租约内验证旧 revision 与存储 generation/revision，校验新格式后原子替换。调用者须携带生成工作副本时的 revision；旧副本不能冒充最新读取。
-- `lease.release()`：幂等释放。释放后读写失败。运行绑定未来必须先证明旧执行已停止；不能在停止未知时释放给另一任务。
+- `lease.release()`：幂等释放。释放后读写失败。执行绑定先证明旧执行已停止且清理成功；停止未知时不会释放给另一任务。
 - `delete(identity)`：与运行共用同一个锁，只删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
 
-不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。真实 provider codec、登录入口、备份恢复、Profile endpoint 管理和 Runner 秘密绑定继续在 #11/#12 完成。
+不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。真实 provider codec、登录入口、备份恢复、Profile endpoint 管理及真实 provider 执行组合继续在 #11/#12 完成。
+
+## 执行凭据绑定
+
+`FileExecutionCredentialBinding.acquire(store, {identity, credential, stateFile, environment})` 取得一份执行租约。identity 是本次 Run/NodeTask/Attempt，credential 是存储身份；stateFile 是宿主选定的相对位置（例如 codex/auth.json），environment 只能声明 /task/state 下的路径（例如 CODEX_HOME=/task/state/codex）。秘密和源目录不放入 Invocation 或 DockerOptions。
+
+将 binding 作为 `new DockerBackend(options, binding)` 的第二个参数。后端只调用 PrivateStateBinding 的初始化和释放前检查，不读取秘密或判断 provider。绑定为一个资源创建私有目录/0600 文件，不能给两个执行复用。Profile 和 Harness 计划的兼容性仍须由后续组合层验证。
+
+调用顺序为：取得绑定 → Runner.run → binding.finish(runnerResult) → 检查 Harness 与输出 → Runner.release。finish 仅接受来自宿主同一次执行的结果：确认停止且资源已清理才读取副本、用原 revision 条件回存、删除副本并释放租约。非零退出、取消和超时也可能已经刷新，不能跳过收尾。未到准备阶段的异常可调用 abandon；初始化开始后 abandon 拒绝。
+
+finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未接纳新内容，原凭据不被损坏副本覆盖，调用方不能把它当作无异常完成。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
+
+普通序列化只提供凭据元数据和释放状态。真实刷新格式、事件脱敏和账号验证尚未在组合层完成；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 
 接口与真实证据边界见 [本次验证](../validation/2026-09-09-harness-auth-primitives.md)。取舍分别见 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 和 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
