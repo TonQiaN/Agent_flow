@@ -69,7 +69,7 @@ gh issue create --repo TonQiaN/Agent_flow \
 
 `--assignee` 接收实际 GitHub 登录名，正文 owner 仍写主责。`--body-file` 的使用见 [GitHub CLI 文档](https://cli.github.com/manual/gh_issue_create)。API 使用同一正文作为 `body`，并明确设置 `title` 和 `assignees`；例如先准备包含这三个字段的 `issue.json`，再用 `gh api --method POST repos/TonQiaN/Agent_flow/issues --input issue.json`。文件中的换行用 JSON 编码，避免手工 shell 拼接正文。无论入口，创建后核对服务器保存的标题、正文和真实 Assignees；CLI 可用 `gh issue view NUMBER --repo TonQiaN/Agent_flow --json title,body,assignees` 读回。没有为本次演练调用这些创建命令。
 
-Issue 表单由默认分支提供，工作分支的文件检查不能代替默认分支实际显示验证。[GitHub 配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)。当前五表已在工作分支落实，线上入口检查待合并后执行；进度与证据见 [实施验证](../validation/2026-09-08-issue-templates.md)。
+Issue 表单由默认分支提供，工作分支的文件检查不能代替默认分支实际显示验证。[GitHub 配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)。五表已合入默认分支，2026-09-08 已核对选择器与五类表单的字段、提示和交付物展示；结果与边界见 [实施验证](../validation/2026-09-08-issue-templates.md)。
 
 当前仓库私有。GitHub 官方对 input、textarea、dropdown 的 required 校验标注公开仓库限制；本项目按就绪核对补齐信息，不把表单当作自动门禁。正文中的 owner 也不会自动设置 Assignees，提交后的编辑和 CLI/API 入口仍需核对。关闭空白入口不等于取消维护者创建空白 Issue 的能力。以上平台行为边界于 2026-09-08 对照 [表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema) 与 [入口配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)；本次不提交空白 Issue 来试探拦截。
 

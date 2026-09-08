@@ -47,4 +47,4 @@
 ## 确认与变更留痕
 
 - 2026-09-08：当前用户要求采用共通规范并分别记录五类增删改。本轮设计保留缺陷专有证据，并补出核对旧表单发现的 behavior→problem 迁移，不声称用户曾逐字段批准迁移。
-- 2026-09-08：当前用户进一步明确按这些决定及 Issue 验收实施。关联 [Issue #6](https://github.com/TonQiaN/Agent_flow/issues/6)，主负责开发者 TonQiaN；Codex 编写、实施与自查，未进行多人审阅。五表、指南与本地填写演练已落实；默认分支实际入口核对尚未完成，保留 proposed。当前证据和未验范围见 [实施验证](../../../../docs/validation/2026-09-08-issue-templates.md)。
+- 2026-09-08：当前用户进一步明确按这些决定及 Issue 验收实施。关联 [Issue #6](https://github.com/TonQiaN/Agent_flow/issues/6)，主负责开发者 TonQiaN；Codex 编写、实施与自查，未进行多人审阅。五表与指南已通过 PR #7 合入默认分支 b131a6e；12 个填写演练及默认分支选择器、五类表单展示完成核对，据已落实范围移入 implemented。该转换仅覆盖模板与文档能力，不表示产品实现或长期维护效果已验证。实际证据和未验范围见 [实施验证](../../../../docs/validation/2026-09-08-issue-templates.md)。
