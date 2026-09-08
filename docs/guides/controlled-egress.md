@@ -18,4 +18,4 @@ network: {
 
 代理退出使正在执行的任务停止，不能回退直连。任务确认停止并完成采集后，清理同一资源的任务、代理和两张网络；归属不匹配、停止未知或清理失败均保留可见失败。`RunnerResult.capture.network` 记录代理镜像 ID 和允许目标，不能据此推断真实认证通过。
 
-本地联网验收：先准备上述镜像和 alpine:3，再设置 `AGENTFLOW_EGRESS_TESTS=1` 执行 `npm run check`。可用 `AGENTFLOW_PROXY_IMAGE` 明确替换测试镜像。测试访问 example.com 的公开 TLS 服务；当前默认 CI 未启用此网络用例。实际结果及局限见 [联网验证](../validation/2026-09-09-controlled-egress.md)。Profile endpoint、秘密执行绑定和真实模型仍在实施。
+本地联网验收：先准备上述镜像和 alpine:3，再设置 `AGENTFLOW_EGRESS_TESTS=1` 执行 `npm run check`。可用 `AGENTFLOW_PROXY_IMAGE` 明确替换测试镜像。测试访问 example.com 的公开 TLS 服务；当前默认 CI 未启用此网络用例。实际结果及局限见 [联网验证](../validation/2026-09-09-controlled-egress.md)。私有执行绑定已有合成刷新与真实 Docker 验证；Profile endpoint 和真实模型联合执行仍在实施。
