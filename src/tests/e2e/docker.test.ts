@@ -134,3 +134,29 @@ printf verified > /task/outputs/check`;
     assert.equal(await readFile(join(result.capture!.outputsPath, 'check'), 'utf8'), 'verified');
   } finally { await f.cleanup(); }
 });
+
+realTest('Docker: host configuration is readable, immutable and separate from task input and output', async () => {
+  const f = await fixture();
+  try {
+    const request = f.request('set -eu; test ! -e /task/input/protocol; cat /task/config/protocol/outcome.json > /task/outputs/copied.json; if echo changed > /task/config/protocol/outcome.json 2>/dev/null; then exit 90; fi');
+    const result = await f.run({ ...request, invocation: { ...request.invocation, configFiles: [{ name: 'protocol/outcome.json', content: '{"outcome":"accepted"}' }] } });
+    assert.equal(result.exitCode, 0);
+    assert.equal(await readFile(join(result.capture!.outputsPath, 'copied.json'), 'utf8'), '{"outcome":"accepted"}');
+    assert.equal(await readFile(join(f.input, 'answer.txt'), 'utf8'), 'original');
+  } finally { await f.cleanup(); }
+});
+
+realTest('Docker: configuration paths, collisions and limits reject before process startup', async () => {
+  const f = await fixture();
+  try {
+    const invalid = [[{ name: '../escape', content: 'x' }], [{ name: '/absolute', content: 'x' }], [{ name: 'a\\b', content: 'x' }],
+      [{ name: 'a', content: 'x' }, { name: 'a', content: 'y' }], [{ name: 'a', content: 'x' }, { name: 'a/b', content: 'y' }],
+      [{ name: 'huge', content: 'x'.repeat(65537) }], Array.from({ length: 17 }, (_, index) => ({ name: String(index), content: 'x' }))];
+    for (const configFiles of invalid) {
+      const request = f.request('echo should-not-run');
+      const result = await f.run({ ...request, invocation: { ...request.invocation, configFiles } });
+      assert.equal(result.phase, 'failed'); assert.ok(result.diagnostics.includes('PREPARE_FAILED'));
+      assert.equal(result.exitCode, null);
+    }
+  } finally { await f.cleanup(); }
+});

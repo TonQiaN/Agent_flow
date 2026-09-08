@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [真实 Codex 内部沙箱与只读配置](2026-09-09-codex-sandbox.md) |
 | 2026-09-09 | [Harness / 认证接口与私有存储验证](2026-09-09-harness-auth-primitives.md) |
 | 2026-09-09 | [Docker Runner 脚本验证](2026-09-09-docker-runner.md) |
 | 2026-09-09 | [执行基础验证](2026-09-09-execution-foundation.md) |

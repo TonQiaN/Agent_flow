@@ -5,6 +5,8 @@ export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/wor
 export interface Invocation {
   readonly argv: readonly string[];
   readonly env?: Readonly<Record<string, string>>;
+  /** Host-generated, non-secret UTF-8 protocol configuration; mounted read-only. */
+  readonly configFiles?: readonly { readonly name: string; readonly content: string }[];
   /** Relative to the private state directory. Raw evidence, never business outputs. */
   readonly recordFiles?: readonly { readonly id: string; readonly path: string; readonly maxBytes: number }[];
 }
