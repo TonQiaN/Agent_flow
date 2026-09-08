@@ -1,0 +1,7 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"] },
+  "references": [{ "path": "../domain" }, { "path": "../engine" }],
+  "include": ["**/*.ts"],
+  "exclude": ["dist", "**/*.test.ts"]
+}
