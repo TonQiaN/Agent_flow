@@ -29,7 +29,7 @@ export class CodexAdapter implements HarnessAdapter {
     // These TOML values are generated from fixed paths and validated scalars, never arbitrary task config.
     const settings = ['approval_policy="never"', 'cli_auth_credentials_store="file"', 'features.multi_agent=false', 'web_search="disabled"',
       'default_permissions="agentflow"', 'permissions.agentflow.extends=":workspace"', 'permissions.agentflow.network.enabled=false',
-      `permissions.agentflow.filesystem={ ${JSON.stringify(TASK_PATHS.input)}="write", ${JSON.stringify(TASK_PATHS.outputs)}="write", ${JSON.stringify(home)}="deny", ${JSON.stringify(TASK_PATHS.config)}="read" }`];
+      `permissions.agentflow.filesystem={ ${JSON.stringify(TASK_PATHS.input)}="write", ${JSON.stringify(TASK_PATHS.outputs)}="write", ${JSON.stringify(`${home}/auth.json`)}="deny", ${JSON.stringify(`${home}/profile.json`)}="deny", ${JSON.stringify(TASK_PATHS.config)}="read" }`];
     if (config['reasoning'] !== undefined) settings.push(`model_reasoning_effort=${JSON.stringify(config['reasoning'])}`);
     for (const setting of settings) argv.push('-c', setting);
     const configFiles: { name: string; content: string }[] = [];

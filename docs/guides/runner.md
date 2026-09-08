@@ -20,9 +20,13 @@ Runner 从 `@agentflow/engine` 导出；DockerBackend 与 systemClock 从 `@agen
 | /task/work | 固定 cwd，可写临时工作区 |
 | /task/outputs | 待独立 contract 校验的业务交付候选 |
 | /task/state | 私有 HOME 与 Harness 原始记录；不是业务 outputs |
-| /task/config | 只读非秘密配置边界；当前挂载空目录，配置落地在 Harness 集成中接通 |
+| /task/config | 只读非秘密配置边界；Invocation.configFiles 按相对名称注入文本 |
 
 输入来源必须是调用方控制的静止目录快照。复制拒绝符号链接及非普通文件，检查读取期间文件变化；上限为 4096 文件、8192 目录/文件条目、64 层及 256 MiB。它不提供对抗宿主其他进程恶意并发换目录的安全边界。输出树校验尚待后续 contract 收集器，当前不提供工作区磁盘配额。
+
+非秘密 `configFiles: [{name, content}]` 每次创建新文件，最多 16 个、每个 UTF-8 文本 64 KiB，相对路径最多 256 字符/8 层。拒绝绝对路径、越界、重名、父子文件冲突；配置不能从容器修改。真实秘密不应放在此 JSON 描述中，独立认证绑定尚未接通。
+
+宿主可明确选择 `sandbox: 'nested-userns-v1'` 来支持内部 bwrap；默认 `standard` 不变。该策略保留 seccomp 默认拒绝、非 root、空 capabilities 和只读根目录，允许指定 namespace/mount 系统调用以及 bwrap 所需的系统路径；没有任意 seccomp 文件、privileged 或安全选项透传入口。已验证环境及限制见 [沙箱验证](../validation/2026-09-09-codex-sandbox.md)。network 仍只支持 none，不能据此宣称已具备联网 Harness。
 
 后端默认 1 CPU、512 MiB 内存（不额外允许 swap）、128 PIDs、64 MiB /tmp；根文件系统只读，丢弃全部 capabilities 并启用 no-new-privileges。容器使用 `--init`，按已解析镜像 ID 创建。镜像由宿主信任并选择，Runner 不自动 pull。当前只允许 network=none，普通 env 仅允许 LANG、LC_ALL、TZ；其他要求明确失败。尚无认证绑定、受限联网或真实 Harness 支持。
 

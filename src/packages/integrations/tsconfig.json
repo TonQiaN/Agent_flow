@@ -1,7 +1,7 @@
 {
   "extends": "../../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"] },
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"], "resolveJsonModule": true },
   "references": [{ "path": "../domain" }, { "path": "../engine" }],
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "docker/policies/*.json"],
   "exclude": ["dist", "**/*.test.ts"]
 }

@@ -8,9 +8,13 @@
 
 固定容器布局为 /task/input、/task/work、/task/outputs、/task/state。cwd 为 /task/work，HOME 为 /task/state。input 为逐文件复制的可写私有副本，禁止把源目录可写直挂或硬链接进容器；拒绝源树中的符号链接和非普通文件。每次调用分配新的资源 ID 与私有工作区，外部 Run/NodeTask/Attempt 标识只作关联，不复用上次可变目录。
 
-Harness 配置另设统一 /task/config，只读挂载，与可写 input/work/outputs/state 分离。它承载宿主生成的非秘密协议配置，避免用户任务修改 outcome schema 等执行约定；不作为业务输入或 artifacts 交付路径。首个 Harness 切片已验证空配置目录不可写，配置内容落地与认证绑定继续联合实现。
+Harness 配置另设统一 /task/config，只读挂载，与可写 input/work/outputs/state 分离。它承载宿主生成的非秘密协议配置，避免用户任务修改 outcome schema 等执行约定；不作为业务输入或 artifacts 交付路径。配置内容落地及容器中不可写已验证，认证绑定继续联合实现。
 
-Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；任务子目录可写。首个脚本切片只支持 network=none，拒绝其他值；不把无约束 bridge 当成 endpoint 白名单。认证注入、代理 egress 及真实 Harness 属于后续联合切片，未验证前不宣称支持。
+非秘密配置通过 Invocation.configFiles 的相对名称和文本内容注入，逐 Attempt 创建新文件，限制数量/大小并拒绝路径越界、重名与父子文件冲突；不从任务目录寻找配置。认证材料不放入这个 JSON 调用描述，后续独立绑定。
+
+真实 Codex 0.153.4 的 bwrap 需要嵌套 user namespace。Docker 环境增加宿主显式选择的 nested-userns-v1 策略，普通脚本仍使用原默认策略；Adapter 仅声明需要，不能直接切换安全选项。内置策略基于固定提交的 Moby allowlist，增加嵌套 namespace/mount 所需调用并取消与 clone3 冲突的 errno 规则；仍默认拒绝其他调用，不允许 seccomp=unconfined、额外 capabilities 或 privileged。允许 systempaths=unconfined 供 bwrap 建立内部 /proc 挂载，但保持外层私有 PID/IPC、非 root、cap-drop ALL、no-new-privileges、只读根文件系统与资源限制。此能力增加内核可调用面，必须绑定实际环境验证；不推断任意 Linux 主机的 AppArmor/userns 设置均兼容。
+
+Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；input/work/outputs/state 可写。首个脚本切片只支持 network=none，拒绝其他值；不把无约束 bridge 当成 endpoint 白名单。认证注入、代理 egress 及真实 Harness 属于后续联合切片，未验证前不宣称支持。
 
 Runner 接收宿主选定的非秘密 argv；首期普通环境变量只允许 LANG、LC_ALL、TZ，固定目录环境由后端设置。调用参数不进入普通结果。原始 stdout/stderr 与 state 下声明的记录文件是私有原始证据，独立于 outputs。stdout/stderr 在 Docker attach 启动时流式采集，每流默认最多 1 MiB，超限继续排空并标记截断；Docker 自身关闭日志存储，避免重复无限增长。记录文件逐个有界读取，缺失、链接、截断和传输错误均可见，未知编码保留为字节。
 

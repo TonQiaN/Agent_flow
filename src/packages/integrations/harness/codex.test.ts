@@ -32,7 +32,7 @@ test('explicit registry and Codex plan keep prompt, fixed paths and secrets sepa
   assert.equal(plan.configFiles.length, 0);
   assert.ok(plan.requirements.includes('controlled-egress'));
   assert.ok(plan.argv.some(arg => arg.includes('"/task/input"="write"')));
-  assert.ok(plan.argv.some(arg => arg.includes('"/task/state/codex"="deny"')));
+  assert.ok(plan.argv.some(arg => arg.includes('"/task/state/codex/auth.json"="deny"')));
   assert.ok(!JSON.stringify(plan).includes('API_KEY'));
 });
 
