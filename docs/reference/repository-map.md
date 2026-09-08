@@ -1,12 +1,13 @@
 # 仓库结构图
 
-状态：2026-09-07 文档管理骨架。两类决策各自拥有完整生命周期目录；空目录使用 .gitkeep 保留。
+状态：2026-09-08 文档管理与版本管理骨架。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。Roadmap 版本文件按实际规划创建，不预建空目录。
 
 ```text
 Agent_flow/
 ├── AGENTS.md                      # 项目范围的执行入口
 ├── CLAUDE.md -> AGENTS.md
 ├── README.md
+├── CHANGELOG.md                   # 实际变化、Unreleased 与发布记录
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
@@ -27,7 +28,9 @@ Agent_flow/
 │   ├── guides/README.md
 │   ├── development/
 │   │   ├── documentation.md
-│   │   └── workflow.md           # 当前协作流程、模板及能力边界
+│   │   ├── workflow.md           # 当前协作流程、模板及能力边界
+│   │   └── versioning.md         # Roadmap、变更记录及手工发布维护
+│   ├── roadmap/README.md         # 当前规划；具体版本文件按需创建
 │   ├── reference/repository-map.md
 │   ├── validation/               # 实际执行的验证结果与局限
 │   └── postmortems/              # 永久保留的重大事故复盘
