@@ -1,5 +1,6 @@
 export { DockerBackend } from './docker/backend.js';
 export type { DockerOptions } from './docker/backend.js';
+export type { DockerEgressOptions } from './docker/egress.js';
 export { systemClock } from './system-clock.js';
 export { CodexAdapter, CODEX_VERSION } from './harness/codex.js';
 export { FileCredentialStore, CredentialError } from './auth/file-store.js';

@@ -10,11 +10,13 @@ import { docker, attach } from './process.js';
 import type { AttachedProcess } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
+import { DockerEgress, egressOptions } from './egress.js';
+import type { DockerEgressOptions } from './egress.js';
 
 export interface DockerOptions {
   readonly workspaceRoot: string;
   readonly image: string;
-  readonly network?: 'none';
+  readonly network?: 'none' | DockerEgressOptions;
   /** Trusted host choice. The task cannot supply arbitrary Docker security options. */
   readonly sandbox?: 'standard' | 'nested-userns-v1';
   readonly cpus?: number;
@@ -32,6 +34,7 @@ interface OwnedResource {
   attached?: AttachedProcess;
   removed: boolean;
   capture?: RawCapture;
+  egress?: DockerEgress;
 }
 interface Inspected { state: { Status: string; Running: boolean; ExitCode: number }; owner: string }
 
@@ -47,14 +50,14 @@ export class DockerBackend implements ExecutionBackend {
     const allowed = ['workspaceRoot', 'image', ...Object.keys(defaults)];
     if (Object.keys(config).some(key => !allowed.includes(key)) || !isAbsolute(config.workspaceRoot)
       || /[,\0]/.test(config.workspaceRoot) || !/^[A-Za-z0-9][A-Za-z0-9./_:@-]*$/.test(config.image) || /\s/.test(config.image)
-      || config.network !== 'none' || !['standard', 'nested-userns-v1'].includes(config.sandbox)
+      || typeof config.network === 'string' && config.network !== 'none' || !['standard', 'nested-userns-v1'].includes(config.sandbox)
       || !Number.isFinite(config.cpus) || config.cpus < 0.1 || config.cpus > 64
       || !Number.isSafeInteger(config.memoryMiB) || config.memoryMiB < 16 || config.memoryMiB > 262144
       || !Number.isSafeInteger(config.pidsLimit) || config.pidsLimit < 1 || config.pidsLimit > 8192
       || !Number.isSafeInteger(config.uid) || config.uid < 1 || !Number.isSafeInteger(config.gid) || config.gid < 0
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
-    this.#options = Object.freeze(config);
+    this.#options = Object.freeze({ ...config, network: config.network === 'none' ? 'none' : egressOptions(config.network) });
   }
 
   #owned(resource: ExecutionResource): OwnedResource {
@@ -109,14 +112,19 @@ export class DockerBackend implements ExecutionBackend {
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     owned.imageId = imageId;
     const options = this.#options;
+    if (options.network !== 'none') {
+      owned.egress = new DockerEgress(resource.id, owned.directory, options.network);
+      await owned.egress.setup(options.uid, options.gid);
+    }
     const args = ['create', '--name', owned.name, '--label', `agentflow.resource=${resource.id}`,
       '--label', `agentflow.attempt=${request.identity.attemptId}`, '--restart', 'no', '--init',
       '--user', `${options.uid}:${options.gid}`, '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--cpus', String(options.cpus), '--memory', `${options.memoryMiB}m`, '--memory-swap', `${options.memoryMiB}m`,
-      '--pids-limit', String(options.pidsLimit), '--network', 'none', '--log-driver', 'none',
+      '--pids-limit', String(options.pidsLimit), '--log-driver', 'none',
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--workdir', TASK_PATHS.work,
       '--env', `HOME=${TASK_PATHS.state}`, '--env', `AGENTFLOW_INPUT=${TASK_PATHS.input}`,
       '--env', `AGENTFLOW_OUTPUTS=${TASK_PATHS.outputs}`, '--env', `AGENTFLOW_STATE=${TASK_PATHS.state}`];
+    args.push(...owned.egress?.arguments() ?? ['--network', 'none']);
     if (options.sandbox === 'nested-userns-v1') args.push('--ipc', 'private', '--security-opt', 'systempaths=unconfined',
       '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
     for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
@@ -145,6 +153,7 @@ export class DockerBackend implements ExecutionBackend {
     const owned = this.#owned(resource);
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
+    await owned.egress?.assertRunning();
     owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes);
   }
 
@@ -153,6 +162,7 @@ export class DockerBackend implements ExecutionBackend {
     const existing = await this.#inspect(resource);
     if (!existing) return { state: 'absent' };
     if (existing.state.Running) {
+      await owned.egress?.assertRunning();
       if (owned.attached?.settled) { owned.attached.failed = true; throw new Error('ATTACH_ENDED_EARLY'); }
       return { state: 'running' };
     }
@@ -213,7 +223,8 @@ export class DockerBackend implements ExecutionBackend {
       files[record.id] = await captureFile(join(owned.directory, 'state'), record.path, join(owned.directory, 'raw', `${record.id}.bin`), record.maxBytes);
     }
     owned.capture = { stdout: owned.attached?.stdout ?? unstarted('stdout.bin'), stderr: owned.attached?.stderr ?? unstarted('stderr.bin'),
-      files, outputsPath: join(owned.directory, 'outputs'), imageId: owned.imageId };
+      files, outputsPath: join(owned.directory, 'outputs'), imageId: owned.imageId,
+      ...(owned.egress ? { network: owned.egress.evidence() } : {}) };
     return owned.capture;
   }
 
@@ -223,6 +234,7 @@ export class DockerBackend implements ExecutionBackend {
     if (existing?.state.Running) throw new Error('REMOVE_RUNNING_CONTAINER');
     if (existing) await docker(['rm', owned.name]);
     if (await this.#inspect(resource)) throw new Error('CONTAINER_NOT_REMOVED');
+    await owned.egress?.remove();
     owned.removed = true;
   }
 

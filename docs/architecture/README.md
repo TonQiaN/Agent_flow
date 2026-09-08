@@ -11,3 +11,5 @@ Run/NodeTask/Attempt 当前只有身份与校验，尚无分配器、调度或�
 用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
 
 engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 只映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。二者尚未与 Runner 绑定，计划的认证/网络/内部沙箱需求必须先兑现才能执行，不能把声明视为能力证明。详见 [接口指南](../guides/harness-auth.md)。
+
+integrations/egress 负责独立 CONNECT 传输策略，integrations/docker/egress 负责每次执行的代理和网络资源。二者不读取认证存储或解释业务；宿主环境选择目标列表，后续 Profile 绑定再提供实际服务配置。见 [受控联网](../guides/controlled-egress.md)。

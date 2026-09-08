@@ -12,9 +12,13 @@ Harness 配置另设统一 /task/config，只读挂载，与可写 input/work/ou
 
 非秘密配置通过 Invocation.configFiles 的相对名称和文本内容注入，逐 Attempt 创建新文件，限制数量/大小并拒绝路径越界、重名与父子文件冲突；不从任务目录寻找配置。认证材料不放入这个 JSON 调用描述，后续独立绑定。
 
+受控联网由独立 Docker egress 模块管理，每 Attempt 建立 internal + isolated gateway 的私有桥；只有代理同时连接独立外连桥，不发布宿主端口。节点只接私有桥，禁用外部 DNS 转发并通过固定 hosts 条目定位代理；不能仅设置 HTTP_PROXY 后保留直连通道。代理接受宿主白名单中的精确域名:443 CONNECT，拒绝普通 HTTP、IP 字面量、通配符、未授权域名及解析到非公网的地址。首版只拨号经校验的 IPv4 解析结果，不再次按域名解析，IPv6-only 目标明确不支持。代理限制报头、连接数、解析/连接与空闲时间，保留管道背压，不记录原始请求或秘密；它约束连接目标而不检查 TLS 内的路径或内容。
+
+代理和两张网络归同一 ExecutionResource，使用随机名称/归属标签核对；代理失效不能自动转为直连。Runner 先确认任务停止和采集，再删除任务、代理与网络；停止未知保留资源，清理错误可见。普通离线路径不分配网络。宿主明确选择代理镜像并固定实际 ID，代理代码来自本包的已编译模块，只读挂载，不挂任务或认证存储。Docker 必须兑现 isolated gateway；不支持时失败，不静默退为普通桥。
+
 真实 Codex 0.153.4 的 bwrap 需要嵌套 user namespace。Docker 环境增加宿主显式选择的 nested-userns-v1 策略，普通脚本仍使用原默认策略；Adapter 仅声明需要，不能直接切换安全选项。内置策略基于固定提交的 Moby allowlist，增加嵌套 namespace/mount 所需调用并取消与 clone3 冲突的 errno 规则；仍默认拒绝其他调用，不允许 seccomp=unconfined、额外 capabilities 或 privileged。允许 systempaths=unconfined 供 bwrap 建立内部 /proc 挂载，但保持外层私有 PID/IPC、非 root、cap-drop ALL、no-new-privileges、只读根文件系统与资源限制。此能力增加内核可调用面，必须绑定实际环境验证；不推断任意 Linux 主机的 AppArmor/userns 设置均兼容。
 
-Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；input/work/outputs/state 可写。首个脚本切片只支持 network=none，拒绝其他值；不把无约束 bridge 当成 endpoint 白名单。认证注入、代理 egress 及真实 Harness 属于后续联合切片，未验证前不宣称支持。
+Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；input/work/outputs/state 可写。默认 network=none；第三层增量增加上述受控代理，仍拒绝无约束 bridge。认证注入及真实 Harness 联合执行尚未完成，不能把独立联网验证当成联合验收。
 
 Runner 接收宿主选定的非秘密 argv；首期普通环境变量只允许 LANG、LC_ALL、TZ，固定目录环境由后端设置。调用参数不进入普通结果。原始 stdout/stderr 与 state 下声明的记录文件是私有原始证据，独立于 outputs。stdout/stderr 在 Docker attach 启动时流式采集，每流默认最多 1 MiB，超限继续排空并标记截断；Docker 自身关闭日志存储，避免重复无限增长。记录文件逐个有界读取，缺失、链接、截断和传输错误均可见，未知编码保留为字节。
 
@@ -30,7 +34,7 @@ Runner 接收宿主选定的非秘密 argv；首期普通环境变量只允许 L
 | docker run --rm，一次阻塞调用 | 实现短 | 容器过早删除，文件采集和运行中取消难可靠 | 不采用 |
 | 可写挂载原输入 | 零复制 | 容器改写上游/宿主资料 | 用户明确排除 |
 | 无限缓冲后截断 | 代码简单 | 内存和磁盘使用在截断前已失控 | 流式上限，显式截断 |
-| 首期直接开放 bridge 网络 | 易运行模型 | 无法兑现认证 endpoint 约束 | 首期离线，后续受限网络单独验证 |
+| 首期直接开放 bridge 网络 | 易运行模型 | 无法兑现认证 endpoint 约束 | 采用离线默认与单独验证的受限代理 |
 
 ## 影响与验证
 
