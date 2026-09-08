@@ -1,6 +1,6 @@
 import type { ExecutionIdentity } from '@agentflow/domain';
 
-export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state' });
+export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state', config: '/task/config' });
 
 export interface Invocation {
   readonly argv: readonly string[];

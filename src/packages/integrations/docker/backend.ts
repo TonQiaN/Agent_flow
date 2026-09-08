@@ -98,7 +98,7 @@ export class DockerBackend implements ExecutionBackend {
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--workdir', TASK_PATHS.work,
       '--env', `HOME=${TASK_PATHS.state}`, '--env', `AGENTFLOW_INPUT=${TASK_PATHS.input}`,
       '--env', `AGENTFLOW_OUTPUTS=${TASK_PATHS.outputs}`, '--env', `AGENTFLOW_STATE=${TASK_PATHS.state}`];
-    for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}`);
+    for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));
     await docker(args);

@@ -126,6 +126,7 @@ test "$(awk '/CapEff:/ {print $2}' /proc/self/status)" = 0000000000000000
 test "$(awk '/NoNewPrivs:/ {print $2}' /proc/self/status)" = 1
 test ! -e /sys/class/net/eth0
 if touch /root-write-test 2>/dev/null; then exit 90; fi
+if touch /task/config/task-overwrite 2>/dev/null; then exit 91; fi
 touch /tmp/writable /task/input/extra /task/work/extra /task/state/extra
 printf verified > /task/outputs/check`;
     const result = await f.run(f.request(script));

@@ -8,3 +8,6 @@ export type { ExecutionResult, ExecutionFailureCode } from './components/executo
 export { Runner } from './runner/runner.js';
 export { TASK_PATHS } from './runner/types.js';
 export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, ExecutionBackend, ExecutionResource, Observation, RawCapture, CapturedFile } from './runner/types.js';
+export { HarnessRegistry } from './harness/registry.js';
+export type { HarnessAdapter, HarnessTask, HarnessPlan, HarnessEvent, HarnessUsage, HarnessEvidence, HarnessResult } from './harness/types.js';
+export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore } from './auth/types.js';

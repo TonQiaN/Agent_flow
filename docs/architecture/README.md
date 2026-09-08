@@ -9,3 +9,5 @@
 Run/NodeTask/Attempt 当前只有身份与校验，尚无分配器、调度或持久化。Component 不持有路由、文件系统、Docker、认证或 Harness。engine/runner 协调一次执行，integrations/docker 实现文件与容器操作；Runner 与 Component 仍分别使用，尚未集成为 Workflow。可信函数运行在调用进程中，内存副本隔离不等于安全沙箱。
 
 用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
+
+engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 只映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。二者尚未与 Runner 绑定，计划的认证/网络/内部沙箱需求必须先兑现才能执行，不能把声明视为能力证明。详见 [接口指南](../guides/harness-auth.md)。

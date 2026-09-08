@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [Harness / 认证接口与私有存储验证](2026-09-09-harness-auth-primitives.md) |
 | 2026-09-09 | [Docker Runner 脚本验证](2026-09-09-docker-runner.md) |
 | 2026-09-09 | [执行基础验证](2026-09-09-execution-foundation.md) |
 | 2026-09-08 | [Issue 模板实施验证](2026-09-08-issue-templates.md) · [12 个填写与边界演练](2026-09-08-issue-template-examples.md) |
@@ -12,4 +13,4 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-当前产品验证覆盖确定性 Component 与离线 Docker Runner，不包含完整 Workflow 或真实 Agent。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证覆盖确定性 Component、离线 Docker Runner、Harness parser 与凭据存储，不包含完整 Workflow 或真实 Agent 调用。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
