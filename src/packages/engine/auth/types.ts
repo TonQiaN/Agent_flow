@@ -1,0 +1,26 @@
+/** The credential identity is shared across Profile aliases. It contains no secret. */
+export interface CredentialIdentity {
+  readonly credentialRef: string;
+  readonly service: string;
+  readonly method: string;
+}
+export interface CredentialMetadata extends CredentialIdentity {
+  readonly generation: string;
+  readonly revision: number;
+  readonly remoteStatus: 'unknown';
+}
+export type CredentialSource = { readonly content: string; readonly file?: never }
+  | { readonly file: string; readonly content?: never };
+export interface CredentialLease {
+  readonly metadata: CredentialMetadata;
+  /** Trusted binding layer only. Do not put this return value in logs or workflow data. */
+  readSecret(): Promise<string>;
+  commitSecret(content: string, expectedRevision: number): Promise<CredentialMetadata>;
+  release(): Promise<void>;
+}
+export interface CredentialStore {
+  configure(identity: CredentialIdentity, source: CredentialSource, waitMs?: number): Promise<CredentialMetadata>;
+  inspect(identity: CredentialIdentity): Promise<CredentialMetadata | null>;
+  acquire(identity: CredentialIdentity, waitMs?: number): Promise<CredentialLease>;
+  delete(identity: CredentialIdentity, waitMs?: number): Promise<{ readonly deleted: boolean; readonly remoteRevoked: false }>;
+}

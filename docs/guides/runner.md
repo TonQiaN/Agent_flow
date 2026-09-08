@@ -20,6 +20,7 @@ Runner 从 `@agentflow/engine` 导出；DockerBackend 与 systemClock 从 `@agen
 | /task/work | 固定 cwd，可写临时工作区 |
 | /task/outputs | 待独立 contract 校验的业务交付候选 |
 | /task/state | 私有 HOME 与 Harness 原始记录；不是业务 outputs |
+| /task/config | 只读非秘密配置边界；当前挂载空目录，配置落地在 Harness 集成中接通 |
 
 输入来源必须是调用方控制的静止目录快照。复制拒绝符号链接及非普通文件，检查读取期间文件变化；上限为 4096 文件、8192 目录/文件条目、64 层及 256 MiB。它不提供对抗宿主其他进程恶意并发换目录的安全边界。输出树校验尚待后续 contract 收集器，当前不提供工作区磁盘配额。
 

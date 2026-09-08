@@ -17,3 +17,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 从 [文档入口](../README.md) 了解当前能力，再查对应决定与说明。维护正式知识使用 [文档维护指南](../development/documentation.md)；原始资料区不要求统一整理方式，不作为日常开发默认上下文。
 
 [Docker Runner](runner.md) 提供可写文件副本、原始采集和真实取消/清理；完整 Agent、Workflow 和批卷流程继续实施，当前示例未调用模型或外部业务服务。
+
+[Harness / 认证接口](harness-auth.md) 说明首个组合已实现的计划、parser 和凭据租约，以及尚未接通的真实运行边界。
