@@ -24,12 +24,16 @@ export class CodexAdapter implements HarnessAdapter {
     if (task.outcomes !== undefined && (!Array.isArray(task.outcomes) || task.outcomes.length < 2 || task.outcomes.length > 32
       || !Array.from(task.outcomes).every(isIdentifier) || new Set(task.outcomes).size !== task.outcomes.length)) throw new Error('INVALID_HARNESS_OUTCOMES');
     const home = `${TASK_PATHS.state}/codex`;
+    // These are disposable task copies, not the host repository. Explicit paths
+    // avoid Codex's synthetic read-only metadata mounts while keeping state/config protected.
+    const writableMetadata = [TASK_PATHS.input, TASK_PATHS.work, TASK_PATHS.outputs]
+      .flatMap(root => ['.git', '.agents', '.codex'].map(name => `${JSON.stringify(`${root}/${name}`)}="write"`));
     const argv = ['codex', 'exec', '--json', '--strict-config', '--ignore-user-config', '--ignore-rules', '--ephemeral',
       '--skip-git-repo-check', '--color', 'never', '--cd', TASK_PATHS.work, '--model', config['model']];
     // These TOML values are generated from fixed paths and validated scalars, never arbitrary task config.
     const settings = ['approval_policy="never"', 'cli_auth_credentials_store="file"', 'features.multi_agent=false', 'web_search="disabled"',
       'default_permissions="agentflow"', 'permissions.agentflow.extends=":workspace"', 'permissions.agentflow.network.enabled=false',
-      `permissions.agentflow.filesystem={ ${JSON.stringify(TASK_PATHS.input)}="write", ${JSON.stringify(TASK_PATHS.outputs)}="write", ${JSON.stringify(`${home}/auth.json`)}="deny", ${JSON.stringify(`${home}/profile.json`)}="deny", ${JSON.stringify(TASK_PATHS.config)}="read" }`];
+      `permissions.agentflow.filesystem={ ${JSON.stringify(TASK_PATHS.input)}="write", ${JSON.stringify(TASK_PATHS.outputs)}="write", ${writableMetadata.join(', ')}, ${JSON.stringify(`${home}/auth.json`)}="deny", ${JSON.stringify(`${home}/profile.json`)}="deny", ${JSON.stringify(TASK_PATHS.config)}="read" }`];
     if (config['reasoning'] !== undefined) settings.push(`model_reasoning_effort=${JSON.stringify(config['reasoning'])}`);
     for (const setting of settings) argv.push('-c', setting);
     const configFiles: { name: string; content: string }[] = [];

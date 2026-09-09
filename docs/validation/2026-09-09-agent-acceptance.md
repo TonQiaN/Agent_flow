@@ -29,3 +29,5 @@
 接纳服务只处理一次文件 Agent Attempt；Component/Workflow 的统一编译、串行路由、有界返修、确定性脚本/Effect 接入，以及持久化、队列、自动重试和并行仍属后续工作。收据由进程内私有表建立可信来源，不能作为数字签名或重启后的证书。真实其他 Harness、Tutor 批卷/报告/PDF 与生产发布尚未完成。
 
 [Agent 接纳指南](../guides/agent-acceptance.md) · [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [文件契约验证](2026-09-09-file-contracts.md)
+
+后续在同一 PR 调整临时元数据权限并通过完整 92 项回归和真实单/多出口复跑，最新结果见 [启动验证](2026-09-09-codex-startup.md)；上述失败保留为实际调查记录。
