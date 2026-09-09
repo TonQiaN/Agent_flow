@@ -47,6 +47,7 @@
     "subprocess-service.mjs",
     "bash-service.mjs",
     "sandbox-policy.mjs",
-    "session-capture.mjs"
+    "session-capture.mjs",
+    "launch.mjs"
   ]
 }
