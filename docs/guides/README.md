@@ -31,3 +31,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Workflow 文件节点与 Agent 交接](workflow-files.md)
 
 - [确定性脚本 Workflow](workflow-scripts.md)
+
+- [模拟 Effect 与 Workflow](workflow-effects.md)
