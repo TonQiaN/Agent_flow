@@ -52,3 +52,5 @@
 - [订阅终端登录](2026-09-09-subscription-login-cli.md)：真实 PTY、编译 CLI、合成 Docker 登录、取消及持续清理失败。
 
 - [凭据备份恢复](2026-09-09-credential-recovery.md)：尾部截断、删除与版本隔离、旧记录规范化及真实进程崩溃。
+
+- [矩阵当前验收核对](2026-09-09-matrix-readiness.md)：认证缺口闭合、共用业务入口和剩余真实证据。
