@@ -1,6 +1,6 @@
 # Workflow 编译与串行执行
 
-当前库 API 可编译用户定义的串行流程，通过已登记的 JSON gate/transform 函数执行、查询与取消。编译器和运行控制不依赖 Docker、Harness 或实际文件系统；独立的文件适配已接入可信文件函数与 AgentExecutor，脚本和模拟 Effect 仍在后续切片完成。本指南不代表完整 Issue #9 或 Tutor 批卷已交付。
+当前库 API 可编译用户定义的串行流程，通过已登记的 JSON gate/transform 函数执行、查询与取消。编译器和运行控制不依赖 Docker、Harness 或实际文件系统；独立的文件适配已接入可信文件函数与 AgentExecutor，确定性脚本也已接通，模拟 Effect 仍在后续切片完成。本指南不代表完整 Issue #9 或 Tutor 批卷已交付。
 
 ## 定义与编译
 

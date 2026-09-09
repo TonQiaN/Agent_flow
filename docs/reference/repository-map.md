@@ -57,3 +57,5 @@ Agent_flow/
 [生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
 
 `src/packages/integrations/workflow` 提供文件函数/Agent 与串行 Workflow 的本机连接、私有文件来源引用及失败资源清理；核心编译器与运行控制留在 `engine/workflow`。
+
+`engine/components/script-executor` 保存一次脚本执行及纯结果协议，`integrations/execution/script-record-reader` 执行停止后原始文件读取；`integrations/workflow` 复用文件契约和来源引用接纳脚本产物。

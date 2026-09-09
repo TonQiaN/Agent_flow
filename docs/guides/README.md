@@ -29,3 +29,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [Workflow 编译与串行执行](workflow.md) 说明当前 JSON 函数流程、用户定义返修上限和取消边界。
 
 - [Workflow 文件节点与 Agent 交接](workflow-files.md)
+
+- [确定性脚本 Workflow](workflow-scripts.md)

@@ -5,7 +5,7 @@ import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { ArtifactError, DefinitionError } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactStore, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
-  WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
+  ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
 
 export interface FileFunctionContext {
   readonly identity: ExecutionIdentity;
@@ -24,10 +24,12 @@ export interface FileWorkflowReceipt {
   readonly output: FileManifest;
   readonly outcome: string;
   readonly agent: ExecutionReceipt | null;
+  readonly script: ScriptEvidence | null;
 }
 type Binding = { readonly component: ComponentDefinition } & (
   { readonly kind: 'function'; readonly run: FileWorkflowFunction }
-  | { readonly kind: 'agent'; readonly executor: AgentExecutor; readonly prompt: string; readonly config: JsonValue });
+  | { readonly kind: 'agent'; readonly executor: AgentExecutor; readonly prompt: string; readonly config: JsonValue }
+  | { readonly kind: 'script'; readonly executor: ScriptExecutor; readonly definition: ScriptDefinition });
 interface Reference {
   readonly runId: string;
   readonly manifest: FileManifest;
@@ -41,6 +43,7 @@ interface Resources {
   readonly identity: ExecutionIdentity;
   root: string | null;
   attempt: AgentAttempt | null;
+  script: ScriptAttempt | null;
   stopped: boolean;
   pendingOutput: (() => Promise<void>) | null;
   cleaning: boolean;
@@ -72,6 +75,11 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     if (component.kind !== 'agent') throw new DefinitionError('INVALID_FILE_AGENT');
     this.register({ component: clone(component), kind: 'agent', executor, prompt: task.prompt, config: clone(task.config) });
   }
+  registerScript(component: ComponentDefinition, executor: ScriptExecutor, definition: { readonly argv: readonly string[]; readonly timeoutMs: number }): void {
+    if (!['gate', 'transform'].includes(component.kind) || Object.keys(definition).sort().join(',') !== 'argv,timeoutMs') throw new DefinitionError('INVALID_FILE_SCRIPT');
+    this.register({ component: clone(component), kind: 'script', executor,
+      definition: { argv: clone(definition.argv), timeoutMs: definition.timeoutMs, outcomes: Object.keys(component.outcomes) } });
+  }
   private register(binding: Binding): void {
     const c = binding.component;
     if (!isIdentifier(c.id) || !isIdentifier(c.implementation) || !c.outcomes || Array.isArray(c.outcomes)
@@ -82,6 +90,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   }
   private validateBinding(binding: Binding): void {
     const c = binding.component;
+    if (binding.kind === 'script') binding.executor.validate(clone(binding.definition));
     for (const id of [c.inputContract, ...Object.values(c.outcomes)]) this.contract(id);
     if (binding.kind === 'agent') binding.executor.validate({ componentId: c.id,
       identity: { runId: 'preflight', nodeTaskId: 'preflight', attemptId: 'preflight', attemptNumber: 1 },
@@ -142,6 +151,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     } catch { return [{ contractId, path: '', rule: '', code: 'INVALID_WORKFLOW_FILE_REFERENCE' }]; }
   }
   private stopped(resources: Resources): boolean {
+    if (resources.script) return resources.script.stopped();
     const attempt = resources.attempt; if (!attempt) return resources.stopped;
     try {
       const facts = attempt.executionFacts();
@@ -153,6 +163,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   private async disposeExecution(resources: Resources): Promise<void> {
     if (!this.stopped(resources)) throw new DefinitionError('EXECUTION_STOP_UNCONFIRMED');
     await resources.attempt?.releaseExecution();
+    await resources.script?.releaseExecution();
     if (resources.root) { await rm(resources.root, { recursive: true, force: true }); resources.root = null; }
   }
   /** Retry cleanup by the retained failed identity; never upgrade its Workflow result. */
@@ -162,6 +173,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     resources.cleaning = true;
     try {
       await resources.attempt?.retryCleanup();
+      await resources.script?.retryCleanup();
       await this.disposeExecution(resources);
       await resources.pendingOutput?.(); resources.pendingOutput = null;
       this.#resources.delete(key(identity));
@@ -173,7 +185,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     if (!isExecutionIdentity(identity) || this.#attempts.has(key(identity))) throw new DefinitionError('INVALID_FILE_WORKFLOW_ATTEMPT');
     this.#attempts.add(key(identity));
     const ownIdentity = clone(identity), predecessor = clone(input), b = this.#bindings.get(component.id)!;
-    const resources: Resources = { identity: ownIdentity, root: null, attempt: null, stopped: true, pendingOutput: null, cleaning: false, active: true };
+    const resources: Resources = { identity: ownIdentity, root: null, attempt: null, script: null, stopped: true, pendingOutput: null, cleaning: false, active: true };
     this.#resources.set(key(identity), resources);
     let ref: Reference | null = null, phase = 'INPUT_MATERIALIZATION_FAILED', checkedContractId = component.inputContract;
     const failed = (code: string, error?: unknown, contractId = component.inputContract): Extract<WorkflowNodeResult, { status: 'failed' }> => ({ identity: clone(ownIdentity), componentId: component.id,
@@ -190,7 +202,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       await this.artifacts.materialize(ref.manifest.id, inputPath);
       await mkdir(workPath, { mode: 0o700 }); await mkdir(outputsPath, { mode: 0o700 });
       if (cancellation.requested()) return failed('CANCELLED');
-      let outcome: string, output: FileManifest, agent: ExecutionReceipt | null = null;
+      let outcome: string, output: FileManifest, agent: ExecutionReceipt | null = null, script: ScriptEvidence | null = null;
       phase = 'FILE_NODE_EXECUTION_FAILED';
       if (b.kind === 'function') {
         const result = await b.run({ identity: clone(ownIdentity), inputPath, workPath, outputsPath, cancellation });
@@ -198,6 +210,15 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         outcome = result.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
         output = await this.artifacts.capture(outputsPath, component.outcomes[outcome]!);
+        resources.pendingOutput = () => this.artifacts.release(output.id);
+      } else if (b.kind === 'script') {
+        resources.stopped = false;
+        resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation);
+        const result = resources.script.result;
+        if (result.status === 'failed') return failed(result.code);
+        script = result.evidence; outcome = script.outcome;
+        phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
+        output = await this.artifacts.capture(resources.script.executionFacts()!.capture!.outputsPath, checkedContractId);
         resources.pendingOutput = () => this.artifacts.release(output.id);
       } else {
         resources.stopped = false;
@@ -212,7 +233,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       }
       phase = 'FILE_NODE_CLEANUP_FAILED';
       await this.disposeExecution(resources);
-      const receipt: FileWorkflowReceipt = { identity: ownIdentity, componentId: component.id, predecessor, input: ref.manifest, output, outcome, agent };
+      const receipt: FileWorkflowReceipt = { identity: ownIdentity, componentId: component.id, predecessor, input: ref.manifest, output, outcome, agent, script };
       const value = this.issue(identity.runId, output, receipt, resources.pendingOutput!);
       resources.pendingOutput = null; this.#resources.delete(key(identity));
       return { identity: clone(ownIdentity), componentId: component.id, status: 'accepted', outcome, output: value };
