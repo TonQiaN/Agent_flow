@@ -38,6 +38,16 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 
 普通消息仅投影经脱敏的文本和工具名称/标识；错误原文、原始工具输入、签名及未知对象不进入普通事件。usage 只取唯一终态：Claude 的未缓存 input_tokens、cache_read_input_tokens、cache_creation_input_tokens 为不重叠输入桶，三者齐全时显式相加为统一 inputTokens，缺少任何一桶则 inputTokens 为 unknown；cachedInputTokens 仅取明确缓存读取数，outputTokens 取明确输出数，推理数无独立字段则 unknown。不同消息或重复快照不递归累加。支持矩阵仍需后续认证、权限与真实任务验收，Adapter/离线样本通过不关闭 #10/#11。
 
+### DeepSeek 配置与真实能力预检
+
+DeepSeek 矩阵先固定实际镜像的 dsh 0.1.1-rc.2。模型与推理通过只读插件 patch 映射，不能把其他 CLI 的 model/effort 参数套用到 headless；重写 agent-default-model.config 时必须保留 deepseek-official provider。独立配置模块只接受已映射的 model、off/low/high/max reasoning 以及显式 search=false、subagents=false，不开放任意插件、URL、环境或参数透传。配置生成与后续协议解释、秘密注入、Runner 组合分别落实；配置模块不注册成可执行 Harness。
+
+沿用 Blackbox 已验证的 NARB_DISABLE_NATIVE_CACHE=1 和 NODE_USE_ENV_PROXY=1，保持临时目录 noexec。搜索与 fetch 在 tool-web.config 中明确关闭；子 Agent、fork 和会间接委派的 workflow/ralph 工具必须在实际模型工具目录中不可用，配置文本不能替代真实启动证据。Blackbox 历史的 disabled 无效记录需按固定版本复核，不能直接推断所有新版本仍有同一问题。
+
+默认 workspace-write 以 session cwd 为唯一工作根；单改 sandbox-policy.workspaceRoot 不覆盖已有 session cwd，原生文件读取亦不提供秘密路径 deny。第一步用断网容器、本地合成模型响应和虚假 API key 验证这些边界，并保存原生 session 事件供后续协议实现对照。遇到不满足固定 input/work/outputs 或秘密隔离的行为，记录为未解决验收缺口；不改 cwd 为 outputs、不放宽到 danger-full-access，不把退出 0 或聊天完成当作产物验收。原生会话采集、可信终态、API key 保护及真实调用仍须后续落实，当前切片不关闭 #10/#11。
+
+固定版本的 launcher 与 headless 分别解析参数，内部调用使用两个连续的参数终止符以原样保留连字符开头的任务。原生持久层显式使用 compression=none、packChunks=false，将原生事件留在独立私有 state；避免后续采集依赖压缩/打包实现，但不因配置明文就赋予文件可信性，也不公开 raw。2026-09-09 按用户已授权范围完成内部映射和实际 CLI 预检，未登记为已完成的 Harness 组合。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
