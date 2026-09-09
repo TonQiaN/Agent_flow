@@ -1,6 +1,6 @@
 # Workflow 文件节点与 Agent 交接
 
-`FileWorkflowCatalog` 是 integrations 中的本机文件适配，实现与 JSON catalog 相同的 Workflow 执行端口。它不在编译器或调度器里添加 provider、文件系统或认证分支。当前支持可信宿主文件 Gate/Transform，以及注入的 `AgentExecutor`；脚本、Effect 和持久恢复尚未接入。
+`FileWorkflowCatalog` 是 integrations 中的本机文件适配，实现与 JSON catalog 相同的 Workflow 执行端口。它不在编译器或调度器里添加 provider、文件系统或认证分支。当前支持可信宿主文件 Gate/Transform，以及注入的 `AgentExecutor`；确定性脚本通过 registerScript 接入（见 [脚本指南](workflow-scripts.md)），Effect 和持久恢复尚未接入。
 
 ## 登记与运行
 

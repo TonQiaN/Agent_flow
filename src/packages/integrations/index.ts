@@ -17,3 +17,5 @@ export type { CodexRunRequest, CodexExecutionResult } from './execution/codex-ru
 
 export { FileWorkflowCatalog } from './workflow/files.js';
 export type { FileFunctionContext, FileWorkflowFunction, FileWorkflowReceipt } from './workflow/files.js';
+
+export { FileScriptRecordReader } from './execution/script-record-reader.js';

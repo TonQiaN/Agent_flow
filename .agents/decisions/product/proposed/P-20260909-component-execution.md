@@ -62,6 +62,14 @@ Agent 的用户 prompt/config 由宿主绑定具体实现并在编译前预检�
 
 本切片只接入可信文件函数和已安装的 Agent 执行器；脚本、Effect、持久化与完整 Tutor 验收仍独立推进。接口级合成驱动测试不能冒充真实模型执行。
 
+### 确定性脚本节点
+
+脚本作为 gate/transform 的实现方式，与业务 kind 分开。宿主登记 argv、timeoutMs、已声明 outcomes，并注入现有 Runner 的 backend、clock 和原始记录读取端口；编译预检不启动进程。首期只支持显式 argv，不通过 Workflow 数据拼接 shell 命令，也不继承宿主环境或注入认证。Docker 实现继续使用统一 /task/input、/task/work、/task/outputs 和独立可写输入副本。
+
+参考 Blackbox 的命令执行与结果收集分离、严格结果字段/大小/出口检查，但按用户已确认的“确定性代码直接返回 outcome”改用 stdout：仅允许一份 UTF-8 JSON 对象 {schema:"agentflow-script-result/v1",outcome:<已声明出口>}，上限 64 KiB，单出口也显式返回；stderr 是日志。该协议不包含产物清单或文件路径，业务文件始终从 outputs 自动发现并校验。非零退出、超时、取消、停止/清理未证实、截断/不完整原始记录、无效协议均不得接纳或走业务路由。
+
+脚本一次执行与文件契约接纳分开。核心脚本执行器不读宿主文件，由注入的记录读取端口读取并核对完整 stdout；本机适配使用不跟随链接的有界读取。Workflow 文件适配复用既有引用、文件捕获和清理机制，保留脚本实际镜像/退出事实及前序来源。停止或释放失败保留原身份与恢复句柄，后续清理不升级原结果。此切片不启用生产 Effect 或把宿主可信函数当成不可信脚本沙箱。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

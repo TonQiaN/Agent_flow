@@ -20,3 +20,6 @@ export { WorkflowRuntime } from './workflow/runtime.js';
 export { JsonFunctionWorkflowCatalog } from './workflow/functions.js';
 export type { WorkflowRunHandle } from './workflow/runtime.js';
 export type { WorkflowDefinition, WorkflowContract, WorkflowDestination, WorkflowRoute, WorkflowCatalog, WorkflowNodeExecutor, WorkflowNodeResult, WorkflowIssue, CompiledWorkflow, WorkflowSnapshot, WorkflowStep, WorkflowLimitEvent } from './workflow/types.js';
+
+export { ScriptExecutor, ScriptAttempt, parseScriptResult, SCRIPT_RESULT_SCHEMA, SCRIPT_RESULT_MAX_BYTES } from './components/script-executor.js';
+export type { ScriptDefinition, ScriptRequest, ScriptRecordReader, ScriptEvidence, ScriptResult } from './components/script-executor.js';
