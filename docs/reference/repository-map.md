@@ -13,6 +13,7 @@ Agent_flow/
 ├── src/
 │   ├── apps/cli/                  # 当前仅 demo 命令
 │   ├── packages/domain/           # 业务类型与执行身份
+│   ├── apps/deepseek-tools/          # 容器内文件服务，使用镜像提供的 SDK
 │   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth 接口；无环境依赖
 │   ├── packages/integrations/     # Docker、CONNECT 代理、Codex 映射/parser、私有凭据存储/绑定、系统时钟
 │   ├── examples/                  # 合成示例入口

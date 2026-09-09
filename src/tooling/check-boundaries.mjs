@@ -9,12 +9,33 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export function importSpecifiers(source, filename) {
   const ast = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);
   const imports = [];
-  const add = expression => imports.push(ts.isStringLiteralLike(expression) ? expression.text : null);
+  const createRequireNames = new Set(), requireNames = new Set(['require']);
+  // Track Node's supported contextual loader without allowing computed dependency names.
+  for (const node of ast.statements) {
+    if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === 'node:module') {
+      const bindings = node.importClause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) for (const item of bindings.elements) {
+        if ((item.propertyName?.text ?? item.name.text) === 'createRequire') createRequireNames.add(item.name.text);
+      }
+    }
+  }
+  function findLoaders(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isCallExpression(node.initializer)
+      && ts.isIdentifier(node.initializer.expression) && createRequireNames.has(node.initializer.expression.text)) requireNames.add(node.name.text);
+    ts.forEachChild(node, findLoaders);
+  }
+  findLoaders(ast);
+  const add = expression => {
+    if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)
+      && ts.isIdentifier(expression.expression.expression) && requireNames.has(expression.expression.expression.text)
+      && expression.expression.name.text === 'resolve') expression = expression.arguments[0];
+    imports.push(expression && ts.isStringLiteralLike(expression) ? expression.text : null);
+  };
   function visit(node) {
     if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) add(node.moduleSpecifier);
     if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) add(node.argument.literal);
     if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword
-      || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) {
+      || (ts.isIdentifier(node.expression) && requireNames.has(node.expression.text)))) {
       if (node.arguments[0]) add(node.arguments[0]); else imports.push(null);
     }
     ts.forEachChild(node, visit);
@@ -64,7 +85,7 @@ export function checkBoundaries(workspaceRoot = root) {
     .filter(entry => entry.isDirectory()).map(entry => {
       const directory = resolve(workspaceRoot, 'src', group, entry.name);
       const manifest = JSON.parse(readFileSync(resolve(directory, 'package.json'), 'utf8'));
-      return { name: manifest.name, directory, app: group === 'apps', dependencies: manifest.dependencies ?? {} };
+      return { name: manifest.name, directory, app: group === 'apps', dependencies: { ...manifest.peerDependencies, ...manifest.dependencies } };
     }));
   const errors = [];
   for (const owner of packages) {
