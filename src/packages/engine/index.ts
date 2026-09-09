@@ -49,3 +49,6 @@ export type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './workf
 
 export { canonicalJson } from './json.js';
 export type { RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from './runner/types.js';
+export { claimWorkflowRecovery } from './workflow/recovery.js';
+export type { WorkflowRecoveryRecord, WorkflowRecoverySnapshot, WorkflowRecoveryHandle } from './workflow/recovery.js';
+export type { WorkflowRecoveryProgress } from './workflow/recovery-record.js';

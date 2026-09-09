@@ -1,7 +1,7 @@
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { WorkflowContractDefinition } from './structure.js';
 import type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './restore-value.js';
-import type { Cancellation, RunnerResourceSink } from '../runner/types.js';
+import type { Cancellation, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '../runner/types.js';
 
 export interface WorkflowContract { readonly kind: 'json' | 'files'; readonly id: string }
 export type WorkflowDestination = { readonly node: string } | { readonly end: string };
@@ -34,6 +34,8 @@ export interface WorkflowNodeExecutor {
   executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
   /** Actual backend whose resource can be saved by this invocation; absent for resource-free code. */
   resourceDefinition?(component: ComponentDefinition): Promise<JsonValue>;
+  /** Common Runner ownership restoration after the coordinator acquires its durable claim. */
+  restoreResource?(component: ComponentDefinition, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
   /** Save a live value through its actual owner; only trusted checkpoint coordination calls this port. */
   checkpointValue?(value: JsonValue, runId: string, contractId: string): Promise<JsonValue>;
   /** Accepts only a one-use request issued after a checkpoint has been validated. */

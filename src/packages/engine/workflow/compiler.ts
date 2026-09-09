@@ -48,7 +48,8 @@ export function compileWorkflow(value: WorkflowDefinition, catalog: WorkflowCata
         ...(source.resourceDefinition ? { resourceDefinition: source.resourceDefinition.bind(source) } : {}),
         ...(source.restoreValue ? { restoreValue: source.restoreValue.bind(source) } : {}),
         ...(source.checkpointValue ? { checkpointValue: source.checkpointValue.bind(source) } : {}),
-        ...(source.executionDefinition ? { executionDefinition: source.executionDefinition.bind(source) } : {}) });
+        ...(source.executionDefinition ? { executionDefinition: source.executionDefinition.bind(source) } : {}),
+        ...(source.restoreResource ? { restoreResource: source.restoreResource.bind(source) } : {}) });
       executor.validate(snapshot(component));
       const input = snapshot(executor.contract(component.inputContract));
       const outcomes = new Map(Object.entries(component.outcomes).map(([outcome, ref]) => [outcome, snapshot(executor.contract(ref))]));

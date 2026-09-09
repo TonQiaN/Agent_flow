@@ -76,3 +76,5 @@
 [Workflow Attempt 资源检查点](2026-09-10-workflow-attempt-resources.md)：资源接入正常 Workflow CAS，启动前核对以及真实中断后的共同 Runner 清理；新 Attempt 执行仍待完成。
 
 [Runner 启动操作记录](2026-09-10-runner-launch-journal.md)：正常 Workflow 的前后 CAS、异步启动观测和真实中断边界，尚未开放自动恢复。
+
+[Workflow 恢复认领与旧资源清理](2026-09-10-workflow-recovery-claim.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。

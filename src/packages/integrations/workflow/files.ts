@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import type { RunnerResourceSink } from '@agentflow/engine';
+import type { RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
 import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
@@ -124,6 +124,11 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     this.validate(component); const binding = this.#bindings.get(component.id)!;
     if (binding.kind !== 'script') throw new DefinitionError('RESOURCE_DEFINITION_UNAVAILABLE');
     return binding.executor.resourceDefinition();
+  }
+  async restoreResource(component: ComponentDefinition, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
+    this.validate(component); const binding = this.#bindings.get(component.id)!;
+    if (binding.kind !== 'script') throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
+    return binding.executor.restoreResource(record);
   }
   /** Durable data for the trusted Run store; never a workflow-callable import or acceptance endpoint. */
   async checkpointValue(value: JsonValue, runId: string, contractId: string): Promise<JsonValue> {

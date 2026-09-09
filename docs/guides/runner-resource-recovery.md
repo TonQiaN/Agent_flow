@@ -30,3 +30,5 @@ Runner 先取得实际执行环境描述，再 allocate。分配后由 backend �
 [Runner 基础](runner.md) · [检查点加载](workflow-checkpoint-loading.md) · [验证记录](../validation/2026-09-10-runner-resource-recovery.md)
 
 正常持久 Workflow 还提供 RunnerResourceSink.launch 操作记录端口，准备/创建/启动前置记录等待 CAS，启动完成以共同 observe 为准。仅使用 save 的独立 Runner 调用没有这份操作进度证据，不能将其视为具备自动恢复条件。见 [验证与边界](../validation/2026-09-10-runner-launch-journal.md)。
+
+[Workflow 恢复协调](workflow-recovery.md)已通过实际节点的 ScriptExecutor 绑定本接口，先认领 CAS 再核对、停止、移除和释放，确认记录留在同一 Run。该协调当前仍不启动新 Attempt。

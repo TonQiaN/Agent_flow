@@ -38,7 +38,7 @@ try {
 
 ## 尚未完成的恢复边界
 
-当前已保存正常调用的 Attempt 开始、资源和结果步骤关联；[严格加载与文件引用恢复](workflow-checkpoint-loading.md)已接入；中断后追加旧 Attempt 结果、同 NodeTask 的新 Attempt、跨进程恢复竞争及与旧宿主迟到操作的隔离继续实现。Runner 资源身份已通过每次调用的独立端口写入同一 Workflow CAS，旧资源 query/stop/remove 使用共同 Runner 句柄。没有将任意保存 JSON 转成执行器或可信接纳接口，也没有提供宽松的文件收据导入方法。
+当前已保存正常调用的 Attempt 开始、资源和结果步骤关联；[严格加载与文件引用恢复](workflow-checkpoint-loading.md)已接入；中断后追加旧 Attempt 结果、同 NodeTask 的新 Attempt、恢复 CAS 认领与旧资源共同清理已接入[恢复协调](workflow-recovery.md)；未知 pending 操作及新 Attempt 调度继续实现。Runner 资源身份已通过每次调用的独立端口写入同一 Workflow CAS，旧资源 query/stop/remove 使用共同 Runner 句柄。没有将任意保存 JSON 转成执行器或可信接纳接口，也没有提供宽松的文件收据导入方法。
 
 真实 SIGKILL 验证已经证明已接纳文件在删除原输入/临时目录后仍可由新进程物化，也证明宿主死亡时 B 容器可以仍运行；这还不是“A 不重跑、旧 B 停止后用新 Attempt 完成”的完整恢复验收。Agent/函数/Effect/联网绑定和认证接管仍受各自未完成条件约束。
 
