@@ -51,3 +51,8 @@ export class DeepSeekCredentialRedactor {
   }
   toJSON(): { configured: boolean } { return { configured: this.#value !== null }; }
 }
+
+/** Trusted authentication binding only; the Adapter declares the variable but never reads the value. */
+export function deepseekApiKeyEnvironment(content: string): Readonly<Record<string, string>> {
+  return Object.freeze({ DEEPSEEK_API_KEY: key(content) });
+}

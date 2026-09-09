@@ -3,7 +3,7 @@ import type { CredentialStore, HarnessPlan } from '@agentflow/engine';
 import { DeepSeekAdapter } from '../harness/deepseek.js';
 import { DEEPSEEK_VERSION } from '../harness/deepseek-configuration.js';
 import { DEEPSEEK_SESSION_RECORD } from '../harness/deepseek-session.js';
-import { DeepSeekCredentialRedactor, deepseekApiKeyProfile, DEEPSEEK_API_KEY_HOSTS } from '../auth/deepseek-api-key.js';
+import { DeepSeekCredentialRedactor, deepseekApiKeyProfile, deepseekApiKeyEnvironment, DEEPSEEK_API_KEY_HOSTS } from '../auth/deepseek-api-key.js';
 import type { DeepSeekApiKeyProfile } from '../auth/deepseek-api-key.js';
 import { CredentialHarnessRunner } from './credential-runner.js';
 import type { CredentialRunRequest, CredentialExecutionResult } from './credential-runner.js';
@@ -26,8 +26,8 @@ export class DeepSeekApiKeyRunner extends CredentialHarnessRunner<DeepSeekApiKey
       || assets.files.some(file => !file || Object.keys(file).sort().join(',') !== 'content,name' || !assetNames.includes(file.name)
         || typeof file.content !== 'string' || !file.content || file.content.includes('\0') || Buffer.byteLength(file.content) > 65536)) throw new Error('INVALID_DEEPSEEK_ASSETS');
     super(store, options, {
-      binding: 'snapshot', memoryMiB: 1024,
-      version: DEEPSEEK_VERSION, hosts: DEEPSEEK_API_KEY_HOSTS, stateFile: 'deepseek-api-key.json', versionCommand: ['dsh', '--version'],
+      binding: 'environment', secretEnvironment: deepseekApiKeyEnvironment, memoryMiB: 1024,
+      version: DEEPSEEK_VERSION, hosts: DEEPSEEK_API_KEY_HOSTS, versionCommand: ['dsh', '--version'],
       adapter: () => new DeepSeekAdapter(), profile: deepseekApiKeyProfile, redactor: () => new DeepSeekCredentialRedactor(),
       parseVersion: stdout => /^([0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+)\s*$/.exec(stdout)?.[1] ?? null,
       stateEnvironment: () => ({}),

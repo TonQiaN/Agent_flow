@@ -37,9 +37,11 @@ export { DeepSeekAdapter } from './harness/deepseek.js';
 export { DEEPSEEK_VERSION } from './harness/deepseek-configuration.js';
 export { DEEPSEEK_SESSION_RECORD } from './harness/deepseek-session.js';
 
-export { DeepSeekApiKeyCodec, DeepSeekCredentialRedactor, deepseekApiKeyProfile, DEEPSEEK_API_KEY_HOSTS } from './auth/deepseek-api-key.js';
+export { deepseekApiKeyEnvironment, DeepSeekApiKeyCodec, DeepSeekCredentialRedactor, deepseekApiKeyProfile, DEEPSEEK_API_KEY_HOSTS } from './auth/deepseek-api-key.js';
 export type { DeepSeekApiKeyProfile } from './auth/deepseek-api-key.js';
 
 export { DeepSeekApiKeyRunner, DeepSeekExecution } from './execution/deepseek-runner.js';
 export type { DeepSeekRunRequest, DeepSeekExecutionResult, DeepSeekRuntimeAssets } from './execution/deepseek-runner.js';
 export { DeepSeekAgentDriver } from './execution/deepseek-agent-driver.js';
+
+export { EnvironmentExecutionCredentialBinding } from './auth/environment-binding.js';

@@ -10,7 +10,7 @@ test('DeepSeek Adapter declares fixed isolated launch, private authentication an
   const t = task(), plan = adapter.plan(t), registry = new HarnessRegistry(); registry.register(adapter);
   assert.equal(registry.get('deepseek'), adapter); assert.equal(plan.version, DEEPSEEK_VERSION);
   assert.deepEqual(plan.argv, ['node', '/task/config/deepseek-policy/launch.mjs', '--', t.prompt]); assert.equal(plan.cwd, '/task/work');
-  assert.deepEqual(plan.authentication, { service: 'deepseek', method: 'api-key', file: '/task/state/deepseek-api-key.json' });
+  assert.deepEqual(plan.authentication, { service: 'deepseek', method: 'api-key', variable: 'DEEPSEEK_API_KEY' });
   assert.deepEqual(plan.requirements, ['private-state', 'readonly-config', 'controlled-egress', 'deepseek-runtime-assets', 'deepseek-session-record']);
   assert.equal(plan.environment['DSH_TOOLS_MODE'], 'native'); assert.equal(plan.environment['DEEPSEEK_API_KEY'], undefined);
   assert.equal(plan.configFiles.length, 1);

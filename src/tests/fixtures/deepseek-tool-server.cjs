@@ -45,12 +45,11 @@ server.listen(plan.port ?? 0, '127.0.0.1', () => {
     // A fallback root cannot override a normal Agent's session cwd.
     { id: 'sandbox-policy', config: { mode: 'workspace-write', workspaceRoot: '/task' } },
   ]));
-  if (plan.launch && !plan.hostKey) fs.writeFileSync('/task/state/deepseek-api-key.json', JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-deepseek-secret' }), { mode: 0o600 });
   const argv = plan.launch ? ['node', '/task/config/deepseek-policy/launch.mjs', '--', plan.prompt] : [...plan.argv];
   if (plan.cancelCapture) argv.splice(1, 0, '--import', '/task/config/cancel-capture.mjs');
   if (!plan.launch) argv.splice(argv.indexOf('--'), 0, '--patch', '/tmp/deepseek-test-model.json');
   const child = spawn(argv[0], argv.slice(1),
-    { cwd: '/task/work', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...plan.environment, DEEPSEEK_API_KEY: plan.launch ? 'ambient-key-must-not-be-used' : 'fixture-deepseek-secret', PASSPHRASE: 'fixture-alternate-secret' } });
+    { cwd: '/task/work', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...plan.environment, DEEPSEEK_API_KEY: plan.hostKey ? process.env.DEEPSEEK_API_KEY : 'fixture-deepseek-secret', PASSPHRASE: 'fixture-alternate-secret' } });
   activeChild = child;
   let stdout = '', stderr = '';
   child.stdout.on('data', part => { stdout += part; }); child.stderr.on('data', part => { stderr += part; });

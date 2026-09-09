@@ -1,6 +1,6 @@
 # Harness 与凭据接口
 
-当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变快照绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、产品登录/交互录入及安全备份恢复尚未验收或实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
+当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、产品登录/交互录入及安全备份恢复尚未验收或实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
 
 ## Harness
 
@@ -58,3 +58,5 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 [Agent 接纳与可信收据](agent-acceptance.md) 通过通用驱动接口连接上述能力，统一检查终态、收尾和文件契约，并提供同 Run 的前序收据引用。
 
 [DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；静态 API key Profile、存储、不可变绑定与受控联网执行入口已接通；真实官方调用仍未验收。
+
+[凭据环境绑定](../validation/2026-09-09-credential-environment.md)为 API key 提供独立通道：Adapter 声明变量名，认证取得短租约快照，Docker 仅按名称注入；不开放普通 Invocation.env，也不创建任务密钥文件。订阅仍使用文件绑定及条件刷新。

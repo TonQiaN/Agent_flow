@@ -5,18 +5,22 @@ import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter,
 import type { SystemConfigMount } from '../docker/backend.js';
 import { DockerBackend } from '../docker/backend.js';
 import { docker } from '../docker/process.js';
+import { EnvironmentExecutionCredentialBinding } from '../auth/environment-binding.js';
 import { FileExecutionCredentialBinding } from '../auth/execution-binding.js';
-import type { BindingFinalization } from '../auth/execution-binding.js';
+import type { BindingFinalization, ExecutionCredentialBinding } from '../auth/execution-binding.js';
 import { readCapturedBytes } from './capture-reader.js';
 import { systemClock } from '../system-clock.js';
 
 
 export interface CredentialRedactor { remember(content: string): void; redact(text: string): string }
 /** Internal trusted host composition, not a workflow configuration or plugin-loading API. */
-export interface CredentialRecipe<P extends CredentialIdentity> {
-  readonly binding: 'exclusive' | 'snapshot';
+export type CredentialRecipe<P extends CredentialIdentity> = CredentialRecipeBase<P> & (
+  { readonly binding: 'exclusive' | 'snapshot'; readonly stateFile: string; readonly secretEnvironment?: never }
+  | { readonly binding: 'environment'; readonly secretEnvironment: (content: string) => Readonly<Record<string, string>>; readonly stateFile?: never }
+);
+interface CredentialRecipeBase<P extends CredentialIdentity> {
   readonly memoryMiB?: number;
-  readonly version: string; readonly hosts: readonly string[]; readonly stateFile: string; readonly versionCommand: readonly string[];
+  readonly version: string; readonly hosts: readonly string[]; readonly versionCommand: readonly string[];
   readonly systemConfigMounts?: readonly SystemConfigMount[];
   adapter(): HarnessAdapter; profile(value: P): P; redactor(): CredentialRedactor;
   parseVersion(stdout: string): string | null;
@@ -79,12 +83,11 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     catch { return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['VERSION_WORKSPACE_RELEASE_FAILED']); }
 
     const redactor = this.recipe.redactor();
-    const acquire = this.recipe.binding === 'snapshot'
-      ? FileExecutionCredentialBinding.acquireSnapshot.bind(FileExecutionCredentialBinding)
-      : FileExecutionCredentialBinding.acquire.bind(FileExecutionCredentialBinding);
-    const binding = await acquire(this.#store, { identity: task.identity,
-      credential: { credentialRef: profile.credentialRef, service: profile.service, method: profile.method },
-      stateFile: this.recipe.stateFile, environment: this.recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
+    const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
+    const binding = this.recipe.binding === 'environment'
+      ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.recipe.secretEnvironment, 0, content => redactor.remember(content))
+      : await (this.recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
+        this.#store, { identity: task.identity, credential, stateFile: this.recipe.stateFile, environment: this.recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
       backend = new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image: imageId, sandbox: 'nested-userns-v1',
@@ -109,12 +112,12 @@ export class CredentialExecution {
   readonly #backend: DockerBackend;
   readonly #runner: Runner;
   readonly #version: CredentialExecutionResult['version'];
-  readonly #binding: FileExecutionCredentialBinding | null;
+  readonly #binding: ExecutionCredentialBinding | null;
   readonly #redactor: CredentialRedactor | null;
   readonly #task: HarnessTask | null;
   #interpreted = false;
   constructor(stage: CredentialExecutionResult['stage'], result: RunnerResult, backend: DockerBackend, runner: Runner,
-    version: CredentialExecutionResult['version'], binding: FileExecutionCredentialBinding | null, redactor: CredentialRedactor | null,
+    version: CredentialExecutionResult['version'], binding: ExecutionCredentialBinding | null, redactor: CredentialRedactor | null,
     task: HarnessTask | null, diagnostics: string[], private readonly adapter?: HarnessAdapter, private readonly recordFiles: NonNullable<Invocation['recordFiles']> = []) {
     this.#stage = stage; this.#result = result; this.#backend = backend; this.#runner = runner; this.#version = version;
     this.#binding = binding; this.#redactor = redactor; this.#task = task; this.#diagnostics = diagnostics;

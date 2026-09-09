@@ -20,7 +20,7 @@ export class DeepSeekAdapter implements HarnessAdapter {
     ] });
     return { harness: this.id, version: config.version, identity: task.identity, argv: ['node', asset('launch'), '--', task.prompt], cwd: TASK_PATHS.work,
       environment: config.environment, configFiles: [{ name: 'deepseek.json', content: JSON.stringify(patches) }],
-      authentication: { service: 'deepseek', method: 'api-key', file: `${TASK_PATHS.state}/deepseek-api-key.json` },
+      authentication: { service: 'deepseek', method: 'api-key', variable: 'DEEPSEEK_API_KEY' },
       requirements: ['private-state', 'readonly-config', 'controlled-egress', 'deepseek-runtime-assets', 'deepseek-session-record'] };
   }
   interpret(e: HarnessEvidence): HarnessResult {

@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promis
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Runner } from '@agentflow/engine';
-import { DockerBackend, systemClock, DeepSeekAdapter, FileCredentialStore, FileExecutionCredentialBinding, DeepSeekApiKeyCodec, DeepSeekCredentialRedactor, deepseekApiKeyProfile } from '@agentflow/integrations';
+import { DockerBackend, systemClock, DeepSeekAdapter, FileCredentialStore, EnvironmentExecutionCredentialBinding, deepseekApiKeyEnvironment, DeepSeekApiKeyCodec, DeepSeekCredentialRedactor, deepseekApiKeyProfile } from '@agentflow/integrations';
 import { deepseekConfiguration, deepseekHeadlessArguments } from '../../packages/integrations/harness/deepseek-configuration.js';
 import { interpretDeepseekSession, DEEPSEEK_SESSION_RECORD } from '../../packages/integrations/harness/deepseek-session.js';
 const image = process.env['AGENTFLOW_DEEPSEEK_IMAGE'];
@@ -47,11 +47,11 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     const store = new FileCredentialStore(join(root, 'credentials'), [new DeepSeekApiKeyCodec()]);
     await store.configure(credential, { content: JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-deepseek-secret' }) });
     const redactor = new DeepSeekCredentialRedactor();
-    const binding = await FileExecutionCredentialBinding.acquireSnapshot(store, { identity: task.identity, credential, stateFile: 'deepseek-api-key.json', environment: {} }, 0, content => redactor.remember(content));
+    const binding = await EnvironmentExecutionCredentialBinding.acquire(store, { identity: task.identity, credential }, deepseekApiKeyEnvironment, 0, content => redactor.remember(content));
     const patches = JSON.parse(config.configFiles[0]!.content);
     patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
-      environment: binding.environment, async prepare(resource, state) { await binding.prepare(resource, state); await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, beforeRelease: resource => binding.beforeRelease(resource),
+      environment: binding.environment, secretEnvironment: resource => binding.secretEnvironment(resource), async prepare(resource, state) { await binding.prepare(resource, state); await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, beforeRelease: resource => binding.beforeRelease(resource),
     }), systemClock);
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
       invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(true), { name: 'deepseek.json', content: JSON.stringify(patches) },
@@ -145,7 +145,7 @@ test('DeepSeek private session capture preserves bytes and refuses ambiguous, li
   } finally { if (removable) await rm(root, { recursive: true, force: true }); }
 });
 
-test('DeepSeek launcher refuses unsafe credential files and extra launch arguments without leaking key material', { skip: !image, timeout: 120000 }, async () => {
+test('DeepSeek launcher refuses missing or invalid selected environment keys and extra launch arguments without leaking key material', { skip: !image, timeout: 120000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'af-deepseek-launch-key-')); let removable = true;
   try {
     const input = join(root, 'input'); await mkdir(input);

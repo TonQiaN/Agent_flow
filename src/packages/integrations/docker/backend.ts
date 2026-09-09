@@ -12,7 +12,7 @@ import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
 import { DockerEgress, egressOptions } from './egress.js';
 import type { DockerEgressOptions } from './egress.js';
-import { stateEnvironment } from '../execution/state-binding.js';
+import { stateEnvironment, credentialEnvironment } from '../execution/state-binding.js';
 import type { PrivateStateBinding } from '../execution/state-binding.js';
 
 export interface SystemConfigMount { readonly name: string; readonly target: string }
@@ -74,7 +74,7 @@ export class DockerBackend implements ExecutionBackend {
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
     this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
-    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function' || binding.secretEnvironment !== undefined && typeof binding.secretEnvironment !== 'function')) throw new Error('INVALID_STATE_BINDING');
     this.#binding = binding;
     this.#stateEnv = stateEnvironment(binding?.environment ?? {});
   }
@@ -152,8 +152,11 @@ export class DockerBackend implements ExecutionBackend {
     for (const mount of options.systemConfigMounts) args.push('--mount', `type=bind,src=${join(owned.directory, 'config', mount.name)},dst=${mount.target},readonly`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
     for (const [key, value] of Object.entries(this.#stateEnv)) args.push('--env', `${key}=${value}`);
+    const secrets = credentialEnvironment(this.#binding?.secretEnvironment?.(resource) ?? {});
+    if (Object.keys(secrets).some(key => Object.hasOwn(this.#stateEnv, key))) throw new Error('CONFLICTING_CREDENTIAL_ENVIRONMENT');
+    for (const key of Object.keys(secrets)) args.push('--env', key);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));
-    await docker(args);
+    await docker(args, 15_000, secrets);
   }
 
   async #inspect(resource: ExecutionResource): Promise<Inspected | null> {
