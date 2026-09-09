@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AgentExecutionDriver, ArtifactStore } from '@agentflow/engine';
+import { isIdentifier } from '@agentflow/domain';
 import {
   CodexAdapter, ClaudeAdapter, DeepSeekAdapter, FileCredentialStore,
   CodexSubscriptionCodec, ClaudeSubscriptionCodec, DeepSeekApiKeyCodec,
@@ -25,7 +26,7 @@ export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.Pr
   const path = (name: string): string => { const value = required(name); if (!isAbsolute(value)) throw new Error('INVALID_GRADING_PATH'); return value; };
   const acceptanceRoot = path('AGENTFLOW_ACCEPTANCE_ROOT'), storeRoot = path('AGENTFLOW_CREDENTIAL_STORE');
   const credentialRef = required('AGENTFLOW_CREDENTIAL_REF');
-  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(credentialRef)) throw new Error('INVALID_GRADING_REFERENCE');
+  if (!isIdentifier(credentialRef)) throw new Error('INVALID_GRADING_REFERENCE');
   const prefix = harness.toUpperCase(), image = required(`AGENTFLOW_${prefix}_IMAGE`), proxyImage = required('AGENTFLOW_PROXY_IMAGE');
   const config = { model: required(`AGENTFLOW_${prefix}_MODEL`), reasoning: harness === 'deepseek' ? 'off' : 'low', subagents: false, search: false };
   const adapter = harness === 'codex' ? new CodexAdapter() : harness === 'claude' ? new ClaudeAdapter() : new DeepSeekAdapter();

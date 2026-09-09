@@ -34,3 +34,11 @@ test('matrix entry rejects unknown providers and extra execution arguments befor
     assert.notEqual(result.status, 0); assert.match(result.stderr, /INVALID_ACCEPTANCE_(HARNESS|ARGUMENTS)/);
   }
 });
+
+
+test('preflight preserves shared credential identifiers and rejects trailing line breaks', () => {
+  const environment = { AGENTFLOW_ACCEPTANCE_ROOT: '/tmp/unused-acceptance', AGENTFLOW_CREDENTIAL_STORE: '/tmp/unused-store',
+    AGENTFLOW_CREDENTIAL_REF: 'valid', AGENTFLOW_PROXY_IMAGE: 'unused', AGENTFLOW_CODEX_IMAGE: 'unused', AGENTFLOW_CODEX_MODEL: 'fixture-model' };
+  assert.throws(() => selectGradingHarness('codex', { ...environment, AGENTFLOW_CREDENTIAL_REF: 'valid\n' }), /INVALID_GRADING_REFERENCE/);
+  assert.doesNotThrow(() => selectGradingHarness('codex', { ...environment, AGENTFLOW_CREDENTIAL_REF: 'scope:identity' }));
+});
