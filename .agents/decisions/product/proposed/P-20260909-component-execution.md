@@ -80,6 +80,16 @@ Effect 执行器独立于 Harness、认证存储、Runner 和 Workflow 调度。
 
 收据包含 schema、宿主请求标识、Component、mode、target、key、serviceIdentity、status 与可选外部 reference；接纳必须匹配实际上下文及对应输出 contract。simulated/applied/already-applied 是三个显式业务出口，执行失败不作为业务出口路由。unknown 或仍在进行的操作不能报告取消完成；已经写入后的取消不回滚实际动作。输入、授权范围、适配器请求及公开结果互相取副本。首个 Workflow 适配使用 JSON contract；文件到 JSON 的消费侧转换是后续显式 Transform，不往文件清单或模型自述里嵌入授权。
 
+### 文件到 JSON 的显式 Transform
+
+消费侧可通过专用 Transform 从文件产物生成 JSON 输入，不能把文件引用直接当成 JSON 业务对象。适配器先从现有文件 catalog 核验同 Run、契约和仍可用的私有引用，重新复核摘要并物化独立副本；可信转换函数读取副本及来源事实，返回 outcome/output，输出再按对应 JSON contract 验证。输入与输出契约类别不同，因此本适配器内输入文件 ID 与 JSON 输出 ID 不得重名，编译前拒绝歧义。
+
+转换接纳后，适配器私有登记身份、Component、前序文件引用、输入 manifest、outcome 和精确 JSON 输出；公开查询只给副本，不导入序列化记录。宿主业务授权策略可以核对已登记输出及前序 Gate，再签发 Effect 能力；生成的 JSON 自述不是授权来源。临时目录清理完成前不发布转换结果，清理失败保留恢复能力。业务文件摘要可进入 Effect 输入，以让同键不同文件内容也明确冲突；不能只靠相同文件名或评分总数判定相同操作。
+
+Tutor 合成样例放在 examples/tests，定义材料、候选评分、确定性 Gate、用户选择的 Fixer/次数、最终转换和模拟发布。参考旧流程的来源摘要、覆盖/评分/证据检查和最终 Gate 收据，不移植其固定业务角色到核心，也不把合成模型替身当成真实学生批卷验收。
+
+合成发布的幂等输入包含真实内容摘要，不包含每次运行新生成的文件引用、Run ID 或转换身份，以允许相同内容跨 Run 复用已确认结果。宿主策略另外核对当前 publish Attempt、私有转换记录和实际 Gate 来源；来源约束不依赖业务 JSON 自述。原始材料摘要由每个 Run 的宿主输入捕获提供，Agent 的 revision 不决定返修计数。样例中的评分规则和固定答案均留在消费侧。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
