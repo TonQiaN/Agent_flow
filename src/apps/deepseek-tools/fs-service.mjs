@@ -63,11 +63,18 @@ export default class IsolatedFileSystem extends FileSystem {
       // Reuse one private tmp directory for this service, so successive operations see the same temporary files.
       const temporary = this.#space.directory;
       if (this.#closed || this.#space.closed || signal?.aborted) throw new FsError('File operation aborted', 'FS_ABORTED');
-      const argv = toolIsolateArguments(temporary, mode, ['node', '/task/config/deepseek-policy/fs-worker.mjs']);
+      // spawn creates a private session/group first. Keep the fixed bwrap worker in it so
+      // cancellation reaches inherited-pipe holders even if the launcher has already exited.
+      const argv = toolIsolateArguments(temporary, mode, ['node', '/task/config/deepseek-policy/fs-worker.mjs']).filter(arg => arg !== '--new-session');
       return await new Promise((resolve, reject) => {
-        const child = spawn(argv[0], argv.slice(1), { stdio: ['pipe', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin' } });
+        const child = spawn(argv[0], argv.slice(1), { detached: true, stdio: ['pipe', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin' } });
         let output = '', bytes = 0, failure;
-        const stop = code => { failure ??= code; child.kill('SIGKILL'); };
+        const stop = code => {
+          failure ??= code;
+          if (Number.isSafeInteger(child.pid) && child.pid > 0) {
+            try { process.kill(-child.pid, 'SIGKILL'); } catch { /* close remains mandatory; outer Runner handles an unconfirmed stop. */ }
+          }
+        };
         this.#stop = stop;
         const abort = () => stop('FS_ABORTED');
         const timer = setTimeout(() => stop('FS_IO_ERROR'), 30000);

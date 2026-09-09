@@ -53,3 +53,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [耐久文件归档](artifact-archive.md)：独立归档保留、摘要引用与跨进程物化。
 
 - [Workflow 结构快照](workflow-structure.md)：实际注册定义、跨 Catalog 一致性和有限证明范围。
+
+- [Workflow 执行绑定快照](workflow-execution-snapshot.md)：断网脚本实际绑定、镜像冻结和变化拒绝。

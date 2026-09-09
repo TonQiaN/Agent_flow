@@ -1,5 +1,5 @@
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
-import type { ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { copyJson } from '../json.js';
 import { Runner } from '../runner/runner.js';
@@ -81,6 +81,13 @@ export class ScriptExecutor {
       || d.argv.some(arg => typeof arg !== 'string' || arg.includes('\0')) || !d.argv[0] || d.argv.join('').length > 32768
       || !Number.isSafeInteger(d.timeoutMs) || d.timeoutMs < 1 || d.timeoutMs > 86400000 || !Array.isArray(d.outcomes)
       || !d.outcomes.length || d.outcomes.length > 32 || d.outcomes.some(id => !isIdentifier(id)) || new Set(d.outcomes).size !== d.outcomes.length) throw new DefinitionError('INVALID_SCRIPT_DEFINITION');
+  }
+  async definitionSnapshot(definition: ScriptDefinition): Promise<JsonValue> {
+    const saved = clone(definition); this.validate(saved);
+    if (!this.backend.definition) throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
+    const backend = copyJson(await this.backend.definition());
+    if (backend === null || typeof backend !== 'object' || Array.isArray(backend) || typeof backend['schema'] !== 'string' || !backend['schema']) throw new DefinitionError('INVALID_EXECUTION_DEFINITION');
+    return copyJson({ schema: 'agentflow-script-execution/v1', definition: saved, backend });
   }
   async execute(request: ScriptRequest, cancellation: Cancellation = { requested: () => false }): Promise<ScriptAttempt> {
     let r: ScriptRequest;

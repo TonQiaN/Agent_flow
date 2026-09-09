@@ -29,6 +29,8 @@ export interface WorkflowNodeExecutor {
   contract(id: string): WorkflowContract;
   /** Actual registered definitions; optional for legacy executors, required for a structure snapshot. */
   contractDefinition?(id: string): WorkflowContractDefinition;
+  /** Installed binding evidence, resolved before any Run executes. Missing evidence prevents persistence. */
+  executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
   execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult>;
 }

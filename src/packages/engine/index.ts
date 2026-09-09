@@ -36,3 +36,5 @@ export type { RunRecord, RunRecordStore } from './persistence/types.js';
 export type { ArtifactArchive, ArtifactArchiveReference, ArchivedArtifact } from './persistence/artifacts.js';
 export { snapshotWorkflowStructure, assertWorkflowStructureMatches } from './workflow/structure.js';
 export type { WorkflowContractDefinition, WorkflowStoredContract, WorkflowStructureSnapshot } from './workflow/structure.js';
+export { snapshotWorkflowExecution, assertWorkflowExecutionMatches } from './workflow/execution.js';
+export type { WorkflowExecutionSnapshot } from './workflow/execution.js';

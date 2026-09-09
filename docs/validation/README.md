@@ -62,3 +62,7 @@
 - [耐久文件归档](2026-09-10-artifact-archive.md)：删除原始/临时材料后新进程恢复、并发发布与 SIGKILL。
 
 - [Workflow 结构快照](2026-09-10-workflow-structure.md)：SQLite 重开核对、同名 schema 冲突及嵌套文件契约。
+
+- [断网脚本执行绑定及阶段复盘](2026-09-10-script-execution-binding.md)：实际镜像冻结、标签删除后执行及后续 checkpoint 主线。
+
+- [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：launcher 退出而后代持有管道的确定性反例、专属进程组终止与真实文件隔离回归。
