@@ -45,6 +45,8 @@ finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchang
 
 CodexSubscriptionCodec 仅接纳 auth_mode=chatgpt、完整 id/access/refresh token 和 account_id；不是远端认证检查。存储的 validateRefresh 可选方法约束运行刷新，Codex codec 拒绝账号变更，显式 configure 仍可替换。
 
+实际 Codex 0.153.4 的权限映射显式允许 input/work/outputs 临时副本下的 .git、.agents、.codex 写入，避免默认元数据合成只读挂载的启动故障。这些均为一次任务的内容，宿主仓库没有挂载进来；state 中认证仍 deny、config 仍只读。输出中的元数据文件也必须满足文件 contract，不按目录名跳过。用户不能通过 config 自定义其他权限路径。详见 [启动验证](../validation/2026-09-09-codex-startup.md)。
+
 CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage。run 的 Profile 必须完整提供 id、service=openai、method=subscription、credentialRef、endpoint=official、capacity=1。组合先在离线 Runner 中验证同一不可变镜像内的实际 codex --version，再申请租约并接通实际执行。只授权 chatgpt.com 与 auth.openai.com 的 443 CONNECT；不接受任意 endpoint 或环境凭据。
 
 返回 CodexExecution 句柄，result 是独立快照，分别保留版本、Runner、Harness、authentication 与 diagnostics。需要清理恢复时调用 retryCleanup，它先实际停止/删除资源再重试凭据收尾，不升级原业务结果；保存需要的产物/私有证据后 release。普通事件由绑定收集初始和刷新凭据的已知值后脱敏；刷新或脱敏失败不发布消息 payload。

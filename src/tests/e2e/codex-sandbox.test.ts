@@ -22,6 +22,13 @@ test('Codex: actual nested sandbox permits task work and blocks synthetic creden
   for (let i = 0; i < plan.argv.length; i++) if (plan.argv[i] === '-c') settings.push('-c', plan.argv[++i]!);
   const probe = `set -eu
 test "$(id -u)" != 0
+for root in /task/input /task/work /task/outputs; do
+  for name in .git .agents .codex; do
+    mkdir -p "$root/$name"
+    echo task-owned > "$root/$name/probe"
+    test "$(cat "$root/$name/probe")" = task-owned
+  done
+done
 echo changed > /task/input/answer.txt
 mv /task/input/answer.txt /task/input/renamed
 cp /task/input/renamed /task/outputs/result.txt
@@ -32,6 +39,8 @@ if echo changed > /task/state/codex/auth.json 2>/dev/null; then exit 91; fi
 if touch /task/config/overwrite 2>/dev/null; then exit 92; fi
 ln -s /task/state/codex/auth.json /task/work/credential-link
 if cat /task/work/credential-link >/dev/null 2>&1; then exit 93; fi
+ln -s /task/state/codex/auth.json /task/work/.agents/credential-link
+if cat /task/work/.agents/credential-link >/dev/null 2>&1; then exit 98; fi
 if ln /task/state/codex/auth.json /task/work/credential-hard 2>/dev/null; then exit 94; fi
 if mv /task/state/codex /task/work/moved-home 2>/dev/null; then exit 95; fi
 python3 - <<'PY'
