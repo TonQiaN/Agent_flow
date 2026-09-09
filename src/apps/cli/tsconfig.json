@@ -1,7 +1,28 @@
 {
   "extends": "../../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"] },
-  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/engine" }],
-  "include": ["**/*.ts"],
-  "exclude": ["dist", "**/*.test.ts"]
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "types": [
+      "node"
+    ]
+  },
+  "references": [
+    {
+      "path": "../../packages/domain"
+    },
+    {
+      "path": "../../packages/engine"
+    },
+    {
+      "path": "../../packages/integrations"
+    }
+  ],
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "**/*.test.ts"
+  ]
 }

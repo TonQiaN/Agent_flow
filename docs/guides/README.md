@@ -1,6 +1,6 @@
 # 使用指南
 
-当前支持确定性 Component、JSON contract 与 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
+当前支持确定性 Component、JSON contract 与 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；完整测试另需 POSIX 环境与 Python 3（真实伪终端测试）；包均为仓库内部包，尚未发布安装包。
 
 在仓库根目录运行：
 
@@ -10,7 +10,7 @@ npm run check
 npm run demo
 ```
 
-demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；当前只有 demo 子命令，Workflow 库的启动、查询或取消见独立指南。
+demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；另有 [本地认证管理](auth-management.md) 子命令；Workflow 库的启动、查询或取消见独立指南。
 
 [Component 使用指南](components.md) 说明注册与执行接口、错误和副本语义。[验证记录](../validation/2026-09-09-execution-foundation.md) 区分已运行检查和后续能力。
 
