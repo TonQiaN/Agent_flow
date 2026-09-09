@@ -78,3 +78,36 @@ test('source and conversion errors are static, release the source lease, and can
   await assert.rejects(EnvironmentExecutionCredentialBinding.acquire(fake(async () => content('fixture-selected'), async () => { throw new Error('fixture-secret'); }), { identity, credential }, deepseekApiKeyEnvironment), { message: 'CREDENTIAL_LEASE_RELEASE_FAILED' });
   assert.throws(() => credentialEnvironment({ DEEPSEEK_API_KEY: 'x'.repeat(8193) }), /INVALID_CREDENTIAL_ENVIRONMENT/);
 });
+
+test('immutable environment recovery description omits key versions and management binding cannot execute', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-env-resource-'));
+  try {
+    const store = new FileCredentialStore(join(root, 'store'), [new DeepSeekApiKeyCodec()]);
+    await store.configure(credential, { content: content('fixture-resource-key') });
+    const binding = await EnvironmentExecutionCredentialBinding.acquire(store, { identity, credential }, deepseekApiKeyEnvironment);
+    const definition = binding.resourceDefinition();
+    assert.deepEqual(definition, { schema: 'agentflow-environment-resource/v1', credential, keys: ['DEEPSEEK_API_KEY'] });
+    assert.ok(!JSON.stringify(definition).includes('fixture-resource-key')); assert.ok(!JSON.stringify(definition).includes('generation'));
+    const restored = EnvironmentExecutionCredentialBinding.recoveryBinding(credential, ['DEEPSEEK_API_KEY']);
+    assert.deepEqual(restored.resourceDefinition!(), definition);
+    await assert.rejects(restored.beforeRelease({ id: 'resource' }), /BINDING_EXECUTION_MISMATCH/);
+    await restored.restoreResource!({ id: 'resource' });
+    await assert.rejects(restored.prepare({ id: 'resource' }, root), /RECOVERY_BINDING_CANNOT_EXECUTE/);
+    assert.throws(() => restored.secretEnvironment!({ id: 'resource' }), /RECOVERY_BINDING_CANNOT_EXECUTE/);
+    await assert.rejects(restored.restoreResource!({ id: 'resource' }), /BINDING_ALREADY_USED/);
+    await assert.rejects(restored.beforeRelease({ id: 'other' }), /BINDING_EXECUTION_MISMATCH/);
+    await restored.beforeRelease({ id: 'resource' });
+    await assert.rejects(binding.restoreResource({ id: 'resource' }), /RECOVERY_BINDING_REQUIRED/);
+    await binding.abandon();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('environment recovery definitions snapshot trusted identity and reject process configuration keys', () => {
+  const mutable = { ...credential }, keys = ['DEEPSEEK_API_KEY'];
+  const binding = EnvironmentExecutionCredentialBinding.recoveryBinding(mutable, keys);
+  mutable.credentialRef = 'other'; keys[0] = 'OTHER_TOKEN';
+  const description: any = binding.resourceDefinition!(); description.credential.credentialRef = 'changed-return';
+  assert.deepEqual(binding.resourceDefinition!(), { schema: 'agentflow-environment-resource/v1', credential, keys: ['DEEPSEEK_API_KEY'] });
+  for (const bad of [[], ['NODE_OPTIONS'], ['AGENTFLOW_API_KEY'], ['DEEPSEEK_API_KEY', 'DEEPSEEK_API_KEY']])
+    assert.throws(() => EnvironmentExecutionCredentialBinding.recoveryBinding(credential, bad), /INVALID_ENVIRONMENT_RESOURCE_DEFINITION/);
+});

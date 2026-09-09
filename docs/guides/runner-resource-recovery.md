@@ -1,6 +1,6 @@
 # Runner 资源保存与恢复
 
-Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持无私有认证绑定的 Docker（断网或 CONNECT）；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权与同 NodeTask 新 Attempt 已接入[Workflow 恢复](workflow-recovery.md)，其他绑定及未知操作仍待验收。
+Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持无私有认证绑定的 Docker（断网或 CONNECT），以及下述不可变环境凭据的独立执行资源；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权与同 NodeTask 新 Attempt 已接入[Workflow 恢复](workflow-recovery.md)，其他绑定及未知操作仍待验收。
 
 ```ts
 const result = await runner.run(request, cancellation, {
@@ -25,7 +25,7 @@ Runner 先取得实际执行环境描述，再 allocate。分配后由 backend �
 
 工作目录丢失时仍能通过持久资源身份核对并停止容器；目录丢失不证明旧执行结束。容器标签绑定 Run、NodeTask、Attempt、次数和唯一资源 ID，恢复查询还核对固定镜像。恢复句柄不提供 start，DockerBackend 也拒绝重新 prepare/create/start 该旧资源；退出码只是进程事实，不能从旧日志或 outputs 直接接纳成功。
 
-调用者必须在使用恢复句柄前取得上层恢复所有权，并阻止旧宿主晚到的创建/启动操作。该 Runner 端口不取得 Workflow CAS 租约、不刷新认证、不重新执行节点；私有绑定、交互、联网和 Agent 完整恢复继续实施。示例中的存储必须来自受信宿主，不能把模型提供的 JSON 当作资源管理授权。
+调用者必须在使用恢复句柄前取得上层恢复所有权，并阻止旧宿主晚到的创建/启动操作。该 Runner 端口不取得 Workflow CAS 租约、不刷新认证、不重新执行节点；订阅占用、交互和 Agent 完整恢复继续实施。示例中的存储必须来自受信宿主，不能把模型提供的 JSON 当作资源管理授权。
 
 [Runner 基础](runner.md) · [检查点加载](workflow-checkpoint-loading.md) · [验证记录](../validation/2026-09-10-runner-resource-recovery.md)
 
@@ -37,6 +37,15 @@ CONNECT 恢复会核对任务容器、代理和内外两张网络的完整身份
 
 ## Agent 版本探针
 
-CodexSubscriptionRunner、ClaudeSubscriptionRunner 和 DeepSeekApiKeyRunner 共享 `versionProbeDefinition()` 与 `restoreVersionResource(checkpoint)`。宿主可通过 `run(request, cancellation, probeSink)` 单独记录认证获取前的版本探针：`save` 接收带实际探针定义的 Runner 资源，`launch` 接收共同启动日志，`complete` 在核验版本、移除容器并释放目录后被等待；任何记录拒绝都不能进入凭据获取。
+CodexSubscriptionRunner、ClaudeSubscriptionRunner 和 DeepSeekApiKeyRunner 共享 `versionProbeDefinition()` 与 `restoreVersionResource(checkpoint)`。宿主可通过 `run(request, cancellation, { version: probeSink })` 单独记录认证获取前的版本探针：`save` 接收带实际探针定义的 Runner 资源，`launch` 接收共同启动日志，`complete` 在核验版本、移除容器并释放目录后被等待；任何记录拒绝都不能进入凭据获取。
 
 恢复只返回共同 Runner 管理句柄，调用者须先确认恢复所有权，再查询、停止/移除和释放。这个端口尚未接入 Workflow 的阶段检查点，也不记录后续模型执行资源或认证占用；不能据此恢复完整 Agent。实际中断与反例见[验证记录](../validation/2026-09-10-version-resource-recovery.md)。
+
+
+## 不可变 API key 执行
+
+DeepSeekApiKeyRunner 可通过 `executionResourceDefinition(profile)` 取得实际恢复环境定义；`run(request, cancellation, { version: probeSink, execution: executionSink })` 分别保存版本探针和模型执行资源。executionSink 接收共同 RunnerResourceCheckpoint 及启动日志，它在源凭据短租约已释放后才被调用。订阅组合尚不支持 executionResourceDefinition。
+
+宿主确认恢复所有权后调用 `restoreExecutionResource(checkpoint, profile)`，再使用共同 query、stopAndRemove、release。恢复不读凭据存储、不获取旧 key、不写回已轮换或已删除记录；通过实际环境定义、完整资源身份及私有目录标记核对，再清理任务、代理和两张网络。获取凭据期间没有执行资源记录时仍不可自动恢复，不能以宿主退出推断占用结束。
+
+这个接口尚未接入 Workflow 的多个资源阶段和 Agent 文件收据；没有端到端 Agent 新 Attempt 恢复承诺。见[不可变凭据资源验证](../validation/2026-09-10-credential-resource-recovery.md)。

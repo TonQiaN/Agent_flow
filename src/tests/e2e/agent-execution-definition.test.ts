@@ -47,6 +47,11 @@ for (const provider of ['codex', 'claude', 'deepseek']) test(`actual ${provider}
     assert.match(binding.environment.options.image, /^sha256:[a-f0-9]{64}$/); assert.match(binding.environment.options.network.proxyImage, /^sha256:[a-f0-9]{64}$/);
     assert.equal(binding.versionProbe.backend.options.network, 'none'); assert.deepEqual(binding.versionProbe.argv, binding.versionCommand);
     assert.equal(binding.versionProbe.backend.options.image, binding.environment.options.image);
+    if (provider === 'deepseek') {
+      assert.equal(binding.environment.schema, 'agentflow-docker-execution/v3');
+      assert.deepEqual(binding.environment.privateState.keys, ['DEEPSEEK_API_KEY']);
+      assert.match(binding.environment.egress.proxySha256, /^[a-f0-9]{64}$/);
+    }
     assert.equal(binding.environment.paths.work, '/task/work'); assert.equal(binding.timeoutMs, 30000);
     assert.ok(!JSON.stringify(snapshot).includes('caller-mutated'));
     await assertWorkflowExecutionMatches(setup().compiled, snapshot);
