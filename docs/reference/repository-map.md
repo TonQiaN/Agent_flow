@@ -66,3 +66,5 @@ Agent_flow/
 耐久文件端口位于 `src/packages/engine/persistence/artifacts.ts`，本地实现位于 `src/packages/integrations/artifacts/file-archive.ts`；与临时 store 共用内部 `snapshot-io.ts`，归档没有临时释放生命周期。见[归档指南](../guides/artifact-archive.md)。
 
 `src/packages/engine/workflow/structure.ts` 从受信编译计划导出结构与实际契约，供后续持久化核对；不负责 Runner 环境或执行恢复。见[结构指南](../guides/workflow-structure.md)。
+
+`src/packages/engine/workflow/execution.ts` 组合实际执行绑定描述；脚本环境由 `ScriptExecutor` 和具体 backend 提供，engine 不解析 Docker 配置。见[执行绑定指南](../guides/workflow-execution-snapshot.md)。

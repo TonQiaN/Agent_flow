@@ -1,4 +1,4 @@
-import type { ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 
 export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state', config: '/task/config' });
 
@@ -37,6 +37,8 @@ export interface RawCapture {
   readonly network?: { readonly kind: 'connect-proxy'; readonly proxyImageId: string | null; readonly allowedHosts: readonly string[] };
 }
 export interface ExecutionBackend {
+  /** Freeze and describe the actual installed execution environment before allocating resources. */
+  definition?(): Promise<JsonValue>;
   allocate(): Promise<ExecutionResource>;
   prepare(resource: ExecutionResource, request: RunnerRequest): Promise<void>;
   create(resource: ExecutionResource, request: RunnerRequest): Promise<void>;

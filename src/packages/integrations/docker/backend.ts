@@ -5,6 +5,7 @@ import { getuid, getgid } from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS } from '@agentflow/engine';
+import type { JsonValue } from '@agentflow/domain';
 import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
 import type { AttachedProcess, DockerInteraction } from './process.js';
@@ -53,6 +54,10 @@ interface OwnedResource {
 interface Inspected { state: { Status: string; Running: boolean; ExitCode: number }; owner: string }
 
 export class DockerBackend implements ExecutionBackend {
+  #allocationStarted = false;
+  #definition: JsonValue | undefined;
+  #definitionPromise: Promise<JsonValue> | undefined;
+  #pinnedImage: string | undefined;
   readonly #resources = new Map<string, OwnedResource>();
   readonly #released = new Set<string>();
   readonly #options: Required<DockerOptions>;
@@ -88,7 +93,28 @@ export class DockerBackend implements ExecutionBackend {
     return owned;
   }
 
+  /** Only environment choices actually controlled by this backend are described. No resources are started. */
+  async definition(): Promise<JsonValue> {
+    if (this.#definition !== undefined) return structuredClone(this.#definition);
+    if (this.#definitionPromise) return structuredClone(await this.#definitionPromise);
+    if (this.#allocationStarted || this.#resources.size || this.#released.size) throw new Error('EXECUTION_DEFINITION_AFTER_ALLOCATION');
+    if (this.#binding || this.#interaction || this.#options.network !== 'none') throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
+    this.#definitionPromise = (async () => {
+      const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
+      if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
+      const { image: _image, ...options } = this.#options;
+      this.#pinnedImage = imageId;
+      this.#definition = JSON.parse(JSON.stringify({ schema: 'agentflow-docker-execution/v1', options: { ...options, image: imageId },
+        paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
+      return structuredClone(this.#definition!);
+    })();
+    try { return structuredClone(await this.#definitionPromise); }
+    finally { this.#definitionPromise = undefined; }
+  }
+
   async allocate(): Promise<ExecutionResource> {
+    this.#allocationStarted = true;
+    if (this.#definitionPromise) await this.#definitionPromise;
     await mkdir(this.#options.workspaceRoot, { recursive: true, mode: 0o700 });
     const directory = await mkdtemp(join(this.#options.workspaceRoot, 'attempt-'));
     const id = `af-${randomUUID()}`;
@@ -132,7 +158,7 @@ export class DockerBackend implements ExecutionBackend {
 
   async create(resource: ExecutionResource, request: RunnerRequest): Promise<void> {
     const owned = this.#owned(resource);
-    const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
+    const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#pinnedImage ?? this.#options.image]);
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     owned.imageId = imageId;
     const options = this.#options;

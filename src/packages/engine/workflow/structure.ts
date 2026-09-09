@@ -4,7 +4,7 @@ import { DefinitionError } from '../errors.js';
 import { ContractRegistry } from '../contracts/registry.js';
 import { FileContractRegistry } from '../contracts/files.js';
 import type { FileContract } from '../contracts/files.js';
-import { copyJson } from '../json.js';
+import { copyJson, canonicalJson as canonical } from '../json.js';
 import { getPlan } from './compiler.js';
 import type { CompiledWorkflow, WorkflowDefinition } from './types.js';
 
@@ -20,11 +20,7 @@ export interface WorkflowStructureSnapshot {
   readonly components: Readonly<Record<string, ComponentDefinition>>;
   readonly contracts: readonly WorkflowStoredContract[];
 }
-const canonical = (value: JsonValue): string => {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key]!)}`).join(',')}}`;
-  return JSON.stringify(value);
-};
+
 const object = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
 const keys = (v: Record<string, unknown>, names: string[]): boolean => Object.keys(v).length === names.length && names.every(k => Object.hasOwn(v, k));
 function fail(code = 'INVALID_WORKFLOW_CONTRACT_DEFINITION'): never { throw new DefinitionError(code); }

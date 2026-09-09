@@ -43,4 +43,6 @@
 
 [耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；尚未接入 Workflow 恢复。
 
-[Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；执行绑定及节点恢复仍待接入。
+[Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；断网脚本绑定见下方，其他执行绑定及节点恢复仍待接入。
+
+[脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；运行检查点与恢复仍待接入。
