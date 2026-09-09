@@ -38,3 +38,5 @@
 [订阅终端登录](guides/subscription-login.md)已接入显式参数、隐藏授权码、取消与本地检查/删除；有限备份恢复已有后续验证，真实订阅继续验收。
 
 [私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。
+
+[Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；流程快照和重启恢复尚未接入，完整持久化能力仍待后续验收。
