@@ -14,7 +14,7 @@ export { TASK_PATHS } from './runner/types.js';
 export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, ExecutionBackend, ExecutionResource, Observation, RawCapture, CapturedFile } from './runner/types.js';
 export { HarnessRegistry } from './harness/registry.js';
 export type { HarnessAdapter, HarnessTask, HarnessPlan, HarnessEvent, HarnessUsage, HarnessEvidence, HarnessResult } from './harness/types.js';
-export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore, CredentialManagementLease, CredentialManagementStore } from './auth/types.js';
+export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore, CredentialManagementLease, CredentialManagementStore, CredentialRecoveryStore, CredentialRecoveryResult } from './auth/types.js';
 export { compileWorkflow, WorkflowDefinitionError } from './workflow/compiler.js';
 export { WorkflowRuntime } from './workflow/runtime.js';
 export { JsonFunctionWorkflowCatalog } from './workflow/functions.js';

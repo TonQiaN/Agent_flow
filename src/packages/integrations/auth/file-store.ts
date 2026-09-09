@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
 import { isIdentifier } from '@agentflow/domain';
-import type { CredentialIdentity, CredentialLease, CredentialMetadata, CredentialSource, CredentialManagementStore, CredentialManagementLease } from '@agentflow/engine';
+import type { CredentialIdentity, CredentialLease, CredentialMetadata, CredentialSource, CredentialManagementStore, CredentialManagementLease, CredentialRecoveryStore, CredentialRecoveryResult } from '@agentflow/engine';
 
 export interface CredentialCodec {
   readonly service: string;
@@ -33,7 +33,7 @@ async function safe<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 /** POSIX, current-user local storage. Ancestors outside root must be controlled by the host. */
-export class FileCredentialStore implements CredentialManagementStore {
+export class FileCredentialStore implements CredentialManagementStore, CredentialRecoveryStore {
   readonly #root: string;
   readonly #codecs = new Map<string, CredentialCodec>();
 
@@ -60,6 +60,11 @@ export class FileCredentialStore implements CredentialManagementStore {
     if (!valid) throw new CredentialError('INVALID_CREDENTIAL_CONTENT');
   }
   #path(identity: CredentialIdentity): string { return join(this.#root, `${identity.credentialRef}.json`); }
+  #backupPath(identity: CredentialIdentity): string { return join(this.#root, `.backup-${identity.credentialRef}.json`); }
+  #serialize(stored: StoredCredential): string {
+    return JSON.stringify({ schema: 1, credentialRef: stored.credentialRef, service: stored.service, method: stored.method,
+      generation: stored.generation, revision: stored.revision, payload: stored.payload });
+  }
 
   async #rootReady(): Promise<void> {
     await mkdir(this.#root, { recursive: true, mode: 0o700 });
@@ -104,8 +109,12 @@ export class FileCredentialStore implements CredentialManagementStore {
     this.#codec(identity);
     await this.#rootReady();
     let raw: string;
-    try { raw = await readPrivate(this.#path(identity), LIMIT * 7); }
+    try { raw = await readPrivate(this.#path(identity), LIMIT * 7, true); }
     catch (error) { if (nodeError(error, 'ENOENT')) return null; throw error; }
+    return this.#parse(identity, raw);
+  }
+
+  #parse(identity: CredentialIdentity, raw: string): StoredCredential {
     let stored: StoredCredential;
     try { stored = JSON.parse(raw) as StoredCredential; } catch { throw new CredentialError('CORRUPT_CREDENTIAL_RECORD'); }
     if (!stored || typeof stored !== 'object' || Array.isArray(stored) || stored.schema !== 1
@@ -117,15 +126,80 @@ export class FileCredentialStore implements CredentialManagementStore {
     return stored;
   }
 
-  async #replace(stored: StoredCredential): Promise<void> {
+  async #syncDirectory(): Promise<void> {
+    const directory = await open(this.#root, constants.O_RDONLY);
+    try { await directory.sync(); } finally { await directory.close(); }
+  }
+  async #atomicWrite(path: string, text: string): Promise<void> {
     const temporary = join(this.#root, `.credential-${randomUUID()}.tmp`);
+    try { await writeNew(temporary, text); await rename(temporary, path); await this.#syncDirectory(); }
+    finally { await rm(temporary, { force: true }); }
+  }
+  async #checkBackupFile(identity: CredentialIdentity): Promise<void> {
     try {
-      await writeNew(temporary, JSON.stringify(stored));
-      await rename(temporary, this.#path(stored));
-      // Rename provides readers atomic old/new contents. Directory fsync makes the rename durable on supported POSIX filesystems.
-      const directory = await open(this.#root, constants.O_RDONLY);
-      try { await directory.sync(); } finally { await directory.close(); }
-    } finally { await rm(temporary, { force: true }); }
+      const info = await lstat(this.#backupPath(identity));
+      if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 || info.uid !== process.getuid!() || (info.mode & 0o777) !== 0o600)
+        throw new CredentialError('UNSAFE_CREDENTIAL_BACKUP');
+    } catch (error) { if (!nodeError(error, 'ENOENT')) throw error; }
+  }
+  async #invalidateBackup(identity: CredentialIdentity): Promise<void> {
+    await this.#checkBackupFile(identity);
+    try { await unlink(this.#backupPath(identity)); } catch (error) { if (!nodeError(error, 'ENOENT')) throw error; }
+    // The invalidation must precede a new generation/revision or local deletion durably.
+    await this.#syncDirectory();
+  }
+  async #checkpoint(stored: StoredCredential): Promise<void> {
+    const serialized = this.#serialize(stored);
+    const live = await readPrivate(this.#path(stored), LIMIT * 7, true);
+    if (live !== serialized) {
+      if (this.#serialize(this.#parse({ credentialRef: stored.credentialRef, service: stored.service, method: stored.method }, live)) !== serialized) throw new CredentialError('CREDENTIAL_REVISION_CONFLICT');
+      // Normalize an existing valid envelope before checkpointing so a torn prefix is identifiable.
+      await this.#invalidateBackup(stored);
+      await this.#atomicWrite(this.#path(stored), serialized);
+    }
+    await this.#checkBackupFile(stored);
+    await this.#atomicWrite(this.#backupPath(stored), serialized);
+  }
+  async #replace(stored: StoredCredential): Promise<void> {
+    await this.#invalidateBackup(stored);
+    await this.#atomicWrite(this.#path(stored), this.#serialize(stored));
+    await this.#checkpoint(stored);
+  }
+
+  async recover(identity: CredentialIdentity, waitMs = 0): Promise<CredentialRecoveryResult> {
+    this.#codec(identity); const selected = Object.freeze({ ...identity });
+    return safe(async () => {
+      const lock = await this.#lock(selected, waitMs);
+      try {
+        let raw: string;
+        try { raw = await readPrivate(this.#path(selected), LIMIT * 7, true); }
+        catch (error) {
+          if (nodeError(error, 'ENOENT')) return { status: 'not_configured', credential: null, diagnostic: 'RECOVERY_LIVE_MISSING' };
+          throw error;
+        }
+        try { return { status: 'healthy', credential: metadata(this.#parse(selected, raw)), diagnostic: null }; }
+        catch (error) {
+          if (!(error instanceof CredentialError) || !['CORRUPT_CREDENTIAL_RECORD', 'INVALID_CREDENTIAL_CONTENT'].includes(error.code)) throw error;
+        }
+        const unavailable = (diagnostic: string): CredentialRecoveryResult => ({ status: 'unavailable', credential: null, diagnostic });
+        // Parseable but unknown/schema-invalid content is not evidence of a torn write.
+        try { JSON.parse(raw); return unavailable('RECOVERY_FORMAT_NOT_RECOGNIZED'); } catch { /* Strict prefix check below. */ }
+        let backup: string;
+        try { backup = await readPrivate(this.#backupPath(selected), LIMIT * 7, true); }
+        catch (error) { if (nodeError(error, 'ENOENT')) return unavailable('RECOVERY_BACKUP_MISSING'); throw error; }
+        let stored: StoredCredential;
+        try { stored = this.#parse(selected, backup); }
+        catch { return unavailable('RECOVERY_BACKUP_INVALID'); }
+        if (backup !== this.#serialize(stored)) return unavailable('RECOVERY_BACKUP_FORMAT_NOT_RECOGNIZED');
+        const headerLength = backup.indexOf(',"payload":') + ',"payload":'.length;
+        if (headerLength < 1 || raw.length < headerLength || raw.length >= backup.length || !backup.startsWith(raw))
+          return unavailable('RECOVERY_PREFIX_OR_VERSION_MISMATCH');
+        if (await readPrivate(this.#path(selected), LIMIT * 7, true) !== raw) throw new CredentialError('CREDENTIAL_RECOVERY_CONFLICT');
+        // The matching backup remains intact if restoring the live file fails.
+        await this.#atomicWrite(this.#path(selected), backup);
+        return { status: 'restored', credential: metadata(stored), diagnostic: null };
+      } finally { await lock.release(); }
+    });
   }
 
   async configure(identity: CredentialIdentity, source: CredentialSource, waitMs = 0): Promise<CredentialMetadata> {
@@ -157,7 +231,7 @@ export class FileCredentialStore implements CredentialManagementStore {
           const current = await this.#read(selected);
           if (expected ? !current || current.generation !== expected.generation || current.revision !== expected.revision : current !== null)
             throw new CredentialError('CREDENTIAL_REVISION_CONFLICT');
-          if (current?.payload === content) return metadata(current);
+          if (current?.payload === content) { await this.#checkpoint(current); return metadata(current); }
           if (current?.revision === Number.MAX_SAFE_INTEGER) throw new CredentialError('CREDENTIAL_REVISION_EXHAUSTED');
           const stored: StoredCredential = { ...selected, schema: 1, generation: current?.generation ?? randomUUID(), revision: (current?.revision ?? 0) + 1, payload: content };
           await this.#replace(stored); return metadata(stored);
@@ -195,7 +269,7 @@ export class FileCredentialStore implements CredentialManagementStore {
               try { accepted = refresh.call(codec, current.payload, content) === true; } catch { /* Do not expose provider errors. */ }
               if (!accepted) throw new CredentialError('CREDENTIAL_REFRESH_REJECTED');
             }
-            if (current.payload === content) return metadata(current);
+            if (current.payload === content) { await this.#checkpoint(current); return metadata(current); }
             if (current.revision === Number.MAX_SAFE_INTEGER) throw new CredentialError('CREDENTIAL_REVISION_EXHAUSTED');
             const updated = { ...current, payload: content, revision: current.revision + 1 };
             await this.#replace(updated);
@@ -212,7 +286,8 @@ export class FileCredentialStore implements CredentialManagementStore {
       const lock = await this.#lock(selected, waitMs);
       try {
         const stored = await this.#read(selected);
-        if (stored) await unlink(this.#path(selected));
+        await this.#invalidateBackup(selected);
+        if (stored) { await unlink(this.#path(selected)); await this.#syncDirectory(); }
         return { deleted: stored !== null, remoteRevoked: false };
       } finally { await lock.release(); }
     });
@@ -282,7 +357,7 @@ async function writeNew(path: string, text: string): Promise<void> {
 }
 
 /** Internal shared bounded reader; callers must first validate their controlled parent directories. */
-export async function readPrivate(path: string, limit: number): Promise<string> {
+export async function readPrivate(path: string, limit: number, preserveBOM = false): Promise<string> {
   const before = await lstat(path);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || before.uid !== process.getuid!()
     || (before.mode & 0o777) !== 0o600 || before.size > limit) throw new CredentialError('UNSAFE_CREDENTIAL_FILE');
@@ -300,7 +375,7 @@ export async function readPrivate(path: string, limit: number): Promise<string> 
     }
     const after = await file.stat();
     if (length !== opened.size || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) throw new CredentialError('CREDENTIAL_FILE_CHANGED');
-    try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, length)); }
+    try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: preserveBOM }).decode(bytes.subarray(0, length)); }
     catch { throw new CredentialError('INVALID_CREDENTIAL_ENCODING'); }
   } finally { await file.close(); }
 }

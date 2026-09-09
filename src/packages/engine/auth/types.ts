@@ -34,3 +34,13 @@ export interface CredentialManagementLease {
 export interface CredentialManagementStore extends CredentialStore {
   acquireManagement(identity: CredentialIdentity, waitMs?: number): Promise<CredentialManagementLease>;
 }
+
+/** Explicit local repair; neither a new login nor proof of remote validity. */
+export interface CredentialRecoveryResult {
+  readonly status: 'healthy' | 'restored' | 'not_configured' | 'unavailable';
+  readonly credential: CredentialMetadata | null;
+  readonly diagnostic: string | null;
+}
+export interface CredentialRecoveryStore extends CredentialStore {
+  recover(identity: CredentialIdentity, waitMs?: number): Promise<CredentialRecoveryResult>;
+}

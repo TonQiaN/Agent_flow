@@ -43,3 +43,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Claude 订阅执行组合](claude-execution.md)
 
 - [订阅登录接口与终端入口](subscription-login.md)
+
+- [私有凭据备份与恢复](credential-recovery.md)
