@@ -96,3 +96,5 @@
 [Runner 目录内输入物化验证](2026-09-10-owned-runner-input.md)。
 
 [Catalog 借用输入快照验证](2026-09-10-catalog-snapshot-input.md)。
+
+[直接物化归档与恢复验证](2026-09-10-direct-artifact-capture.md)。

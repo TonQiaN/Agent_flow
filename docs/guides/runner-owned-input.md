@@ -22,4 +22,4 @@ CredentialHarnessRunner 的版本探针直接使用空 input，不再创建 vers
 
 Catalog 与 AgentExecutor 共享同一个支持 inspect 的实际 ArtifactStore 时，直接借用已登记快照，省掉 Agent 的 Catalog node 目录及重复输入捕获。借用保持原输入所有权，停止不明时 Catalog 禁止释放引用；Driver 仍在 Runner 目录内创建独立可写副本。不同存储或不支持 inspect 时保留原路径回退。
 
-Catalog checkpoint/restore 暂存、其他节点或回退路径的 node 目录、旧进程初始/已接纳临时快照及分配后尚未提交记录的窗口仍需后续处理，不能把输入调整当作完整崩溃 GC。[验证记录](../validation/2026-09-10-owned-runner-input.md) · [资源恢复](runner-resource-recovery.md)
+内置存储已通过直接物化消除 Catalog checkpoint/restore 中间目录；目标存储未发布暂存、其他节点或回退路径的 node 目录、旧进程初始/已接纳临时快照及分配后尚未提交记录的窗口仍需后续处理，不能把输入调整当作完整崩溃 GC。[验证记录](../validation/2026-09-10-owned-runner-input.md) · [资源恢复](runner-resource-recovery.md)

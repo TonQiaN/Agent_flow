@@ -34,11 +34,15 @@ export interface FileManifest {
   readonly directories: readonly string[];
   readonly files: readonly { readonly path: string; readonly bytes: number; readonly sha256: string; readonly mediaType: string; readonly rule: string }[];
 }
+/** Installed host capability; writes an independent tree at an absent destination and then stops writing. */
+export interface ArtifactMaterializer { materialize(destination: string): Promise<void> }
+
 /** Execution coordination owns termination checks; the storage adapter owns source/destination IO. */
 export interface ArtifactStore {
   capture(source: string, contractId: string): Promise<FileManifest>;
   /** Describe an existing process-local snapshot. Materialization still verifies its bytes. */
   inspect?(id: string): Promise<FileManifest>;
+  captureMaterialized?(source: ArtifactMaterializer, contractId: string): Promise<FileManifest>;
   materialize(id: string, destination: string): Promise<void>;
   release(id: string): Promise<void>;
 }

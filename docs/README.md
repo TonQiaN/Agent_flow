@@ -74,3 +74,5 @@
 [Runner 输入物化](guides/runner-owned-input.md)已消除版本探针和 Agent Driver 的外部输入临时目录；Catalog 等其他临时目录的崩溃收尾仍待完成。
 
 [Catalog 输入复用](validation/2026-09-10-catalog-snapshot-input.md)已消除同存储 Agent 的 node 输入目录和重复输入快照；其他临时目录及订阅恢复仍待完成。
+
+[直接存储交接](validation/2026-09-10-direct-artifact-capture.md)已省掉内置组合的 Catalog checkpoint/restore 中间目录；目标存储未发布暂存及旧进程临时快照仍待处理。
