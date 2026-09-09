@@ -1,14 +1,16 @@
 import { isAbsolute } from 'node:path';
 import { isIdentifier } from '@agentflow/domain';
-import { FileCredentialStore, DeepSeekApiKeyCodec, CredentialError } from '@agentflow/integrations';
+import { FileCredentialStore, DeepSeekApiKeyCodec, CodexSubscriptionCodec, ClaudeSubscriptionCodec, CredentialError } from '@agentflow/integrations';
+import { login } from './login.js';
 import { readHiddenInput } from './hidden-input.js';
 
-const usage = 'Usage: agentflow auth <configure|inspect|delete> deepseek --store <absolute-directory> --credential-ref <id> [--file <absolute-file>]';
-/** Explicit local management. No profile discovery, remote checks, model requests or subscription login. */
+const usage = 'Usage: agentflow auth configure deepseek --store <absolute-directory> --credential-ref <id> [--file <absolute-file>]; auth <inspect|delete> <deepseek|codex|claude> --store <absolute-directory> --credential-ref <id>';
+/** Explicit local management and a separate terminal login route. */
 export async function auth(args: readonly string[]): Promise<number> {
   const [operation, provider, ...tail] = args;
+  if (operation === 'login') return login(args.slice(1));
   const options = new Map<string, string>();
-  if (!['configure', 'inspect', 'delete'].includes(operation ?? '') || provider !== 'deepseek' || tail.length % 2 !== 0) {
+  if (!['configure', 'inspect', 'delete'].includes(operation ?? '') || !['deepseek', 'codex', 'claude'].includes(provider ?? '') || operation === 'configure' && provider !== 'deepseek' || tail.length % 2 !== 0) {
     process.stderr.write(usage + '\n'); return 2;
   }
   for (let index = 0; index < tail.length; index += 2) {
@@ -24,8 +26,8 @@ export async function auth(args: readonly string[]): Promise<number> {
     process.stderr.write(usage + '\n'); return 2;
   }
   try {
-    const store = new FileCredentialStore(root, [new DeepSeekApiKeyCodec()]);
-    const identity = { credentialRef: ref, service: 'deepseek', method: 'api-key' };
+    const store = new FileCredentialStore(root, [new DeepSeekApiKeyCodec(), new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec()]);
+    const identity = { credentialRef: ref, service: provider === 'codex' ? 'openai' : provider === 'claude' ? 'anthropic' : 'deepseek', method: provider === 'deepseek' ? 'api-key' : 'subscription' };
     let result;
     if (operation === 'configure') {
       if (file) result = await store.configure(identity, { file });

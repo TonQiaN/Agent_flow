@@ -1,6 +1,6 @@
 # 订阅登录协调接口
 
-当前提供独立登录协调器、管理租约，以及 Codex 0.153.4 / Claude 2.1.226 的 Docker 原生登录驱动。宿主通过私有交互能力组合使用；CLI `auth login` 尚未提供，真实账号登录尚未验收。
+当前提供独立登录协调器、管理租约，以及 Codex 0.153.4 / Claude 2.1.226 的 Docker 原生登录驱动。宿主可通过私有交互能力或 CLI `auth login` 使用；真实账号登录尚未验收。
 
 ## 管理占用
 
@@ -47,8 +47,38 @@ interaction 是受信宿主对象，独立于 Docker JSON 配置和 Workflow：
 - `output(channel, bytes)` 同步接收原始 stdout/stderr 字节，供私有终端显示。它可能包含登录 URL、设备码或授权码，不能转发到普通日志、遥测或公开任务结果。
 - disposer 在附加进程关闭时执行一次，移除宿主输入监听。输入、输出或 disposer 错误使执行失败，由 Runner 核对并清理容器；关闭客户端本身不证明容器停止。
 
-默认 Docker 任务仍关闭标准输入。登录不分配 TTY；原生参数支持通过离线帮助核对，Claude 完整浏览器回调与手动授权码交接仍须真实登录验证。宿主终端入口后续接入，库调用方不能把原生输出当作可信自动化指令。
+默认 Docker 任务仍关闭标准输入。登录不分配 TTY；原生参数支持通过离线帮助核对，Claude 完整浏览器回调与手动授权码交接仍须真实登录验证。宿主终端入口见下节；库调用方不能把原生输出当作可信自动化指令。
 
 停止及资源移除确认后，驱动核对原始输出采集完整性、私有目录 0700、文件 0600、当前用户所有、单一硬链接、非符号链接、大小至多 1 MiB 和有效 UTF-8，再交管理协调器校验及保存。Claude 清空 token 的刷新失效标记不能建立新登录。容器移除失败保留管理占用；重试清理只处理原资源，成功后至多保存一次。错误版本、取消或原失败不会因清理成功变成登录成功。
 
 具体合成覆盖与局限见 [原生登录驱动验证](../validation/2026-09-09-native-subscription-login.md)。
+
+## 终端登录与本地管理
+
+先构建仓库，在自己的终端明确选择服务、存储、引用、临时工作区及两个镜像。镜像须已在本机准备并经宿主信任；入口不自动下载镜像，也不搜索桌面登录状态。以下命令仅说明调用形式：
+
+```sh
+node src/apps/cli/dist/index.js auth login codex \
+  --store /absolute/private/credentials --credential-ref teaching \
+  --workspace /absolute/private/login-workspaces \
+  --image selected-codex-image --proxy-image selected-node-proxy-image
+```
+
+Claude 将 codex 改为 claude，并明确选择对应 Claude 镜像。代理镜像须能运行项目 CONNECT 服务，已验证环境使用 Node 22。`--timeout-ms` 可选，默认 600000（10 分钟），上限 1800000；终端取消时限包含版本探针与登录准备，实际退出仍须等待资源停止/清理。
+
+stdin 和 stderr 均须为终端。启动提示前关闭回显；原生命令显示登录 URL/设备码后，用户在浏览器完成流程。如需输入授权码，粘贴后 Enter 提交；Backspace 删除、Ctrl-U 清空、Ctrl-C/Ctrl-D/Ctrl-Z 取消。每行最多 8191 个非空白 ASCII 字符，总交互至多 64 KiB；多行粘贴和非法控制字符拒绝。入口不接收 `--code`、`--file`、`--json` 或环境变量中的授权码。不要重定向私有 stderr；原始登录输出仅供终端显示，控制字节已移除，不解释为自动化命令。
+
+SIGINT、SIGTERM、SIGHUP、终端断开或超时会请求 Runner 取消；停止、清理及协调完成后恢复原终端模式。强杀进程不能保证恢复终端、停止容器或释放租约。正常结果只在 stdout 输出 SubscriptionLoginResult，显示 configured/failed/pending_cleanup、身份、非秘密元数据和静态诊断，不含授权码。
+
+退出码为：本地配置并清理成功 0、参数不支持 2、失败/取消/超时 1、清理仍不确定 3。遇到 pending_cleanup 会作一次原执行清理重试；仍失败时保留锁和私有工作区，不重新登录、不自动删锁。当前没有跨进程登录句柄恢复；应保留证据并核对原资源，不能因为 CLI 已退出就断言容器已停止。
+
+检查和本地删除不需要终端，不联网：
+
+```sh
+node src/apps/cli/dist/index.js auth inspect codex \
+  --store /absolute/private/credentials --credential-ref teaching
+node src/apps/cli/dist/index.js auth delete codex \
+  --store /absolute/private/credentials --credential-ref teaching
+```
+
+也支持 claude；相同引用按所选服务核对。删除仍遵守管理占用，不宣称远端撤销；已保存仍为 remoteStatus=unknown。真实 OAuth、Claude 原生浏览器回调和授权码交接、真实刷新继续验收。见 [终端登录验证](../validation/2026-09-09-subscription-login-cli.md)。

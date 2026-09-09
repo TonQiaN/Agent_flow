@@ -33,4 +33,6 @@
 
 [订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动已在后续切片接入，真实登录及安全备份恢复继续实施。
 
-[原生订阅登录驱动](guides/subscription-login.md)已接入私有交互与受控 Docker；已做合成验证，真实官方登录和 CLI 入口继续验收。
+[原生订阅登录驱动](guides/subscription-login.md)已接入私有交互与受控 Docker；已做合成验证，真实官方登录继续验收，CLI 入口已由后续切片接入。
+
+[订阅终端登录](guides/subscription-login.md)已接入显式参数、隐藏授权码、取消与本地检查/删除；真实订阅和安全备份恢复继续验收。
