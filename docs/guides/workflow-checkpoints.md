@@ -1,6 +1,6 @@
 # Workflow 检查点写入
 
-`WorkflowRuntime.startPersisted(compiled, runId, input, store)` 在现有串行执行路径上保存正常运行事实。当前内置组合支持无私有认证的 Docker 脚本（断网或 CONNECT）；它提供检查点写入和异步取消确认，断网脚本的重启执行使用[恢复接口](workflow-recovery.md)。
+`WorkflowRuntime.startPersisted(compiled, runId, input, store)` 在现有串行执行路径上保存正常运行事实。当前内置组合支持无私有认证的 Docker 脚本（断网或 CONNECT）及不可变环境 API key 的 Agent（DeepSeek 合成验证）；它提供检查点写入和异步取消确认，断网脚本的重启执行使用[恢复接口](workflow-recovery.md)。
 
 ## 组装
 
@@ -40,7 +40,7 @@ try {
 
 当前已保存正常调用的 Attempt 开始、资源和结果步骤关联；[严格加载与文件引用恢复](workflow-checkpoint-loading.md)、[恢复协调与新 Attempt 执行](workflow-recovery.md)均已接入。恢复句柄经共同 Runner 清理旧资源，再进入共享 Workflow 循环；保留中断历史，同 NodeTask 递增 Attempt。未知 pending 操作仍拒绝自动恢复。
 
-真实 SIGKILL 已验证删除原输入/临时目录后 A 不重跑、旧 B 清理后第 2/3 次 Attempt 完成。Agent/函数/Effect/联网绑定和认证接管仍受各自未完成条件约束，见[恢复执行验证](../validation/2026-09-10-workflow-resume.md)。
+真实 SIGKILL 已验证删除原输入/临时目录后 A 不重跑、旧 B 清理后第 2/3 次 Attempt 完成。函数/Effect、订阅认证接管与宿主临时目录的崩溃清理仍受未完成条件约束，见[恢复执行验证](../validation/2026-09-10-workflow-resume.md)。
 
 脚本资源保存端口随每次调用创建并在调用结束时关闭，经文件适配器与 ScriptExecutor 传给 Runner；资源 CAS 提交完成前不创建容器，失败阻止当前调用和后继。存储只保存事实。旧未发布 v1/v2/v3/v4 试验记录不能通过当前严格加载器，原始存储仍可只读检查，不自动补造资源证据。
 

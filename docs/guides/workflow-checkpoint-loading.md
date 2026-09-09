@@ -26,3 +26,5 @@ Catalog 的 restoreValue 只消费加载器签发的一次性进程内请求。�
 [检查点写入](workflow-checkpoints.md) · [本轮验证](../validation/2026-09-10-workflow-checkpoint-loading.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
 
 加载恢复封套时额外核对 claimRevision、资源移除标记与活动状态的关系，`loaded.recovery` 返回 `{ claimRevision, resourceRemoved }` 的独立副本；普通记录为 null。该检查保持存储 revision 不变，不取得新 claim，也不触碰旧容器。
+
+实际不可变 API key Agent 的文件收据也已接入严格加载：从已安装 Driver 取得 Harness/版本/镜像，核对内外身份、前序引用和完整输入/输出清单；没有 Agent receipt 的公开导入接口。详见[阶段指南](workflow-phases.md)。

@@ -60,9 +60,9 @@ for (const provider of ['codex', 'claude', 'deepseek']) test(`actual ${provider}
     assert.throws(() => setup({ endpoint: 'changed' }));
     await assert.rejects(snapshotWorkflowExecution(setup({ image: 'agentflow-test/missing-definition:does-not-exist' }).compiled));
     binding.profile.credentialRef = 'mutated-return'; assert.equal(((await snapshotWorkflowExecution(f.compiled)).bindings['a'] as any).profile.credentialRef, 'fixture');
-    // A definition is not yet sufficient to persist or resume a private Agent resource.
+    // Immutable Agent resources now have a real plan; invalid input still cannot start execution.
     let writes = 0; const failWrite = async () => { writes++; throw new Error('should not persist'); };
-    await assert.rejects(new WorkflowRuntime().startPersisted(f.compiled, 'run', null, { create: failWrite, read: failWrite, compareAndSwap: failWrite }), /RESOURCE_DEFINITION_UNAVAILABLE/);
+    await assert.rejects(new WorkflowRuntime().startPersisted(f.compiled, 'run', null, { create: failWrite, read: failWrite, compareAndSwap: failWrite }), provider === 'deepseek' ? /INVALID_WORKFLOW_FILE_REFERENCE/ : /RESOURCE_DEFINITION_UNAVAILABLE/);
     assert.equal(writes, 0); assert.equal(credentialCalls, 0); assert.deepEqual(await readdir(root), []);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

@@ -58,6 +58,7 @@ export interface CredentialRunPersistence {
   readonly version: CredentialVersionResourceSink;
   /** Only transports with actual resource restoration support can enable this phase. */
   readonly execution?: RunnerResourceSink;
+  readonly acquisition?: { enter(): Promise<void>; complete(): Promise<void> };
 }
 
 /** Environment composition. Engine Runner and the pure Adapter have no provider-auth branches. */
@@ -161,10 +162,11 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || typeof inputSource !== 'string'
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
     const probePersistence = persistence?.version;
-    if (persistence && (!probePersistence || Object.keys(persistence).some(key => !['version', 'execution'].includes(key)))) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
+    if (persistence && (!probePersistence || Object.keys(persistence).some(key => !['version', 'execution', 'acquisition'].includes(key)))) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
     if (persistence?.execution && (typeof persistence.execution.save !== 'function' || persistence.execution.launch !== undefined && typeof persistence.execution.launch !== 'function')) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
     if (probePersistence && (typeof probePersistence.save !== 'function' || typeof probePersistence.launch !== 'function' || typeof probePersistence.complete !== 'function'))
       throw new Error('INVALID_VERSION_RESOURCE_SINK');
+    if (persistence?.acquisition && (!persistence.execution || typeof persistence.acquisition.enter !== 'function' || typeof persistence.acquisition.complete !== 'function')) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
     if (!persistence) this.#started = true; // Reserve before the ordinary run first yields, including an absent cached environment.
     const probeDefinition = probePersistence ? await this.versionProbeDefinition() : undefined;
     const probeSink: RunnerResourceSink | undefined = probePersistence ? {
@@ -198,12 +200,14 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
 
     const redactor = this.#recipe.redactor();
     const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
+    await persistence?.acquisition?.enter();
     const binding = this.#recipe.binding === 'environment'
       ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.#recipe.secretEnvironment, 0, content => redactor.remember(content))
       : await (this.#recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
         this.#store, { identity: task.identity, credential, stateFile: this.#recipe.stateFile, environment: this.#recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
+      await persistence?.acquisition?.complete();
       backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding);
       if (expectedEnvironment && canonicalJson(await backend.definition()) !== canonicalJson(expectedEnvironment)) throw new Error('CREDENTIAL_RESOURCE_DEFINITION_MISMATCH');
       runner = new Runner(backend, systemClock);

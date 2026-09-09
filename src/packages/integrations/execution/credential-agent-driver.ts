@@ -1,3 +1,4 @@
+import type { InvocationResourcePlan, InvocationPhaseSink, InvocationPhaseHandle, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import type { JsonValue } from '@agentflow/domain';
 import { isAbsolute, join } from 'node:path';
@@ -23,21 +24,49 @@ export class CredentialAgentDriver<P extends CredentialIdentity> implements Agen
     this.validate(task);
     return this.runtime.definitionSnapshot(task, this.#profile, this.#options.timeoutMs);
   }
-  async run(task: HarnessTask, input: FileManifest, cancellation: Cancellation): Promise<AgentExecutionHandle> {
+  async resourcePlan(task: HarnessTask): Promise<InvocationResourcePlan | null> {
     this.validate(task);
+    let execution: JsonValue;
+    try { execution = await this.runtime.executionResourceDefinition(this.#profile); }
+    catch (error) { if (error instanceof Error && error.message === 'CREDENTIAL_RESOURCE_RESTORE_UNAVAILABLE') return null; throw error; }
+    const probe = await this.runtime.versionProbeDefinition() as { backend: JsonValue };
+    return { schema: 'agentflow-invocation-resources/v1', phases: [
+      { id: 'version', kind: 'resource', execution: probe.backend },
+      { id: 'credential', kind: 'operation' }, { id: 'execution', kind: 'resource', execution } ] };
+  }
+  async restorePhaseResource(task: HarnessTask, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
+    this.validate(task);
+    if (phase === 'version') return this.runtime.restoreVersionResource({ schema: 'agentflow-credential-version-resource/v1', definition: await this.runtime.versionProbeDefinition(), runner: record });
+    if (phase === 'execution') return this.runtime.restoreExecutionResource(record, this.#profile);
+    throw new Error('INVALID_AGENT_RESOURCE_PHASE');
+  }
+  async receiptDefinition(task: HarnessTask): Promise<{ harness: string; version: string; imageId: string }> {
+    const definition = await this.definitionSnapshot(task) as { version: string; environment: { options: { image: string } } };
+    return { harness: this.harness, version: definition.version, imageId: definition.environment.options.image };
+  }
+  async run(task: HarnessTask, input: FileManifest, cancellation: Cancellation, phases?: InvocationPhaseSink): Promise<AgentExecutionHandle> {
+    this.validate(task);
+    if (phases && !await this.resourcePlan(task)) throw new Error('CREDENTIAL_RESOURCE_RESTORE_UNAVAILABLE');
+    const version = await phases?.enter('version');
+    let acquisition: InvocationPhaseHandle | undefined, executionPhase: InvocationPhaseHandle | undefined;
     await mkdir(this.#options.inputRoot, { recursive: true, mode: 0o700 });
     const root = await mkdtemp(join(this.#options.inputRoot, 'input-'));
     let execution: CredentialExecution;
     try {
       const inputSource = join(root, 'files'); await this.artifacts.materialize(input.id, inputSource);
-      execution = await this.runtime.run({ task, profile: this.#profile, inputSource, timeoutMs: this.#options.timeoutMs }, cancellation);
+      execution = await this.runtime.run({ task, profile: this.#profile, inputSource, timeoutMs: this.#options.timeoutMs }, cancellation, phases ? {
+        version: { save: record => version!.resource!.save(record.runner), launch: state => version!.resource!.launch!(state), complete: () => version!.complete() },
+        acquisition: { enter: async () => { acquisition = await phases.enter('credential'); }, complete: async () => { await acquisition!.complete(); } },
+        execution: { save: async record => { executionPhase = await phases.enter('execution'); await executionPhase.resource!.save(record); },
+          launch: state => executionPhase!.resource!.launch!(state) },
+      } : undefined);
     } catch (error) { await rm(root, { recursive: true, force: true }); if (error instanceof ArtifactError) throw error; throw new Error('SUBSCRIPTION_AGENT_START_FAILED'); }
-    return new CredentialAgentHandle(execution, root);
+    return new CredentialAgentHandle(execution, root, executionPhase);
   }
 }
 
 class CredentialAgentHandle implements AgentExecutionHandle {
-  constructor(private readonly execution: CredentialExecution, private readonly inputRoot: string) {}
+  constructor(private readonly execution: CredentialExecution, private readonly inputRoot: string, private phase?: InvocationPhaseHandle) {}
   get facts(): AgentExecutionFacts {
     const result = this.execution.result;
     return { runner: result.runner, harness: result.harness, version: result.version.actual,
@@ -45,6 +74,7 @@ class CredentialAgentHandle implements AgentExecutionHandle {
         && (result.authentication.refresh === 'unchanged' || result.authentication.refresh === 'updated'),
       diagnostics: result.diagnostics };
   }
-  async retryCleanup(): Promise<void> { await this.execution.retryCleanup(); }
-  async release(): Promise<void> { await this.execution.release(); await rm(this.inputRoot, { recursive: true, force: true }); }
+  // Cleanup retries cannot publish a completion through an ended invocation or upgrade its result.
+  async retryCleanup(): Promise<void> { await this.execution.retryCleanup(); this.phase = undefined; }
+  async release(): Promise<void> { await this.execution.release(); await rm(this.inputRoot, { recursive: true, force: true }); if (this.phase) { await this.phase.complete(); this.phase = undefined; } }
 }
