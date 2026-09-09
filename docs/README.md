@@ -76,3 +76,5 @@
 [Catalog 输入复用](validation/2026-09-10-catalog-snapshot-input.md)已消除同存储 Agent 的 node 输入目录和重复输入快照；其他临时目录及订阅恢复仍待完成。
 
 [直接存储交接](validation/2026-09-10-direct-artifact-capture.md)已省掉内置组合的 Catalog checkpoint/restore 中间目录；目标存储未发布暂存及旧进程临时快照仍待处理。
+
+[Effect 持久操作日志](validation/2026-09-10-effect-journal.md)已通过真实进程中断和竞争验证，已确认回执可复用、未知操作不重发；Workflow 接线仍待完成。

@@ -5,6 +5,7 @@ import { copyJson } from '../json.js';
 import { ContractRegistry } from '../contracts/registry.js';
 import type { ContractIssue } from '../contracts/registry.js';
 import { ComponentRegistry } from './registry.js';
+import type { EffectRecord, EffectRecordStore } from '../persistence/effects.js';
 import type { Cancellation } from '../runner/types.js';
 
 export const EFFECT_RECEIPT_SCHEMA = 'agentflow-effect-receipt/v1';
@@ -70,16 +71,19 @@ const attemptKey = (i: ExecutionIdentity): string => JSON.stringify([i.runId, i.
 const outcomeNames = ['already-applied', 'applied', 'simulated'];
 let nextExecutorId = 0;
 
-/** Process-local reservations and scoped approval; never promises cross-crash exactly-once. */
+/** Scoped approval and optional durable operation reservations; never promises arbitrary-service exactly-once. */
 export class EffectExecutor {
   readonly #adapter: EffectAdapter;
+  readonly #store: EffectRecordStore | null;
   readonly #approvals = new WeakMap<EffectApproval, { fingerprint: string; consumed: boolean }>();
   readonly #attempts = new Set<string>();
   readonly #records = new Map<string, RecordEntry>();
   readonly #namespace = ++nextExecutorId;
   #sequence = 0;
-  constructor(private readonly contracts: ContractRegistry, private readonly components: ComponentRegistry, adapter: EffectAdapter) {
+  constructor(private readonly contracts: ContractRegistry, private readonly components: ComponentRegistry, adapter: EffectAdapter, store?: EffectRecordStore) {
     if (!isIdentifier(adapter.implementation) || !isIdentifier(adapter.serviceIdentity) || typeof adapter.simulate !== 'function' || typeof adapter.apply !== 'function') throw new DefinitionError('INVALID_EFFECT_ADAPTER');
+    if (store && (!isIdentifier(store.identity) || ['read', 'create', 'compareAndSwap'].some(k => typeof store[k as 'read'] !== 'function'))) throw new DefinitionError('INVALID_EFFECT_STORE');
+    this.#store = store ? Object.freeze({ identity: store.identity, read: store.read.bind(store), create: store.create.bind(store), compareAndSwap: store.compareAndSwap.bind(store) }) : null;
     this.#adapter = Object.freeze({ implementation: adapter.implementation, serviceIdentity: adapter.serviceIdentity,
       simulate: adapter.simulate.bind(adapter), apply: adapter.apply.bind(adapter) });
   }
@@ -112,6 +116,39 @@ export class EffectExecutor {
     return clone({ key, requestId: entry.request.requestId, componentId: entry.request.componentId, target: entry.request.target,
       serviceIdentity: entry.request.serviceIdentity, state: entry.state, receipt: entry.receipt });
   }
+  /** Durable namespace identity for installed composition checks; no paths or business credentials. */
+  persistenceIdentity(): string | null { return this.#store?.identity ?? null; }
+  private durable(record: EffectRecord, key: string): RecordEntry {
+    const fail = (): never => { throw new DefinitionError('INVALID_EFFECT_RECORD'); };
+    const row = clone(record), c = row.content;
+    if (Object.keys(row).sort().join(',') !== 'content,key,revision' || row.key !== key || !c || typeof c !== 'object' || Array.isArray(c)
+      || Object.keys(c).sort().join(',') !== 'fingerprint,receipt,request,schema,state' || c['schema'] !== 'agentflow-effect-operation/v1'
+      || !['pending', 'applied'].includes(String(c['state'])) || row.revision !== (c['state'] === 'pending' ? 1 : 2)) return fail();
+    const r = c['request'] as unknown as EffectAdapterRequest;
+    if (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).sort().join(',') !== 'componentId,input,key,mode,requestId,serviceIdentity,target'
+      || r.key !== key || r.requestId !== key || r.mode !== 'apply' || !isIdentifier(r.componentId) || !isIdentifier(r.target)
+      || r.serviceIdentity !== this.#adapter.serviceIdentity) return fail();
+    this.validateComponent(r.componentId);
+    const component = this.components.get(r.componentId);
+    const fingerprint = canonical(copyJson([r.componentId, component.implementation, r.serviceIdentity, r.target, r.key, r.input]));
+    if (c['fingerprint'] !== fingerprint || !this.contracts.check(component.inputContract, r.input).valid) return fail();
+    if (c['state'] === 'pending') { if (c['receipt'] !== null) return fail(); }
+    else {
+      const receipt = this.receipt(c['receipt'], r, 'applied');
+      if (!this.contracts.check(component.outcomes['applied']!, receipt).valid) return fail();
+    }
+    return { fingerprint, request: r, state: c['state'] as 'pending' | 'applied', receipt: c['receipt'] as unknown as EffectReceipt | null };
+  }
+  private durableContent(entry: RecordEntry): JsonValue {
+    return copyJson({ schema: 'agentflow-effect-operation/v1', ...entry });
+  }
+  async queryDurable(key: string): Promise<EffectRecordView | null> {
+    if (!this.#store) throw new DefinitionError('EFFECT_PERSISTENCE_UNAVAILABLE');
+    const row = await this.#store.read(key); if (!row) return null;
+    const entry = this.durable(row, key);
+    return clone({ key, requestId: entry.request.requestId, componentId: entry.request.componentId, target: entry.request.target,
+      serviceIdentity: entry.request.serviceIdentity, state: entry.state, receipt: entry.receipt });
+  }
   private receipt(value: unknown, request: EffectAdapterRequest, status: EffectStatus): EffectReceipt {
     let receipt: EffectReceipt;
     try { receipt = clone(value) as EffectReceipt; } catch { throw new DefinitionError('INVALID_EFFECT_RECEIPT'); }
@@ -133,10 +170,14 @@ export class EffectExecutor {
       const grant = approval && this.#approvals.get(approval);
       if (!grant || grant.consumed || grant.fingerprint !== p.approvalFingerprint) return failed('EFFECT_NOT_AUTHORIZED');
       grant.consumed = true; // Consume before any await, including reuse/conflict checks.
-      const prior = this.#records.get(r.key);
+      let prior: RecordEntry | undefined;
+      try {
+        const row = this.#store ? await this.#store.read(r.key) : null;
+        prior = this.#store ? row ? this.durable(row, r.key) : undefined : this.#records.get(r.key);
+      } catch { return failed('EFFECT_RECORD_UNAVAILABLE', false); }
       if (prior) {
         if (prior.fingerprint !== p.fingerprint) return failed('EFFECT_KEY_CONFLICT');
-        if (prior.state !== 'applied') return failed(prior.state === 'pending' ? 'EFFECT_IN_PROGRESS' : 'EFFECT_RESULT_UNKNOWN', false);
+        if (prior.state !== 'applied') return failed(prior.state === 'pending' && !this.#store ? 'EFFECT_IN_PROGRESS' : 'EFFECT_RESULT_UNKNOWN', false);
         try {
           const stored = this.receipt(prior.receipt, prior.request, 'applied');
           const output = { ...stored, status: 'already-applied' as const };
@@ -146,15 +187,27 @@ export class EffectExecutor {
         } catch { return failed('INVALID_EFFECT_RECEIPT', false); }
       }
     }
-    const operation: EffectAdapterRequest = { requestId: `effect-${this.#namespace}-${++this.#sequence}`, componentId: r.componentId, target: r.target, key: r.key,
+    const operation: EffectAdapterRequest = { requestId: mode === 'apply' && this.#store ? r.key : `effect-${this.#namespace}-${++this.#sequence}`, componentId: r.componentId, target: r.target, key: r.key,
       input: clone(r.input), serviceIdentity: this.#adapter.serviceIdentity, mode };
     const entry: RecordEntry = { fingerprint: p.fingerprint, request: clone(operation), state: 'pending', receipt: null };
+    if (mode === 'apply' && this.#store) {
+      try {
+        const content = this.durableContent(entry), reserved = await this.#store.create(r.key, content);
+        if (canonical(copyJson(reserved)) !== canonical(copyJson({ key: r.key, revision: 1, content }))) return failed('INVALID_EFFECT_RESERVATION', false);
+      } catch { return failed('EFFECT_RESERVATION_UNCONFIRMED', false); }
+    }
     if (mode === 'apply') this.#records.set(r.key, entry);
+    try { if (cancellation.requested()) return failed('CANCELLED'); } catch { return failed('CANCELLATION_CHECK_FAILED'); }
     try {
       const raw = await (mode === 'apply' ? this.#adapter.apply(clone(operation)) : this.#adapter.simulate(clone(operation)));
       const receipt = this.receipt(raw, operation, mode === 'apply' ? 'applied' : 'simulated');
       const checked = this.contracts.check(component.outcomes[receipt.status]!, receipt);
       if (!checked.valid) { entry.state = 'unknown'; return failed('OUTPUT_CONTRACT_FAILED', mode !== 'apply', checked.issues); }
+      if (mode === 'apply' && this.#store) {
+        const content = this.durableContent({ ...entry, state: 'applied', receipt: clone(receipt) });
+        const completed = await this.#store.compareAndSwap(r.key, 1, content);
+        if (canonical(copyJson(completed)) !== canonical(copyJson({ key: r.key, revision: 2, content }))) throw new DefinitionError('INVALID_EFFECT_COMMIT');
+      }
       entry.state = 'applied'; entry.receipt = clone(receipt); return accepted(receipt);
     } catch { entry.state = 'unknown'; return failed(mode === 'apply' ? 'EFFECT_RESULT_UNKNOWN' : 'EFFECT_SIMULATION_FAILED', mode !== 'apply'); }
   }

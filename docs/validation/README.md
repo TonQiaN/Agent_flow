@@ -98,3 +98,5 @@
 [Catalog 借用输入快照验证](2026-09-10-catalog-snapshot-input.md)。
 
 [直接物化归档与恢复验证](2026-09-10-direct-artifact-capture.md)。
+
+[Effect 持久日志与进程中断验证](2026-09-10-effect-journal.md)。

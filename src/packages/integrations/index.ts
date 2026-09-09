@@ -57,3 +57,5 @@ export { SqliteRunRecordStore } from './persistence/sqlite-store.js';
 export { FileArtifactArchive } from './artifacts/file-archive.js';
 
 export type { CredentialVersionResourceCheckpoint, CredentialVersionResourceSink, CredentialRunPersistence } from './execution/credential-runner.js';
+
+export { SqliteEffectRecordStore } from './persistence/effect-store.js';
