@@ -16,10 +16,10 @@ if (mode === 'archive-fail') {
   archive.capture = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
 }
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
-if (!readingOperation && (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-') || mode.startsWith('recovery-'))) {
+if ((!readingOperation || operation === 'claim-resume-pause') && (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-') || mode.startsWith('recovery-') || mode === 'resume-running')) {
   const cas = store.compareAndSwap.bind(store);
   store.compareAndSwap = async (runId, revision, content) => {
-    const attempt = content.attempts.at(-1), resource = attempt?.resource;
+    const attempt = content.attempts?.at(-1), resource = attempt?.resource;
     if (mode === `journal-fail-${attempt?.launch}`) throw new Error('launch CAS failure');
     if (mode === `journal-conflict-${attempt?.launch}`) {
       const competing = await SqliteRunRecordStore.open(join(root, 'db'));
@@ -28,11 +28,12 @@ if (!readingOperation && (['resource-fail', 'resource-pause'].includes(mode) || 
     }
     if (resource && mode === 'resource-fail') throw new Error('resource CAS failure');
     const record = await cas(runId, revision, content);
-    const recoveryPause = (mode === 'recovery-running' && attempt?.node === 'b' && attempt.launch === 'start_completed')
+    const recoveryPause = (mode === 'resume-running' && attempt?.node === 'b' && attempt.launch === 'start_completed' && attempt.resultStep === null && !attempt.interrupted)
+      || (mode === 'recovery-running' && attempt?.node === 'b' && attempt.launch === 'start_completed')
       || (mode === 'recovery-allocated' && attempt?.node === 'a' && attempt.launch === 'allocated')
       || (mode === 'recovery-pending' && attempt?.node === 'a' && attempt.launch === 'create_pending');
     if (resource && (mode === 'resource-pause' || mode === `journal-pause-${attempt.launch}` || recoveryPause)) {
-      process.send({ event: 'resource-saved', resource: resource.resource, launch: attempt.launch });
+      process.send({ event: 'resource-saved', resource: resource.resource, launch: attempt.launch, identity: attempt.identity });
       if (recoveryPause) await new Promise(resolve => process.once('message', resolve));
       else await new Promise(() => { setInterval(() => {}, 1000); });
     }
@@ -50,7 +51,7 @@ try {
   } else {
     const artifacts = new FileArtifactStore(join(root, 'temporary'), contracts);
     const files = new FileWorkflowCatalog(contracts, artifacts, join(root, 'work'), archive);
-    const started = [], created = [], restored = [], backends = new Map();
+    const started = [], created = [], identities = [], restored = [], backends = new Map();
     for (const node of ['a', 'b']) {
       class Backend extends DockerBackend {
         async restoreResource(...args) {
@@ -59,7 +60,7 @@ try {
           restored.push(node); return super.restoreResource(...args);
         }
         async create(resource, request) {
-          created.push(node);
+          created.push(node); identities.push(request.identity);
           const attempt = (await store.read('run')).content.attempts.at(-1);
           assert.equal(attempt.node, node); assert.deepEqual(attempt.identity, request.identity);
           assert.deepEqual(attempt.resource.resource, resource); assert.equal(attempt.resultStep, null);
@@ -95,7 +96,7 @@ try {
       const backend = new Backend({ workspaceRoot: join(root, 'attempts'), image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3' });
       backends.set(node, backend);
       const executor = new ScriptExecutor(backend, systemClock, { read: async file => readFile(file.path, 'utf8') });
-      const pause = (node === 'b' && ['interrupt', 'recovery-running'].includes(mode) || mode.startsWith('journal-')) ? 'sleep 60; ' : '';
+      const pause = mode === 'resume-running' && node === 'b' ? 'sleep 3; ' : (node === 'b' && ['interrupt', 'recovery-running'].includes(mode) || mode.startsWith('journal-')) ? 'sleep 60; ' : '';
       files.registerScript({ id: node, kind: 'transform', inputContract: 'files', outcomes: { ok: 'files' }, implementation: node }, executor,
         { argv: ['/bin/sh', '-c', `set -eu; ${pause}cat /task/input/value.txt > /task/outputs/value.txt; printf ${node.toUpperCase()} >> /task/outputs/value.txt; printf changed > /task/input/value.txt; printf '%s' '{"schema":"agentflow-script-result/v1","outcome":"ok"}'`], timeoutMs: 70000 });
     }
@@ -127,7 +128,18 @@ try {
           const path = join(root, `claim-${process.pid}-${index}`); await files.materialize(value.value, 'run', path); texts.push(await readFile(join(path, 'value.txt'), 'utf8'));
         }
         const result = await recovery.cleanup();
-        console.log(JSON.stringify({ result, texts, started, created, restored }));
+        if (operation.startsWith('claim-resume')) {
+          const resumed = await new WorkflowRuntime().resumePersisted(recovery);
+          try {
+            await recovery.dispose(); // The resumed handle now owns the inherited file values.
+            const completed = await resumed.completion;
+            const path = join(root, `final-${process.pid}`);
+            await files.materialize(completed.lastAccepted.result.output, 'run', path);
+            const text = await readFile(join(path, 'value.txt'), 'utf8');
+            console.log(JSON.stringify({ result: completed, text, checkpoint: (await store.read('run')).content, started, created, restored, identities }));
+            for (const step of completed.steps.slice(result.checkpoint.snapshot.steps.length)) if (step.result.status === 'accepted') await files.release(step.result.output, 'run');
+          } finally { await resumed.dispose(); }
+        } else console.log(JSON.stringify({ result, texts, started, created, restored }));
       } catch (error) { console.log(JSON.stringify({ error: error.code ?? 'RECOVERY_FAILED', started, created, restored })); }
       finally { await recovery?.dispose(); }
     } else if (['load', 'recover-resource'].includes(operation)) {

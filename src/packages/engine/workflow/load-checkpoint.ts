@@ -1,10 +1,9 @@
 import { isIdentifier } from '@agentflow/domain';
-import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
+import type { JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { canonicalJson, copyJson } from '../json.js';
 import type { RunRecordStore } from '../persistence/types.js';
-import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
-import { runnerLaunchStates } from '../runner/launch.js';
+import { validateAttemptHistory } from './attempt-history.js';
 import { getPlan, snapshot } from './compiler.js';
 import type { WorkflowCheckpoint, WorkflowCheckpointValue } from './checkpoint.js';
 import { assertWorkflowExecutionMatches } from './execution.js';
@@ -21,18 +20,18 @@ const shape = (v: unknown, fields: string[]): boolean => object(v) && Object.key
 const equal = (a: unknown, b: unknown): boolean => canonicalJson(copyJson(a)) === canonicalJson(copyJson(b));
 const issues = (v: unknown): v is readonly WorkflowIssue[] => Array.isArray(v) && v.length <= 1000
   && v.every(i => shape(i, ['contractId', 'path', 'rule', 'code']) && Object.values(i).every(x => typeof x === 'string'));
-const identity = (runId: string, number: number): ExecutionIdentity => ({ runId, nodeTaskId: `task-${number}`, attemptId: 'attempt-1', attemptNumber: 1 });
 
 function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { checkpoint: WorkflowCheckpoint; requests: WorkflowValueRestoreData[] } {
   let raw: JsonValue; try { raw = copyJson(value); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values', 'attempts']));
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
-  valid(c.schema === 'agentflow-workflow-checkpoint/v3' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
+  valid(c.schema === 'agentflow-workflow-checkpoint/v4' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
     && ['queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
     && v.steps.length <= plan.definition.maxSteps && Array.isArray(v.limits) && issues(v.issues));
   valid(Array.isArray(c.values) && c.values.length >= 1 && c.values.length <= plan.definition.maxSteps + 1);
+  const history = validateAttemptHistory(c.attempts, runId, v.steps.length);
   valid(v.reason === null || isIdentifier(v.reason));
   const requests: WorkflowValueRestoreData[] = [];
   const add = (record: WorkflowCheckpointValue, node: string, contract: { kind: string; id: string }, expected: WorkflowValueRestoreData['expected']) => {
@@ -51,7 +50,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   for (const [index, step] of v.steps.entries()) {
     valid(shape(step, ['node', 'result']) && node !== null && step.node === node);
     const binding = plan.bindings.get(node)!, r = step.result;
-    valid(object(r) && r.componentId === binding.component.id && equal(r.identity, identity(runId, index + 1)));
+    valid(object(r) && r.componentId === binding.component.id && equal(r.identity, history.completed[index]!.identity));
     if (r.status === 'failed') {
       valid(index === v.steps.length - 1 && shape(r, ['identity', 'componentId', 'status', 'code', 'stopped', 'issues'])
         && isIdentifier(r.code) && typeof r.stopped === 'boolean' && issues(r.issues));
@@ -59,7 +58,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
     }
     valid(r.status === 'accepted' && shape(r, ['identity', 'componentId', 'status', 'outcome', 'output']) && isIdentifier(r.outcome) && binding.outcomes.has(r.outcome));
     const record = c.values[valueIndex++]; valid(record && equal(record.value, r.output));
-    add(record, node, binding.outcomes.get(r.outcome)!, { identity: identity(runId, index + 1), componentId: binding.component.id, outcome: r.outcome, predecessor: current });
+    add(record, node, binding.outcomes.get(r.outcome)!, { identity: history.completed[index]!.identity, componentId: binding.component.id, outcome: r.outcome, predecessor: current });
     current = r.output; lastAccepted = step;
     beforeLast = { traversals: Object.fromEntries(traversals), limits: snapshot(limits) };
     const transition = advanceWorkflowRoute(compiled, node, r.outcome, index + 1, traversals);
@@ -85,32 +84,21 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
     } else {
       valid(!terminal && node !== null && cursor.node === node && v.currentNode === node && v.outcome === null);
       if (v.status === 'failed') {
-        valid(v.reason !== null && equal(v.currentIdentity, identity(runId, failed ? v.steps.length : v.steps.length + 1)));
+        valid(v.reason !== null && equal(v.currentIdentity, failed ? history.completed.at(-1)!.identity : history.open?.identity));
         if (failed && failed.result.status === 'failed') valid(v.reason === (failed.result.stopped ? failed.result.code : 'EXECUTION_STOP_UNCONFIRMED') && equal(v.issues, failed.result.issues) && (!failed.result.stopped || !v.cancelRequested));
         if (!failed) valid(v.steps.length < plan.definition.maxSteps);
       } else {
         valid(!failed && v.reason === null && v.issues.length === 0 && v.cancelRequested === (v.status === 'cancelling'));
-        valid(v.currentIdentity === null || v.steps.length < plan.definition.maxSteps && equal(v.currentIdentity, identity(runId, v.steps.length + 1)));
-        if (v.status === 'queued') valid(v.steps.length === 0 && v.currentIdentity === null);
+        valid(v.currentIdentity === null || v.steps.length < plan.definition.maxSteps && equal(v.currentIdentity, history.open?.identity));
+        if (v.status === 'queued') valid(v.steps.length === 0 && v.currentIdentity === null && c.attempts.length === 0);
       }
     }
   }
-  valid(Array.isArray(c.attempts));
   const active = v.currentIdentity !== null && !failed;
   const cancelledPending = v.status === 'cancelled' && !failed && !terminal && v.steps.length < plan.definition.maxSteps;
-  valid(active ? c.attempts.length === v.steps.length + 1
-    : c.attempts.length === v.steps.length || cancelledPending && c.attempts.length === v.steps.length + 1);
-  const resourceIds = new Set<string>();
+  valid(active ? !!history.open : !history.open || cancelledPending);
   for (const [index, attempt] of c.attempts.entries()) {
-    const step = v.steps[index];
-    valid(shape(attempt, ['node', 'identity', 'resultStep', 'resource', 'launch']) && equal(attempt.identity, identity(runId, index + 1))
-      && attempt.node === (step?.node ?? node) && attempt.resultStep === (step ? index : null));
-    if (attempt.resource !== null) {
-      const resource = validateRunnerResourceCheckpoint(attempt.resource);
-      valid(equal(resource.identity, attempt.identity) && !resourceIds.has(resource.resource.id));
-      valid(attempt.launch !== null && runnerLaunchStates.includes(attempt.launch));
-      resourceIds.add(resource.resource.id);
-    } else valid(attempt.launch === null);
+    valid(attempt.node === (v.steps[history.positions[index]!]?.node ?? node));
   }
   return { checkpoint: c, requests };
 }
@@ -133,7 +121,7 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   try { validated = validate(compiled, runId, unwrapped.record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   const { checkpoint, requests } = validated;
   if (unwrapped.recovery) {
-    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null ? last : null;
+    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted ? last : null;
     if (!['queued', 'running'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
       || active?.launch?.endsWith('_pending') || !active?.resource && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
   }
