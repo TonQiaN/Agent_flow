@@ -28,6 +28,16 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 
 首个联合执行入口在 integrations 中组合纯 Adapter、Profile、凭据绑定与 DockerBackend；不将 Codex 特例写入 engine Runner。先解析不可变镜像 ID，再用离线 Runner 在相同镜像内检查实际 CLI 版本，成功并清理后才申请真实租约。业务执行结果分别保留 Runner、Harness 与凭据收尾事实；正常 Harness 结束仍不代表文件 contract 接纳。失败后保留可操作的执行句柄用于可信停止/清理，不能因抛出异常丢失占用资源。
 
+### Claude 的独立调用与协议
+
+后续矩阵先实现 Claude 2.1.226 的纯 Adapter，以现有实际镜像版本和 CLI 帮助为依据。采用 print、safe-mode、no-session-persistence、严格 MCP、固定工具集合和 stream-json/verbose；不采用 bare，因为实际帮助明确 bare 不读取订阅 OAuth。用户 prompt 保持原样，以参数终止符防止任务文本成为 CLI 选项。固定 cwd 仍为 /task/work；input/work/outputs 都是可写工作副本，不沿用 Blackbox 的只读 input。
+
+首个映射接受显式 model、可选 low/medium/high/xhigh/max reasoning，并要求 subagents=false、search=false；预算、任意参数/环境及尚未验证的功能组合拒绝。多出口通过 json-schema 传递仅含 outcome 的固定结构，结果只取最终 result.structured_output，不从聊天文本猜测。协议配置与独立 CLAUDE_CONFIG_DIR 由宿主兑现；工具和内层文件权限同时拒绝 state/config 写入与凭据读取，禁止工具联网及 unsandboxed 回退。这是必须由真实集成验证的声明，不能因生成配置即声称隔离成功。
+
+接纳要求同执行身份、已验证版本、Runner 正常退出/停止/清理及完整采集；流中唯一 system/init 与同 session 的 result/success、is_error=false 构成正常终态。相同终态可去重，冲突、终态后事件、跨 session、异常子 Agent 事件、损坏或不完整字节均拒绝。已知失败 result 保留为失败终态；未知事件仅记录类型，不赋予完成意义或暴露原始载荷。
+
+普通消息仅投影经脱敏的文本和工具名称/标识；错误原文、原始工具输入、签名及未知对象不进入普通事件。usage 只取唯一终态：Claude 的未缓存 input_tokens、cache_read_input_tokens、cache_creation_input_tokens 为不重叠输入桶，三者齐全时显式相加为统一 inputTokens，缺少任何一桶则 inputTokens 为 unknown；cachedInputTokens 仅取明确缓存读取数，outputTokens 取明确输出数，推理数无独立字段则 unknown。不同消息或重复快照不递归累加。支持矩阵仍需后续认证、权限与真实任务验收，Adapter/离线样本通过不关闭 #10/#11。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

@@ -10,7 +10,7 @@ engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt
 
 用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
 
-engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 只映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。详见 [接口指南](../guides/harness-auth.md)。
+engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 和 claude 各自映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。Claude 目前仅完成计划/parser 与真实无凭据离线启动，完整订阅执行尚未接入。详见 [接口指南](../guides/harness-auth.md)。
 
 integrations/egress 负责独立 CONNECT 传输策略，integrations/docker/egress 负责每次执行的代理和网络资源。二者不读取认证存储或解释业务；宿主环境选择目标列表，后续 Profile 绑定再提供实际服务配置。见 [受控联网](../guides/controlled-egress.md)。
 
