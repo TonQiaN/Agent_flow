@@ -1,6 +1,6 @@
 # DeepSeek Adapter
 
-`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储和不可变绑定已具备，完整受控联网执行组合尚未接通；当前由本地合成服务驱动真实 CLI 验证，不能直接当作完整执行入口。
+`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储、不可变绑定、DeepSeekApiKeyRunner 与 DeepSeekAgentDriver 已接通；真实 DeepSeek 模型调用仍未验收。
 
 ## 调用计划
 
@@ -30,4 +30,14 @@ DeepSeekApiKeyCodec 与 FileCredentialStore 接收显式内容或受控文件中
 
 finish 仍核对 Runner 身份、资源、停止和清理。静态 key 的 refresh=unchanged 表示副本字节检查通过；变化或缺失为 failed，不能当作成功认证收尾。停止或清理未知时保留副本和 beforeRelease 门槛；源锁已释放，管理侧不必等待整个模型任务。原始日志仍为私有证据，已知值脱敏不等于任意 PII 过滤。
 
-宿主完整 Runner 和受控联网入口尚未提供。实际组合验证见 [API key 与快照绑定](../validation/2026-09-09-deepseek-api-key.md)。
+静态凭据的实际验证见 [API key 与快照绑定](../validation/2026-09-09-deepseek-api-key.md)。
+
+## 宿主执行入口
+
+先由受信部署过程执行 `node src/apps/deepseek-tools/export-assets.mjs`，把 JSON 输出保存在宿主管理的部署文件中。这个命令不接受参数、不读取凭据、不加载 DeepSeek SDK。宿主读取该部署资产后，构造 `new DeepSeekApiKeyRunner(store, { workspaceRoot, image, proxyImage }, assets)`。资产参数独立于任务，须来自当前应用版本的可信打包结果；结构/版本检查不替代来源信任。
+
+`run({ task, profile, inputSource, timeoutMs }, cancellation?)` 先解析不可变镜像 ID，再离线验证实际 dsh 版本；通过后取得 key 快照，并只开放 api.deepseek.com:443 的受控 CONNECT 代理。固定 13 个容器运行资产和 deepseek.json 只读挂载，任务工作路径不变。返回 DeepSeekExecution，result 区分 version/execution 阶段、Runner/Harness/认证结果与静态诊断，不含原始日志内容。
+
+调用者保存需要的输出或私有证据后执行 retryCleanup/release；未知停止或凭据收尾未完成时不能跳过清理门槛。清理重试不升级原 Harness 结果。DeepSeekAgentDriver 接收 runtime、ArtifactStore、Profile 和 inputRoot/timeoutMs，交由 AgentExecutor 执行输出契约接纳。单出口由引擎分配，多出口取结构化结果；都不能只凭退出码或“完成”文字通过。
+
+本地协议替身验证了组合的成功/失败/取消/版本漂移路径，原生 CLI 另有工具与交接回归；真实官方模型调用尚未验收。见 [宿主执行组合验证](../validation/2026-09-09-deepseek-execution.md)。

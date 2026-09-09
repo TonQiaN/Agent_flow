@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [DeepSeek 宿主执行与文件交接](2026-09-09-deepseek-execution.md) |
 | 2026-09-09 | [DeepSeek API key 与不可变快照交接](2026-09-09-deepseek-api-key.md) |
 | 2026-09-09 | [DeepSeek Adapter 与结构化出口](2026-09-09-deepseek-adapter.md) |
 | 2026-09-09 | [DeepSeek 固定启动与图像交接](2026-09-09-deepseek-launch.md) |
