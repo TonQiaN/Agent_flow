@@ -20,8 +20,8 @@ test('DeepSeek native read/edit/write use isolated filesystem and preserve host 
   try {
     const input = join(root, 'input'); await mkdir(input); await writeFile(join(input, 'original.txt'), '原始答案');
     const config = deepseekConfiguration({ model: 'deepseek-v4-flash', reasoning: 'off', search: false, subagents: false });
-    const patches = JSON.parse(config.configFiles[0].content); patches.push({ id: 'fs-sandbox', disabled: true }, { insert: [{ id: 'agentflow-isolated-fs', name: '/task/config/deepseek-policy/fs-service.mjs' }] });
-    const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
+    const patches = JSON.parse(config.configFiles[0].content); patches.push({ id: 'fs-sandbox', disabled: true }, { insert: [{ id: 'agentflow-tool-space', name: '/task/config/deepseek-policy/tool-space.mjs' }, { id: 'agentflow-isolated-fs', name: '/task/config/deepseek-policy/fs-service.mjs' }] });
+    const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk', 'tool-space'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
       content: await readFile(new URL(`../../apps/deepseek-tools/${name}.mjs`, import.meta.url), 'utf8') })));
     files.push({ name: 'deepseek-policy/package.json', content: '{"type":"module"}' });
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
@@ -55,7 +55,7 @@ test('DeepSeek filesystem seam: versions, read-only, byte limits, raw environmen
   const root = await mkdtemp(join(tmpdir(), 'af-deepseek-seam-')); let removable = true;
   try {
     const input = join(root, 'input'); await mkdir(input);
-    const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
+    const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk', 'tool-space'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
       content: await readFile(new URL(`../../apps/deepseek-tools/${name}.mjs`, import.meta.url), 'utf8') })));
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }), systemClock);
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'seam', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,

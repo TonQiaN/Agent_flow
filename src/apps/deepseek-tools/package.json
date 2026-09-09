@@ -8,7 +8,10 @@
     "@deepseek-ai/cordis": "4.0.1",
     "@deepseek-ai/dsh-fs": "0.1.1-rc.2",
     "@deepseek-ai/dsh-fs-local": "0.1.1-rc.2",
-    "@deepseek-ai/dsh": "0.1.1-rc.2"
+    "@deepseek-ai/dsh": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-subprocess-local": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-bash-local": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.1.1-rc.2"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -22,6 +25,27 @@
     },
     "@deepseek-ai/dsh": {
       "optional": true
+    },
+    "@deepseek-ai/dsh-subprocess-local": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-bash-local": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox-policy": {
+      "optional": true
     }
-  }
+  },
+  "files": [
+    "sdk.mjs",
+    "fs-worker.mjs",
+    "fs-service.mjs",
+    "tool-isolate.mjs",
+    "tool-space.mjs",
+    "process-policy.mjs",
+    "process-sdk.mjs",
+    "subprocess-service.mjs",
+    "bash-service.mjs",
+    "sandbox-policy.mjs"
+  ]
 }

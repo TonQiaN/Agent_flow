@@ -1,9 +1,10 @@
 // Test-only OpenAI-compatible server drives the installed dsh CLI without network access or real credentials.
 const http = require('node:http'), fs = require('node:fs'), { spawn } = require('node:child_process');
 const plan = JSON.parse(fs.readFileSync('/task/config/plan.json', 'utf8'));
-let turns = 0, catalog = [];
+let turns = 0, catalog = [], networkHits = 0, contextMessages = [];
 const results = new Map();
 const server = http.createServer((req, res) => {
+  if (req.url === '/tool-network-probe') { networkHits++; res.end('network-reached'); return; }
   let size = 0, parts = [];
   req.on('data', part => { size += part.length; if (size > 4 * 1024 * 1024) req.destroy(); else parts.push(part); });
   req.on('end', () => {
@@ -11,10 +12,11 @@ const server = http.createServer((req, res) => {
     const main = body.tools?.length > 0;
     if (main) {
       catalog = body.tools;
+      contextMessages = body.messages.filter(message => message.role === 'user');
       for (const message of body.messages ?? []) if (message.role === 'tool') results.set(message.tool_call_id, message.content);
     }
     const step = main ? plan.steps[turns++] : null;
-    const tool_calls = step ? [{ index: 0, id: step.id, type: 'function', function: { name: step.name, arguments: JSON.stringify(step.input) } }] : undefined;
+    const tool_calls = step ? [{ index: 0, id: step.id, type: 'function', function: { name: step.name, arguments: JSON.stringify(step.input).replaceAll('FIXTURE_PORT', String(server.address().port)) } }] : undefined;
     const message = { role: 'assistant', content: step ? null : 'Probe complete.', reasoning_content: '', ...(tool_calls ? { tool_calls } : {}) };
     const usage = { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 10 };
     const finish_reason = step ? 'tool_calls' : 'stop';
@@ -35,7 +37,7 @@ server.listen(0, '127.0.0.1', () => {
   ]));
   const argv = [...plan.argv]; argv.splice(argv.indexOf('--'), 0, '--patch', '/tmp/deepseek-test-model.json');
   const child = spawn(argv[0], argv.slice(1),
-    { cwd: '/task/work', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...plan.environment, DEEPSEEK_API_KEY: 'fixture-deepseek-secret' } });
+    { cwd: '/task/work', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...plan.environment, DEEPSEEK_API_KEY: 'fixture-deepseek-secret', PASSPHRASE: 'fixture-alternate-secret' } });
   let stdout = '', stderr = '';
   child.stdout.on('data', part => { stdout += part; }); child.stderr.on('data', part => { stderr += part; });
   const timer = setTimeout(() => child.kill('SIGTERM'), 40000);
@@ -47,6 +49,6 @@ server.listen(0, '127.0.0.1', () => {
       if (entry.isDirectory()) collect(file); else if (entry.isFile() && entry.name.endsWith('.jsonl')) sessions.push(fs.readFileSync(file, 'utf8'));
     } }
     collect(`${plan.environment.DSH_HOME}/sessions`);
-    console.log(JSON.stringify({ code, signal, turns, catalog, results: Object.fromEntries(results), stdout, stderr, sessions }));
+    console.log(JSON.stringify({ code, signal, turns, catalog, networkHits, contextMessages, results: Object.fromEntries(results), stdout, stderr, sessions }));
   });
 });

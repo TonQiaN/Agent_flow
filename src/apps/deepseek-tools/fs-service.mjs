@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
 import { relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { toolIsolateArguments } from './tool-isolate.mjs';
@@ -9,12 +8,15 @@ const limit = 32 * 1024 * 1024;
 
 /** The native FileSystem seam; content and metadata operations run in a confined worker. */
 export default class IsolatedFileSystem extends FileSystem {
+  static inject = ['agentflowToolSpace', 'sandboxPolicy'];
   #tail = Promise.resolve();
-  #temporary;
+  #space;
   #stop;
   #closed = false;
   constructor(ctx) {
     super(ctx);
+    this.#space = ctx.agentflowToolSpace;
+    this.#space.register(() => this.closeWorker());
     // Cordis shadows a service with caller-context proxies. This service carries explicit policies and owns one private worker queue.
     for (const method of ['resolve', 'stat', 'lstat', 'readText', 'streamText', 'readBytes', 'listDir', 'writeText', 'editText', 'closeWorker']) {
       this[method] = this[method].bind(this);
@@ -48,7 +50,6 @@ export default class IsolatedFileSystem extends FileSystem {
     this.#closed = true;
     this.#stop?.('FS_ABORTED');
     await this.#tail;
-    if (this.#temporary) await rm(await this.#temporary, { recursive: true, force: true });
   }
   #call(method, args, signal, policy) {
     // No unrestricted escalation or fallback to parent I/O, even when a caller supplies a wider policy.
@@ -56,12 +57,12 @@ export default class IsolatedFileSystem extends FileSystem {
     if (mode !== 'workspace-write' && mode !== 'read-only') return Promise.reject(new FsError('File policy escalation is unsupported', 'FS_PERMISSION_DENIED'));
     if (mode === 'read-only' && ['writeText', 'editText'].includes(method)) return Promise.reject(new FsError('Read-only file policy refuses mutations', 'FS_PERMISSION_DENIED'));
     const op = this.#tail.then(async () => {
-      if (this.#closed || signal?.aborted) throw new FsError('File operation aborted', 'FS_ABORTED');
+      if (this.#closed || this.#space.closed || signal?.aborted) throw new FsError('File operation aborted', 'FS_ABORTED');
       const body = JSON.stringify({ method, args });
       if (Buffer.byteLength(body) > limit) throw new FsError('File operation exceeds transfer limit', 'FS_TOO_LARGE');
       // Reuse one private tmp directory for this service, so successive operations see the same temporary files.
-      const temporary = await (this.#temporary ??= mkdtemp('/tmp/agentflow-tools-'));
-      if (this.#closed || signal?.aborted) throw new FsError('File operation aborted', 'FS_ABORTED');
+      const temporary = this.#space.directory;
+      if (this.#closed || this.#space.closed || signal?.aborted) throw new FsError('File operation aborted', 'FS_ABORTED');
       const argv = toolIsolateArguments(temporary, mode, ['node', '/task/config/deepseek-policy/fs-worker.mjs']);
       return await new Promise((resolve, reject) => {
         const child = spawn(argv[0], argv.slice(1), { stdio: ['pipe', 'pipe', 'pipe'], env: { PATH: '/usr/local/bin:/usr/bin:/bin' } });
