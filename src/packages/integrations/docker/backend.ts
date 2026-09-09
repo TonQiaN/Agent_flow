@@ -7,7 +7,7 @@ import { isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS } from '@agentflow/engine';
 import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
-import type { AttachedProcess } from './process.js';
+import type { AttachedProcess, DockerInteraction } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
 import { DockerEgress, egressOptions } from './egress.js';
@@ -57,9 +57,10 @@ export class DockerBackend implements ExecutionBackend {
   readonly #released = new Set<string>();
   readonly #options: Required<DockerOptions>;
   readonly #binding: PrivateStateBinding | undefined;
+  readonly #interaction: DockerInteraction | undefined;
   readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions, binding?: PrivateStateBinding) {
+  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
       uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
@@ -75,6 +76,8 @@ export class DockerBackend implements ExecutionBackend {
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
     this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
     if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function' || binding.secretEnvironment !== undefined && typeof binding.secretEnvironment !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    if (interaction && (typeof interaction.open !== 'function' || typeof interaction.output !== 'function')) throw new Error('INVALID_DOCKER_INTERACTION');
+    this.#interaction = interaction;
     this.#binding = binding;
     this.#stateEnv = stateEnvironment(binding?.environment ?? {});
   }
@@ -145,6 +148,7 @@ export class DockerBackend implements ExecutionBackend {
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--workdir', TASK_PATHS.work,
       '--env', `HOME=${TASK_PATHS.state}`, '--env', `AGENTFLOW_INPUT=${TASK_PATHS.input}`,
       '--env', `AGENTFLOW_OUTPUTS=${TASK_PATHS.outputs}`, '--env', `AGENTFLOW_STATE=${TASK_PATHS.state}`];
+    if (this.#interaction) args.push('--interactive');
     args.push(...owned.egress?.arguments() ?? ['--network', 'none']);
     if (options.sandbox === 'nested-userns-v1') args.push('--ipc', 'private', '--security-opt', 'systempaths=unconfined',
       '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
@@ -180,13 +184,14 @@ export class DockerBackend implements ExecutionBackend {
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
     await owned.egress?.assertRunning();
-    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes);
+    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes, this.#interaction);
   }
 
   async observe(resource: ExecutionResource): Promise<Observation> {
     const owned = this.#owned(resource);
     const existing = await this.#inspect(resource);
     if (!existing) return { state: 'absent' };
+    if (owned.attached?.failed) throw new Error('ATTACH_INTERACTION_FAILED');
     if (existing.state.Running) {
       await owned.egress?.assertRunning();
       if (owned.attached?.settled) { owned.attached.failed = true; throw new Error('ATTACH_ENDED_EARLY'); }
