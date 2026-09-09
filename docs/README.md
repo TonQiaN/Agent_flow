@@ -31,4 +31,6 @@
 
 [凭据环境注入](validation/2026-09-09-credential-environment.md)已消除 DeepSeek 任务密钥文件，恢复与 Issue #11 的环境注入要求一致；[交互录入与本地管理](guides/auth-management.md)已实现；订阅登录及安全备份恢复仍待完成。
 
-[订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动、真实登录以及安全备份恢复继续实施。
+[订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动已在后续切片接入，真实登录及安全备份恢复继续实施。
+
+[原生订阅登录驱动](guides/subscription-login.md)已接入私有交互与受控 Docker；已做合成验证，真实官方登录和 CLI 入口继续验收。

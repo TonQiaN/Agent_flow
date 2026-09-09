@@ -48,3 +48,7 @@ export { EnvironmentExecutionCredentialBinding } from './auth/environment-bindin
 
 export { SubscriptionLoginCoordinator } from './auth/subscription-login.js';
 export type { SubscriptionLoginDriver, SubscriptionLoginAttempt, SubscriptionLoginResult } from './auth/subscription-login.js';
+
+export { CodexSubscriptionLoginDriver, ClaudeSubscriptionLoginDriver, CODEX_LOGIN_HOSTS, CLAUDE_LOGIN_HOSTS } from './auth/native-login.js';
+export type { DockerLoginOptions } from './auth/docker-login.js';
+export type { DockerInteraction } from './docker/process.js';

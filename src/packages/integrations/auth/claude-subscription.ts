@@ -24,6 +24,8 @@ function parse(content: string): OAuth {
 export class ClaudeSubscriptionCodec implements CredentialCodec {
   readonly service = 'anthropic'; readonly method = 'subscription';
   validate(content: string): boolean { try { parse(content); return true; } catch { return false; } }
+  /** A refresh tombstone may be stored, but cannot establish a new login. */
+  validateLogin(content: string): boolean { try { return parse(content).accessToken !== ''; } catch { return false; } }
   validateRefresh(previous: string, next: string): boolean {
     try { const a = parse(previous), b = parse(next); return (a.clientId ?? null) === (b.clientId ?? null) && (a.accessToken !== '' || b.accessToken === ''); }
     catch { return false; }
