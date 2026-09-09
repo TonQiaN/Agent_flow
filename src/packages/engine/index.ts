@@ -1,5 +1,7 @@
 export { ContractRegistry } from './contracts/registry.js';
 export type { ContractIssue, ContractCheck } from './contracts/registry.js';
+export { FileContractRegistry, isArtifactPath } from './contracts/files.js';
+export type { FileRule, FileContract, FileEntry, FileIssue, FileCheck, FileManifest, ArtifactStore } from './contracts/files.js';
 export { DefinitionError } from './errors.js';
 export { ComponentRegistry, FunctionRegistry } from './components/registry.js';
 export type { ComponentFunction } from './components/registry.js';

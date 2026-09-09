@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [文件契约与快照交接](2026-09-09-file-contracts.md) |
 | 2026-09-09 | [Codex 订阅组合入口](2026-09-09-codex-composition.md) |
 | 2026-09-09 | [私有凭据执行绑定](2026-09-09-credential-binding.md) |
 | 2026-09-09 | [受控 CONNECT 联网](2026-09-09-controlled-egress.md) |
@@ -17,4 +18,4 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，不包含完整 Workflow 或真实 Agent 调用。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务与文件交接，不包含完整 Workflow 或 Tutor 验收。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。

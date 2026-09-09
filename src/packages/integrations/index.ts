@@ -1,4 +1,5 @@
 export { DockerBackend } from './docker/backend.js';
+export { FileArtifactStore, ArtifactError } from './artifacts/file-store.js';
 export type { DockerOptions } from './docker/backend.js';
 export type { PrivateStateBinding } from './execution/state-binding.js';
 export type { DockerEgressOptions } from './docker/egress.js';

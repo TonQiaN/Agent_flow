@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, readFile, writeFile, open, copyFile } from 'node:fs/pro
 import { constants } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { CodexSubscriptionRunner, CodexSubscriptionCodec, FileCredentialStore } from '@agentflow/integrations';
-import { ContractRegistry } from '@agentflow/engine';
+import { CodexSubscriptionRunner, CodexSubscriptionCodec, FileCredentialStore, FileArtifactStore } from '@agentflow/integrations';
+import { ContractRegistry, FileContractRegistry } from '@agentflow/engine';
 
 const required = name => { const value = process.env[name]; if (!value) throw new Error('MISSING_ACCEPTANCE_CONFIGURATION'); return value; };
 async function boundedFile(path) {
@@ -29,11 +29,19 @@ await writeFile(join(runRoot, 'execution.json'), JSON.stringify(result, null, 2)
 let artifactAccepted = false; let artifactHash = null; let inputCopyChanged = false;
 try {
   if (result.harness?.status === 'completed' && result.authentication?.status === 'released' && result.diagnostics.length === 0) {
-    const bytes = await boundedFile(join(result.runner.capture.outputsPath, 'answer.json'));
-    const answer = JSON.parse(bytes.toString('utf8'));
     const contracts = new ContractRegistry();
     contracts.register('answer', { type: 'object', properties: { sum: { type: 'integer', const: 6 } }, required: ['sum'], additionalProperties: false });
-    artifactAccepted = contracts.check('answer', answer).valid;
+    const files = new FileContractRegistry(contracts);
+    files.register('answer-files', { rules: [{ id: 'answer', kind: 'file', match: 'answer.json', minCount: 1, maxCount: 1,
+      mediaTypes: ['application/json'], maxBytes: 65536, jsonContract: 'answer' }], maxFiles: 1, maxTotalBytes: 65536, unmatched: 'reject' });
+    const artifacts = new FileArtifactStore(join(runRoot, 'artifacts'), files);
+    const manifest = await artifacts.capture(result.runner.capture.outputsPath, 'answer-files');
+    try {
+      await artifacts.materialize(manifest.id, join(runRoot, 'accepted'));
+      await writeFile(join(runRoot, 'manifest.json'), JSON.stringify(manifest, null, 2), { mode: 0o600 });
+    } finally { await artifacts.release(manifest.id); }
+    const bytes = await boundedFile(join(runRoot, 'accepted/answer.json'));
+    artifactAccepted = true;
     inputCopyChanged = (await boundedFile(join(result.runner.capture.outputsPath, '../input/numbers.json'))).toString('utf8') === source + '\n';
     if (artifactAccepted) { artifactHash = createHash('sha256').update(bytes).digest('hex'); await writeFile(join(runRoot, 'answer.json'), bytes, { mode: 0o600 }); }
   }
