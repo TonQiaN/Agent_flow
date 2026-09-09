@@ -15,3 +15,8 @@ export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, Exec
 export { HarnessRegistry } from './harness/registry.js';
 export type { HarnessAdapter, HarnessTask, HarnessPlan, HarnessEvent, HarnessUsage, HarnessEvidence, HarnessResult } from './harness/types.js';
 export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore } from './auth/types.js';
+export { compileWorkflow, WorkflowDefinitionError } from './workflow/compiler.js';
+export { WorkflowRuntime } from './workflow/runtime.js';
+export { JsonFunctionWorkflowCatalog } from './workflow/functions.js';
+export type { WorkflowRunHandle } from './workflow/runtime.js';
+export type { WorkflowDefinition, WorkflowContract, WorkflowDestination, WorkflowRoute, WorkflowCatalog, WorkflowNodeExecutor, WorkflowNodeResult, WorkflowIssue, CompiledWorkflow, WorkflowSnapshot, WorkflowStep, WorkflowLimitEvent } from './workflow/types.js';
