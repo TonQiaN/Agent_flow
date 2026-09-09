@@ -3,8 +3,8 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import { ArtifactError, DefinitionError, snapshotJson } from '@agentflow/engine';
-import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactStore, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
+import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
+import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
 
 export interface FileFunctionContext {
@@ -31,6 +31,7 @@ type Binding = { readonly component: ComponentDefinition } & (
   | { readonly kind: 'agent'; readonly executor: AgentExecutor; readonly prompt: string; readonly config: JsonValue }
   | { readonly kind: 'script'; readonly executor: ScriptExecutor; readonly definition: ScriptDefinition });
 interface Reference {
+  readonly storageId: string;
   readonly runId: string;
   readonly manifest: FileManifest;
   readonly receipt: FileWorkflowReceipt | null;
@@ -61,6 +62,7 @@ const safeBeforeStart = new Set(['CANCELLED', 'CANCELLATION_CHECK_FAILED', 'INPU
 export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecutor {
   readonly #bindings = new Map<string, Binding>();
   readonly #references = new Map<string, Reference>();
+  readonly #restoring = new Set<string>();
   readonly #attempts = new Set<string>();
   readonly #resources = new Map<string, Resources>();
   constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive) {
@@ -127,12 +129,77 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       const stat = await lstat(this.workRoot);
       if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
       root = await mkdtemp(join(this.workRoot, 'checkpoint-'));
-      const source = join(root, 'value'); await this.artifacts.materialize(ref.manifest.id, source);
+      const source = join(root, 'value'); await this.artifacts.materialize(ref.storageId, source);
       const archived = await this.archive.capture(source, ref.manifest.contractId);
       if (!sameFiles(ref.manifest, archived.manifest)) throw new ArtifactError('WORKFLOW_ARCHIVE_MISMATCH');
       return snapshotJson({ schema: 'agentflow-workflow-files/v1', runId, value, manifest: ref.manifest,
         archive: archived.reference, receipt: ref.receipt });
     } finally { ref.uses--; if (root) await rm(root, { recursive: true, force: true }); }
+  }
+  async restoreValue(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue> {
+    const data = consumeWorkflowValueRestore(request), saved = data.record.saved;
+    const fail = (): never => { throw new DefinitionError('INVALID_WORKFLOW_FILE_RESTORE'); };
+    const object = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
+    const shape = (v: unknown, keys: string[]): boolean => object(v) && Object.keys(v).length === keys.length && keys.every(k => Object.hasOwn(v, k));
+    const equal = (a: unknown, b: unknown): boolean => canonicalJson(snapshotJson(a)) === canonicalJson(snapshotJson(b));
+    const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+    if (!this.archive || !object(saved) || !shape(saved, ['schema', 'runId', 'value', 'manifest', 'archive', 'receipt'])
+      || saved['schema'] !== 'agentflow-workflow-files/v1' || saved['runId'] !== data.runId || !equal(saved['value'], data.record.value)
+      || !shape(saved['value'], ['fileRef']) || !object(saved['value']) || typeof saved['value']['fileRef'] !== 'string'
+      || !uuid.test(saved['value']['fileRef']) || !object(saved['manifest']) || typeof saved['manifest']['id'] !== 'string' || !uuid.test(saved['manifest']['id'])) return fail();
+    const id = saved['value']['fileRef'];
+    if (this.#references.has(id) || this.#restoring.has(id)) throw new DefinitionError('WORKFLOW_FILE_REFERENCE_EXISTS');
+    this.#restoring.add(id);
+    let root: string | null = null, captured: FileManifest | null = null, entry: Reference | null = null;
+    let closing: Promise<void> | null = null;
+    const dispose = (): Promise<void> => {
+      if (closing) return closing;
+      closing = (async () => {
+        if (entry && (entry.uses || entry.releasing)) throw new DefinitionError('WORKFLOW_FILES_IN_USE');
+        if (entry) entry.releasing = true;
+        try {
+          if (captured) { await this.artifacts.release(captured.id); captured = null; }
+          if (entry) { this.#references.delete(id); entry = null; }
+          if (root) { await rm(root, { recursive: true, force: true }); root = null; }
+          this.#restoring.delete(id);
+        } finally { if (entry) entry.releasing = false; }
+      })().finally(() => { closing = null; });
+      return closing;
+    };
+    try {
+      const manifest = await this.archive.read(saved['archive'] as unknown as ArtifactArchiveReference);
+      if (manifest.contractId !== data.record.contract.id || !equal(saved['manifest'], { ...manifest, id: saved['manifest']['id'] })) return fail();
+      const expected = data.expected, receipt = saved['receipt'];
+      if (expected === null) { if (receipt !== null) return fail(); }
+      else {
+        const binding = this.#bindings.get(expected.componentId), execution = data.execution;
+        if (!binding || binding.kind !== 'script' || !object(execution) || execution['schema'] !== 'agentflow-script-execution/v1'
+          || !object(execution['backend']) || execution['backend']['schema'] !== 'agentflow-docker-execution/v1' || !object(execution['backend']['options'])) return fail();
+        const image = execution['backend']['options']['image'];
+        if (typeof image !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(image)) return fail();
+        const predecessor = this.available(expected.predecessor, data.runId, binding.component.inputContract);
+        if (!shape(receipt, ['identity', 'componentId', 'predecessor', 'input', 'output', 'outcome', 'agent', 'script']) || !object(receipt)
+          || !equal(receipt['identity'], expected.identity) || receipt['componentId'] !== expected.componentId || receipt['outcome'] !== expected.outcome
+          || !equal(receipt['predecessor'], expected.predecessor) || !equal(receipt['input'], predecessor.manifest)
+          || !equal(receipt['output'], saved['manifest']) || receipt['agent'] !== null
+          || !equal(receipt['script'], { identity: expected.identity, outcome: expected.outcome, imageId: image, exitCode: 0 })) return fail();
+      }
+      await mkdir(this.workRoot, { recursive: true, mode: 0o700 }); const stat = await lstat(this.workRoot);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
+      root = await mkdtemp(join(this.workRoot, 'restore-')); const source = join(root, 'value');
+      await this.archive.materialize(saved['archive'] as unknown as ArtifactArchiveReference, source);
+      captured = await this.artifacts.capture(source, data.record.contract.id);
+      if (!equal({ ...captured, id: saved['manifest']['id'] }, saved['manifest'])) return fail();
+      await rm(root, { recursive: true, force: true }); root = null;
+      const storageId = captured.id;
+      entry = { storageId, runId: data.runId, manifest: clone(saved['manifest']) as unknown as FileManifest,
+        receipt: clone(receipt) as unknown as FileWorkflowReceipt | null, release: () => this.artifacts.release(storageId), uses: 0, releasing: false, released: false };
+      this.#references.set(id, entry); this.#restoring.delete(id);
+      return Object.freeze({ value: snapshotJson(data.record.value), dispose });
+    } catch (error) {
+      try { await dispose(); } catch { throw new WorkflowRestoreError('WORKFLOW_RESTORE_CLEANUP_FAILED', dispose); }
+      throw error;
+    }
   }
   private reference(value: JsonValue): Reference {
     if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join(',') !== 'fileRef'
@@ -147,7 +214,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     return ref;
   }
   private issue(runId: string, manifest: FileManifest, receipt: FileWorkflowReceipt | null, release: () => Promise<void>): JsonValue {
-    const id = randomUUID(); this.#references.set(id, { runId, manifest: clone(manifest), receipt: clone(receipt), release, uses: 0, released: false, releasing: false });
+    const id = randomUUID(); this.#references.set(id, { storageId: manifest.id, runId, manifest: clone(manifest), receipt: clone(receipt), release, uses: 0, released: false, releasing: false });
     return { fileRef: id };
   }
   async prepareInput(runId: string, source: string, contractId: string): Promise<JsonValue> {
@@ -162,7 +229,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   }
   async materialize(value: JsonValue, runId: string, destination: string): Promise<void> {
     const ref = this.available(value, runId); ref.uses++;
-    try { await this.artifacts.materialize(ref.manifest.id, destination); } finally { ref.uses--; }
+    try { await this.artifacts.materialize(ref.storageId, destination); } finally { ref.uses--; }
   }
   async release(value: JsonValue, runId: string): Promise<void> {
     const ref = this.reference(value); if (ref.runId !== runId || ref.uses || ref.releasing) throw new DefinitionError('WORKFLOW_FILES_IN_USE');
@@ -226,7 +293,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || rootStat.uid !== process.getuid?.() || (rootStat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
       resources.root = await mkdtemp(join(this.workRoot, 'node-'));
       const inputPath = join(resources.root, 'input'), workPath = join(resources.root, 'work'), outputsPath = join(resources.root, 'outputs');
-      await this.artifacts.materialize(ref.manifest.id, inputPath);
+      await this.artifacts.materialize(ref.storageId, inputPath);
       await mkdir(workPath, { mode: 0o700 }); await mkdir(outputsPath, { mode: 0o700 });
       if (cancellation.requested()) return failed('CANCELLED');
       let outcome: string, output: FileManifest, agent: ExecutionReceipt | null = null, script: ScriptEvidence | null = null;

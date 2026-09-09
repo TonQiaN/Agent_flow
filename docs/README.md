@@ -41,10 +41,12 @@
 
 [Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；已接入下述正常运行检查点，重启恢复仍待接通。
 
-[耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；尚未接入 Workflow 恢复。
+[耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；检查点文件恢复见下方，重启执行仍待接通。
 
 [Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；断网脚本绑定见下方，其他执行绑定及节点恢复仍待接入。
 
 [脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；正常运行检查点已接入，重启恢复仍待接通。
 
 [Workflow 检查点](guides/workflow-checkpoints.md)已接入共享正常执行、耐久文件值与异步取消确认；尚未开放重启执行。
+
+[检查点加载与文件恢复](guides/workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。

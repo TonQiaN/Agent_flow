@@ -41,3 +41,10 @@ export type { WorkflowExecutionSnapshot } from './workflow/execution.js';
 
 export type { WorkflowCheckpoint, WorkflowCheckpointValue, WorkflowCursor } from './workflow/checkpoint.js';
 export type { WorkflowPersistentRunHandle } from './workflow/runtime.js';
+
+export { loadWorkflowCheckpoint } from './workflow/load-checkpoint.js';
+export type { LoadedWorkflowCheckpoint } from './workflow/load-checkpoint.js';
+export { consumeWorkflowValueRestore, WorkflowRestoreError } from './workflow/restore-value.js';
+export type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './workflow/restore-value.js';
+
+export { canonicalJson } from './json.js';

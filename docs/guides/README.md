@@ -57,3 +57,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Workflow 执行绑定快照](workflow-execution-snapshot.md)：断网脚本实际绑定、镜像冻结和变化拒绝。
 
 [Workflow 检查点](workflow-checkpoints.md)：共享正常执行中的耐久值、状态提交和异步取消；重启恢复未开放。
+
+[检查点加载与文件恢复](workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。

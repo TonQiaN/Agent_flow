@@ -2,8 +2,9 @@ import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import type { RunRecordStore } from '../persistence/types.js';
-import { CheckpointWriter } from './checkpoint.js';
-import { getPlan, routeKey, snapshot } from './compiler.js';
+import { advanceWorkflowRoute } from './route.js';
+import { CheckpointWriter, type WorkflowCheckpointValue } from './checkpoint.js';
+import { getPlan, snapshot } from './compiler.js';
 import type { CompiledWorkflow, WorkflowIssue, WorkflowNodeResult, WorkflowSnapshot, WorkflowStep, WorkflowLimitEvent } from './types.js';
 
 type MutableRun = { -readonly [K in keyof WorkflowSnapshot]: WorkflowSnapshot[K] };
@@ -59,7 +60,7 @@ export class WorkflowRuntime {
     const run = this.#create(compiled, runId, input, true), plan = getPlan(compiled);
     try {
       run.writer = await CheckpointWriter.prepare(compiled, runId, store);
-      await run.writer.saveValue(plan.definition.start, plan.definition.input, run.value);
+      run.writer.acceptValue(await run.writer.saveValue(plan.definition.start, plan.definition.input, run.value));
       await this.#checkpoint(run); run.ready = true;
     } catch (error) { this.#runs.delete(runId); throw error; }
     const completion = Promise.resolve().then(() => this.#execute(compiled, run));
@@ -117,15 +118,14 @@ export class WorkflowRuntime {
         if (!issuesValid(check)) return end('failed', 'INVALID_CONTRACT_DIAGNOSTICS');
         if (check.length) return end('failed', 'INVALID_NODE_OUTPUT', check);
         // Archive actual accepted bytes before recording acceptance and its successor in one CAS.
-        try { await run.writer?.saveValue(node, binding.outcomes.get(result.outcome)!, result.output); }
+        let saved: WorkflowCheckpointValue | undefined;
+        try { saved = await run.writer?.saveValue(node, binding.outcomes.get(result.outcome)!, result.output); }
         catch { return end('failed', 'WORKFLOW_VALUE_PERSISTENCE_FAILED'); }
+        if (saved) run.writer!.acceptValue(saved);
         const step = { node, result }; run.steps.push(step); run.view.lastAccepted = step; run.value = snapshot(result.output);
         if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
-        const key = routeKey(node, result.outcome), route = plan.routes.get(key)!, count = run.traversals.get(key) ?? 0;
-        const exhausted = route.limit !== undefined && count >= route.limit.max;
-        const to = exhausted ? route.limit!.exhausted : route.to;
-        if (exhausted) run.limits.push({ node, outcome: result.outcome, step: run.steps.length, max: route.limit!.max });
-        else run.traversals.set(key, count + 1);
+        const { destination: to, exhausted, event } = advanceWorkflowRoute(compiled, node, result.outcome, run.steps.length, run.traversals);
+        if (event) run.limits.push(event);
         if ('end' in to) { run.view.outcome = to.end; return end(exhausted ? 'exhausted' : 'succeeded', exhausted ? 'ROUTE_LIMIT_EXCEEDED' : null); }
         run.node = to.node; run.view.currentNode = to.node; run.view.currentIdentity = null;
         await this.#checkpoint(run);

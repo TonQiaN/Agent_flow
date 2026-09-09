@@ -1,9 +1,11 @@
-import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ContractRegistry, FileContractRegistry, ScriptExecutor, WorkflowRuntime, compileWorkflow } from '@agentflow/engine';
+import { ContractRegistry, FileContractRegistry, ScriptExecutor, WorkflowRuntime, compileWorkflow, loadWorkflowCheckpoint } from '@agentflow/engine';
 import { DockerBackend, FileArtifactStore, FileArtifactArchive, FileWorkflowCatalog, SqliteRunRecordStore, systemClock } from '@agentflow/integrations';
 
-const [root, mode] = process.argv.slice(2);
+const [root, operation, definitionMode = 'run'] = process.argv.slice(2);
+const mode = operation === 'load' ? definitionMode : operation;
 const contracts = new FileContractRegistry(new ContractRegistry());
 contracts.register('files', { rules: [{ id: 'value', kind: 'file', match: 'value.txt', minCount: 1, maxCount: 1, mediaTypes: ['text/plain'], maxBytes: 1000 }], maxFiles: 1, maxTotalBytes: 1000, unmatched: 'reject' });
 const archive = new FileArtifactArchive(join(root, 'archive'), contracts);
@@ -47,11 +49,44 @@ try {
     const flow = compileWorkflow({ id: 'checkpoints', start: 'a', input: { kind: 'files', id: 'files' }, maxSteps: 2,
       nodes: { a: { component: 'a' }, b: { component: 'b' } }, outcomes: { done: { kind: 'files', id: 'files' } },
       routes: [{ from: 'a', outcome: 'ok', to: { node: 'b' } }, { from: 'b', outcome: 'ok', to: { end: 'done' } }] }, files);
+    if (operation === 'load') {
+      const before = await store.read('run');
+      let loaded;
+      try { loaded = await loadWorkflowCheckpoint(flow, 'run', store); }
+      catch (error) {
+        assert.deepEqual(await store.read('run'), before); assert.deepEqual(started, []);
+        for (const name of ['temporary', 'work']) assert.deepEqual(await readdir(join(root, name)).catch(e => { if (e.code === 'ENOENT') return []; throw e; }), []);
+        console.log(JSON.stringify({ error: error.code, started }));
+      }
+      if (loaded) {
+        const checkpoint = loaded.checkpoint, texts = [];
+        for (const [index, record] of checkpoint.values.entries()) {
+          assert.deepEqual(files.check('files', record.value), []);
+          const info = files.inspect(record.value, 'run');
+          assert.deepEqual(info.manifest, record.saved.manifest); assert.deepEqual(info.receipt, record.saved.receipt);
+          const path = join(root, `loaded-${index}`), another = join(root, `copy-${index}`);
+          await files.materialize(record.value, 'run', path); texts.push(await readFile(join(path, 'value.txt'), 'utf8'));
+          await writeFile(join(path, 'value.txt'), 'caller mutation');
+          await files.materialize(record.value, 'run', another);
+          assert.equal(await readFile(join(another, 'value.txt'), 'utf8'), texts[index]);
+          // Restored storage IDs differ, while checkpoint lineage remains stable and can be saved again.
+          const savedAgain = await files.checkpointValue(record.value, 'run', 'files');
+          assert.deepEqual(savedAgain.manifest, record.saved.manifest); assert.deepEqual(savedAgain.receipt, record.saved.receipt);
+        }
+        await Promise.all([loaded.dispose(), loaded.dispose()]); await loaded.dispose();
+        for (const record of checkpoint.values) assert.notDeepEqual(files.check('files', record.value), []);
+        for (const name of ['temporary', 'work']) assert.deepEqual(await readdir(join(root, name)), []);
+        const again = await loadWorkflowCheckpoint(flow, 'run', store); await again.dispose();
+        assert.deepEqual(await store.read('run'), before); assert.deepEqual(started, []);
+        console.log(JSON.stringify({ checkpoint, revision: loaded.revision, texts, started }));
+      }
+    } else {
     const input = await files.prepareInput('run', join(root, 'source'), 'files');
     const handle = await new WorkflowRuntime().startPersisted(flow, 'run', input, store);
     const result = await handle.completion;
     console.log(JSON.stringify({ ...result, started }));
     await files.release(input, 'run');
     for (const step of result.steps) if (step.result.status === 'accepted') await files.release(step.result.output, 'run');
+    }
   }
 } finally { store.close(); process.disconnect?.(); }
