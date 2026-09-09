@@ -1,5 +1,6 @@
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { WorkflowContractDefinition } from './structure.js';
+import type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './restore-value.js';
 import type { Cancellation } from '../runner/types.js';
 
 export interface WorkflowContract { readonly kind: 'json' | 'files'; readonly id: string }
@@ -33,6 +34,8 @@ export interface WorkflowNodeExecutor {
   executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
   /** Save a live value through its actual owner; only trusted checkpoint coordination calls this port. */
   checkpointValue?(value: JsonValue, runId: string, contractId: string): Promise<JsonValue>;
+  /** Accepts only a one-use request issued after a checkpoint has been validated. */
+  restoreValue?(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
   execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult>;
 }

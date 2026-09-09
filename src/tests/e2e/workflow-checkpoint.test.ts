@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url';
 import { fork } from 'node:child_process';
 import { once } from 'node:events';
 import type { WorkflowCheckpoint } from '@agentflow/engine';
+import { SqliteRunRecordStore } from '@agentflow/integrations';
 import { docker } from '../../packages/integrations/docker/process.js';
 const enabled = process.env['AGENTFLOW_DOCKER_TESTS'] === '1';
 const fixture = fileURLToPath(new URL('../fixtures/workflow-checkpoint.mjs', import.meta.url));
-function child(root: string, mode: string) {
-  const process = fork(fixture, [root, mode], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [] });
+function child(root: string, mode: string, definitionMode = 'run') {
+  const process = fork(fixture, [root, mode, definitionMode], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [] });
   let stdout = '', stderr = ''; process.stdout!.on('data', b => { stdout += b; }); process.stderr!.on('data', b => { stderr += b; });
   return { process, exited: once(process, 'exit'), output: () => ({ stdout, stderr }) };
 }
@@ -53,6 +54,82 @@ for (const interrupt of [false, true]) test(`persisted real script Workflow reta
     for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
     if (resource) await docker(['rm', '-f', resource]);
     if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained checkpoint evidence: ${root}\n`);
+  }
+});
+
+for (const interrupt of [false, true]) test(`trusted checkpoint loading restores independent file capabilities in a fresh process; live interrupted B=${interrupt}`, { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-workflow-load-')); let resource: string | undefined, removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, interrupt ? 'interrupt' : 'run'); processes.push(running);
+    if (interrupt) {
+      const [message] = await Promise.race([once(running.process, 'message'), running.exited.then(() => { throw new Error(running.output().stderr || 'worker exited early'); })]);
+      assert.equal(message.event, 'b-started'); resource = message.resource.id; assert.match(resource!, /^af-[a-f0-9-]+$/);
+      running.process.kill('SIGKILL'); assert.deepEqual(await running.exited, [null, 'SIGKILL']);
+      assert.equal(await docker(['inspect', '--format', '{{.State.Running}}', resource!]), 'true');
+    } else { const [code] = await running.exited; assert.equal(code, 0, running.output().stderr); }
+    assert.equal(await readFile(join(root, 'source/value.txt'), 'utf8'), 'seed');
+    for (const name of ['source', 'temporary', 'work', ...(!interrupt ? ['attempts'] : [])]) await rm(join(root, name), { recursive: true, force: true });
+    const loading = child(root, 'load', interrupt ? 'interrupt' : 'run'); processes.push(loading); const [code] = await loading.exited;
+    assert.equal(code, 0, loading.output().stderr);
+    const result = JSON.parse(loading.output().stdout); assert.equal(result.error, undefined);
+    assert.deepEqual(result.started, []); assert.deepEqual(result.texts, interrupt ? ['seed', 'seedA'] : ['seed', 'seedA', 'seedAB']);
+    assert.equal(result.checkpoint.snapshot.status, interrupt ? 'running' : 'succeeded');
+    if (resource) assert.equal(await docker(['inspect', '--format', '{{.State.Running}}', resource]), 'true');
+    removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
+    if (resource) await docker(['rm', '-f', resource]);
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained load evidence: ${root}\n`);
+  }
+});
+
+test('fresh file restoration rejects stored receipt and manifest drift and rolls back earlier hydrated values', { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-workflow-load-invalid-')); let removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, 'run'); processes.push(running); const [code] = await running.exited;
+    assert.equal(code, 0, running.output().stderr);
+    for (const name of ['source', 'temporary', 'work', 'attempts']) await rm(join(root, name), { recursive: true, force: true });
+    const store = await SqliteRunRecordStore.open(join(root, 'db'));
+    try {
+      const original = (await store.read('run'))!.content;
+      const mutations: ((c: any) => void)[] = [
+        c => { c.values[1].saved.receipt.predecessor = c.values[1].value; },
+        c => { c.values[1].saved.receipt.script.imageId = `sha256:${'0'.repeat(64)}`; },
+        c => { c.values[1].saved.receipt.identity.attemptId = 'attempt-2'; },
+        c => { c.values[1].saved.receipt.input.id = c.values[1].saved.manifest.id; },
+        c => { c.values[1].saved.manifest.files[0].bytes++; },
+        c => { c.values[1].saved.archive.sha256 = '0'.repeat(64); },
+        c => { c.values[1].saved.receipt.extra = true; },
+      ];
+      for (const mutate of mutations) {
+        const changed = structuredClone(original); mutate(changed);
+        await store.compareAndSwap('run', (await store.read('run'))!.revision, changed);
+        const loading = child(root, 'load'); processes.push(loading); const [loadCode] = await loading.exited;
+        assert.equal(loadCode, 0, loading.output().stderr);
+        const result = JSON.parse(loading.output().stdout); assert.equal(typeof result.error, 'string'); assert.deepEqual(result.started, []);
+      }
+      await store.compareAndSwap('run', (await store.read('run'))!.revision, original);
+      const archived = join(root, 'archive', (original as any).values[1].saved.archive.id, 'data/value.txt');
+      const bytes = await readFile(archived);
+      for (const missing of [false, true]) {
+        if (missing) await rm(archived); else await writeFile(archived, Buffer.alloc(bytes.length, 120));
+        try {
+          const loading = child(root, 'load'); processes.push(loading); const [loadCode] = await loading.exited;
+          assert.equal(loadCode, 0, loading.output().stderr);
+          const result = JSON.parse(loading.output().stdout); assert.equal(typeof result.error, 'string'); assert.deepEqual(result.started, []);
+        } finally { await writeFile(archived, bytes, { mode: 0o600 }); }
+      }
+    } finally { store.close(); }
+    const loading = child(root, 'load'); processes.push(loading); const [loadCode] = await loading.exited;
+    assert.equal(loadCode, 0, loading.output().stderr); assert.deepEqual(JSON.parse(loading.output().stdout).texts, ['seed', 'seedA', 'seedAB']);
+    removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained invalid load evidence: ${root}\n`);
   }
 });
 

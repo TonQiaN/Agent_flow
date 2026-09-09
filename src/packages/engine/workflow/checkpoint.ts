@@ -40,14 +40,16 @@ export class CheckpointWriter {
     }
     return new CheckpointWriter(compiled, runId, store, await snapshotWorkflowExecution(compiled));
   }
-  async saveValue(node: string, contract: WorkflowContract, value: JsonValue): Promise<void> {
+  async saveValue(node: string, contract: WorkflowContract, value: JsonValue): Promise<WorkflowCheckpointValue> {
     const binding = getPlan(this.compiled).bindings.get(node)!;
     const saved = contract.kind === 'json' ? { schema: 'agentflow-json-value/v1', value: snapshot(value) }
       : await binding.executor.checkpointValue!(snapshot(value), this.runId, contract.id);
     const copied = snapshot(saved);
     if (copied === null || typeof copied !== 'object' || Array.isArray(copied) || typeof copied['schema'] !== 'string' || !copied['schema']) throw new DefinitionError('INVALID_WORKFLOW_VALUE_SNAPSHOT');
-    this.#values.push(snapshot({ node, contract, value, saved: copied }));
+    return snapshot({ node, contract, value, saved: copied });
   }
+  /** Publish with the corresponding input/accepted step, without an intervening await. */
+  acceptValue(value: WorkflowCheckpointValue): void { this.#values.push(snapshot(value)); }
   write(view: WorkflowSnapshot, cursor: WorkflowCursor): Promise<void> {
     const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v1', execution: this.execution,
       snapshot: view, cursor, values: this.#values }) as unknown as JsonValue;

@@ -68,3 +68,5 @@
 - [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：launcher 退出而后代持有管道的确定性反例、专属进程组终止与真实文件隔离回归。
 
 [共享 Workflow 检查点](2026-09-10-workflow-checkpoints.md)：提交顺序、取消落盘、写入故障与真实宿主 SIGKILL 后的归档读取。
+
+[严格检查点加载与文件引用恢复验证](2026-09-10-workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
