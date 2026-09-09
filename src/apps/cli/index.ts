@@ -6,7 +6,7 @@ import type { JsonObject } from '@agentflow/domain';
 async function main(): Promise<void> {
   if (process.argv[2] === 'auth') { process.exitCode = await auth(process.argv.slice(3)); return; }
   if (process.argv.length !== 3 || process.argv[2] !== 'demo') {
-    process.stderr.write('Usage: agentflow demo\nRuns a deterministic JSON contract example. Local key management: agentflow auth <configure|inspect|delete> deepseek --store <directory> --credential-ref <id> [--file <file>].\n');
+    process.stderr.write('Usage: agentflow demo\nRuns a deterministic JSON contract example. Authentication: agentflow auth configure deepseek; auth <inspect|delete> <deepseek|codex|claude>; auth login <codex|claude>. Run a subcommand for required explicit options.\n');
     process.exitCode = 2;
     return;
   }

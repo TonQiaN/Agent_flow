@@ -1,6 +1,6 @@
 # 本地 API key 管理
 
-当前 CLI 支持 DeepSeek API key 的交互录入、受控文件导入、检查和本地删除。它复用独立凭据存储；不发起模型请求，也不执行 Codex/Claude 订阅登录。仓库内部包尚未发布，先运行 `npm ci` 和 `npm run build`。
+当前 CLI 支持 DeepSeek API key 的交互录入、受控文件导入、检查和本地删除。它复用独立凭据存储，不发起模型请求；Codex/Claude 使用独立的[订阅登录入口](subscription-login.md)。仓库内部包尚未发布，先运行 `npm ci` 和 `npm run build`。
 
 ## 交互录入
 
@@ -42,4 +42,4 @@ node src/apps/cli/dist/index.js auth delete deepseek \
 
 退出码：成功 0，参数不支持/无效 2，输入或存储操作失败 1。错误不回显 key、源文件内容或任意异常文本。Profile 仍由受信宿主通过 [DeepSeek Profile/执行 API](deepseek-adapter.md)配置；CLI 不维护完整 Profile 数据库。
 
-实际证据见 [本地认证入口验证](../validation/2026-09-09-auth-management.md)。订阅登录协调与安全备份恢复仍在 #11 范围内，当前不支持 `auth login`。
+实际证据见 [本地认证入口验证](../validation/2026-09-09-auth-management.md)。订阅登录协调、原生驱动及 `auth login` 已接入；真实订阅验收与安全备份恢复仍在 #11 范围内。

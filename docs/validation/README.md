@@ -48,3 +48,5 @@
 - [Claude 管理配置修复与实际工具隔离](2026-09-09-claude-tool-isolation.md)
 
 - [原生订阅登录驱动](2026-09-09-native-subscription-login.md)：两个独立驱动、私有交互、合成 Docker 故障恢复与原生离线帮助。
+
+- [订阅终端登录](2026-09-09-subscription-login-cli.md)：真实 PTY、编译 CLI、合成 Docker 登录、取消及持续清理失败。
