@@ -29,10 +29,12 @@
 
 [DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，[API key 与不可变快照绑定](validation/2026-09-09-deepseek-api-key.md) 已通过宿主存储驱动的原生 CLI 验证，[宿主执行组合](validation/2026-09-09-deepseek-execution.md) 已接通并通过协议替身验收，真实官方模型调用仍未验收。
 
-[凭据环境注入](validation/2026-09-09-credential-environment.md)已消除 DeepSeek 任务密钥文件，恢复与 Issue #11 的环境注入要求一致；[交互录入与本地管理](guides/auth-management.md)已实现；订阅登录及安全备份恢复仍待完成。
+[凭据环境注入](validation/2026-09-09-credential-environment.md)已消除 DeepSeek 任务密钥文件，恢复与 Issue #11 的环境注入要求一致；[交互录入与本地管理](guides/auth-management.md)已实现；订阅登录及有限备份恢复已有后续实现记录。
 
-[订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动已在后续切片接入，真实登录及安全备份恢复继续实施。
+[订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动已在后续切片接入，有限备份恢复已在后续切片实现，真实登录继续验收。
 
 [原生订阅登录驱动](guides/subscription-login.md)已接入私有交互与受控 Docker；已做合成验证，真实官方登录继续验收，CLI 入口已由后续切片接入。
 
-[订阅终端登录](guides/subscription-login.md)已接入显式参数、隐藏授权码、取消与本地检查/删除；真实订阅和安全备份恢复继续验收。
+[订阅终端登录](guides/subscription-login.md)已接入显式参数、隐藏授权码、取消与本地检查/删除；有限备份恢复已有后续验证，真实订阅继续验收。
+
+[私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。

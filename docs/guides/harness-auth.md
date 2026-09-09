@@ -1,6 +1,6 @@
 # Harness 与凭据接口
 
-当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、订阅登录及安全备份恢复尚未实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
+当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；订阅终端登录和有限备份恢复已实现；Claude/DeepSeek 的真实官方调用与真实刷新仍未验收，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
 
 ## Harness
 
@@ -23,9 +23,10 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 - `acquire(identity, waitMs)`：按 credentialRef 跨进程独占，默认立即报 busy，最多等待 60 秒。返回的 lease 普通序列化只含元数据。`readSecret()` 仅供受信执行绑定使用。
 - `lease.commitSecret(content, expectedRevision)`：在同一租约内验证旧 revision 与存储 generation/revision，校验新格式后原子替换。调用者须携带生成工作副本时的 revision；旧副本不能冒充最新读取。
 - `lease.release()`：幂等释放。释放后读写失败。执行绑定先证明旧执行已停止且清理成功；停止未知时不会释放给另一任务。
-- `delete(identity)`：与运行共用同一个锁，只删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
+- `recover(identity, waitMs)`：取得同一管理占用，仅恢复符合完整身份与版本前缀的尾部截断，详见[恢复指南](credential-recovery.md)。
+- `delete(identity)`：与运行共用同一个锁，先持久清除备份，再删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
 
-不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；订阅登录入口、备份恢复、持久 Profile 管理及真实账号联合验收继续在 #11/#12 完成。
+不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；订阅登录入口与[有限备份恢复](credential-recovery.md)已接入，持久 Profile 管理和真实账号联合验收仍有边界限制。
 
 ## 执行凭据绑定
 
@@ -35,7 +36,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 
 调用顺序为：取得绑定 → Runner.run → binding.finish(runnerResult) → 检查 Harness 与输出 → Runner.release。finish 仅接受来自宿主同一次执行的结果：确认停止且资源已清理才读取副本、用原 revision 条件回存、删除副本并释放租约。非零退出、取消和超时也可能已经刷新，不能跳过收尾。未到准备阶段的异常可调用 abandon；初始化开始后 abandon 拒绝。
 
-finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未接纳新内容，原凭据不被损坏副本覆盖，调用方不能把它当作无异常完成。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
+finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未确认完整保存，调用方不能把它当作无异常完成。损坏副本不会覆盖健康源；但 IO 错误可能发生在 live 已提交、备份尚未保存之后，应检查本地状态而非假定源未变化。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
 
 普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实模型小任务已通过，但未触发远端刷新；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 

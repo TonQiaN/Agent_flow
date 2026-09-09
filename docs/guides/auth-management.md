@@ -42,4 +42,4 @@ node src/apps/cli/dist/index.js auth delete deepseek \
 
 退出码：成功 0，参数不支持/无效 2，输入或存储操作失败 1。错误不回显 key、源文件内容或任意异常文本。Profile 仍由受信宿主通过 [DeepSeek Profile/执行 API](deepseek-adapter.md)配置；CLI 不维护完整 Profile 数据库。
 
-实际证据见 [本地认证入口验证](../validation/2026-09-09-auth-management.md)。订阅登录协调、原生驱动及 `auth login` 已接入；真实订阅验收与安全备份恢复仍在 #11 范围内。
+实际证据见 [本地认证入口验证](../validation/2026-09-09-auth-management.md)。订阅登录协调、原生驱动及 `auth login` 已接入；[有限备份恢复](credential-recovery.md)也已接入，真实订阅验收仍在 #11 范围内。

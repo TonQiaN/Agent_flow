@@ -4,13 +4,13 @@ import { FileCredentialStore, DeepSeekApiKeyCodec, CodexSubscriptionCodec, Claud
 import { login } from './login.js';
 import { readHiddenInput } from './hidden-input.js';
 
-const usage = 'Usage: agentflow auth configure deepseek --store <absolute-directory> --credential-ref <id> [--file <absolute-file>]; auth <inspect|delete> <deepseek|codex|claude> --store <absolute-directory> --credential-ref <id>';
+const usage = 'Usage: agentflow auth configure deepseek --store <absolute-directory> --credential-ref <id> [--file <absolute-file>]; auth <inspect|delete|recover> <deepseek|codex|claude> --store <absolute-directory> --credential-ref <id>';
 /** Explicit local management and a separate terminal login route. */
 export async function auth(args: readonly string[]): Promise<number> {
   const [operation, provider, ...tail] = args;
   if (operation === 'login') return login(args.slice(1));
   const options = new Map<string, string>();
-  if (!['configure', 'inspect', 'delete'].includes(operation ?? '') || !['deepseek', 'codex', 'claude'].includes(provider ?? '') || operation === 'configure' && provider !== 'deepseek' || tail.length % 2 !== 0) {
+  if (!['configure', 'inspect', 'delete', 'recover'].includes(operation ?? '') || !['deepseek', 'codex', 'claude'].includes(provider ?? '') || operation === 'configure' && provider !== 'deepseek' || tail.length % 2 !== 0) {
     process.stderr.write(usage + '\n'); return 2;
   }
   for (let index = 0; index < tail.length; index += 2) {
@@ -35,9 +35,10 @@ export async function auth(args: readonly string[]): Promise<number> {
         const key = await readHiddenInput(); process.stderr.write('\n');
         result = await store.configure(identity, { content: JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: key }) });
       }
-    } else if (operation === 'inspect') result = await store.inspect(identity);
+    } else if (operation === 'recover') result = await store.recover(identity);
+    else if (operation === 'inspect') result = await store.inspect(identity);
     else result = await store.delete(identity);
-    process.stdout.write(JSON.stringify(result) + '\n'); return 0;
+    process.stdout.write(JSON.stringify(result) + '\n'); return operation === 'recover' && result && 'status' in result && result.status === 'unavailable' ? 1 : 0;
   } catch (error) {
     const code = error instanceof CredentialError ? error.code : error instanceof Error && /^AUTH_(INPUT|TERMINAL)_[A-Z_]+$/.test(error.message) ? error.message : 'AUTH_MANAGEMENT_FAILED';
     process.stderr.write(code + '\n'); return 1;

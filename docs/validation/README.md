@@ -50,3 +50,5 @@
 - [原生订阅登录驱动](2026-09-09-native-subscription-login.md)：两个独立驱动、私有交互、合成 Docker 故障恢复与原生离线帮助。
 
 - [订阅终端登录](2026-09-09-subscription-login-cli.md)：真实 PTY、编译 CLI、合成 Docker 登录、取消及持续清理失败。
+
+- [凭据备份恢复](2026-09-09-credential-recovery.md)：尾部截断、删除与版本隔离、旧记录规范化及真实进程崩溃。

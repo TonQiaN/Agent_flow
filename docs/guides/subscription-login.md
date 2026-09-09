@@ -82,3 +82,5 @@ node src/apps/cli/dist/index.js auth delete codex \
 ```
 
 也支持 claude；相同引用按所选服务核对。删除仍遵守管理占用，不宣称远端撤销；已保存仍为 remoteStatus=unknown。真实 OAuth、Claude 原生浏览器回调和授权码交接、真实刷新继续验收。见 [终端登录验证](../validation/2026-09-09-subscription-login-cli.md)。
+
+[有限备份恢复](credential-recovery.md)已接入存储和独立管理命令；它不改变登录清理占用，也不代替真实账号验收。
