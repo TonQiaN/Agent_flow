@@ -58,3 +58,5 @@
 - [DeepSeek 偶发超时诊断](2026-09-09-deepseek-timeout-diagnostics.md)：操作/子进程证据、有界重复检查及失败捕获保留。
 
 - [Run 记录存储验证](2026-09-09-run-record-store.md)：多进程 CAS、提交前后 SIGKILL 和损坏拒绝。
+
+- [耐久文件归档](2026-09-10-artifact-archive.md)：删除原始/临时材料后新进程恢复、并发发布与 SIGKILL。

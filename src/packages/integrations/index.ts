@@ -54,3 +54,4 @@ export type { DockerLoginOptions } from './auth/docker-login.js';
 export type { DockerInteraction } from './docker/process.js';
 
 export { SqliteRunRecordStore } from './persistence/sqlite-store.js';
+export { FileArtifactArchive } from './artifacts/file-archive.js';

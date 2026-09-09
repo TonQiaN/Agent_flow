@@ -40,3 +40,5 @@
 [私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。
 
 [Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；流程快照和重启恢复尚未接入，完整持久化能力仍待后续验收。
+
+[耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；尚未接入 Workflow 恢复。
