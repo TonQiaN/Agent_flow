@@ -3,8 +3,8 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import { ArtifactError, DefinitionError } from '@agentflow/engine';
-import type { AgentAttempt, AgentExecutor, ArtifactStore, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
+import { ArtifactError, DefinitionError, snapshotJson } from '@agentflow/engine';
+import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactStore, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
 
 export interface FileFunctionContext {
@@ -63,7 +63,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   readonly #references = new Map<string, Reference>();
   readonly #attempts = new Set<string>();
   readonly #resources = new Map<string, Resources>();
-  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string) {
+  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive) {
     if (!isAbsolute(workRoot) || workRoot.includes('\0')) throw new DefinitionError('INVALID_WORKFLOW_WORK_ROOT');
   }
 
@@ -116,6 +116,23 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     this.validate(component); const binding = this.#bindings.get(component.id)!;
     if (binding.kind !== 'script') throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
     return binding.executor.definitionSnapshot(clone(binding.definition));
+  }
+  /** Durable data for the trusted Run store; never a workflow-callable import or acceptance endpoint. */
+  async checkpointValue(value: JsonValue, runId: string, contractId: string): Promise<JsonValue> {
+    if (!this.archive) throw new DefinitionError('WORKFLOW_VALUE_PERSISTENCE_UNAVAILABLE');
+    const ref = this.available(value, runId, contractId); ref.uses++;
+    let root: string | undefined;
+    try {
+      await mkdir(this.workRoot, { recursive: true, mode: 0o700 });
+      const stat = await lstat(this.workRoot);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
+      root = await mkdtemp(join(this.workRoot, 'checkpoint-'));
+      const source = join(root, 'value'); await this.artifacts.materialize(ref.manifest.id, source);
+      const archived = await this.archive.capture(source, ref.manifest.contractId);
+      if (!sameFiles(ref.manifest, archived.manifest)) throw new ArtifactError('WORKFLOW_ARCHIVE_MISMATCH');
+      return snapshotJson({ schema: 'agentflow-workflow-files/v1', runId, value, manifest: ref.manifest,
+        archive: archived.reference, receipt: ref.receipt });
+    } finally { ref.uses--; if (root) await rm(root, { recursive: true, force: true }); }
   }
   private reference(value: JsonValue): Reference {
     if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join(',') !== 'fileRef'

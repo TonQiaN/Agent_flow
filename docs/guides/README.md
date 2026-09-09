@@ -55,3 +55,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Workflow 结构快照](workflow-structure.md)：实际注册定义、跨 Catalog 一致性和有限证明范围。
 
 - [Workflow 执行绑定快照](workflow-execution-snapshot.md)：断网脚本实际绑定、镜像冻结和变化拒绝。
+
+[Workflow 检查点](workflow-checkpoints.md)：共享正常执行中的耐久值、状态提交和异步取消；重启恢复未开放。

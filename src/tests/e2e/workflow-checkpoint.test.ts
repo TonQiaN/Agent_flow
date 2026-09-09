@@ -1,0 +1,79 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { fork } from 'node:child_process';
+import { once } from 'node:events';
+import type { WorkflowCheckpoint } from '@agentflow/engine';
+import { docker } from '../../packages/integrations/docker/process.js';
+const enabled = process.env['AGENTFLOW_DOCKER_TESTS'] === '1';
+const fixture = fileURLToPath(new URL('../fixtures/workflow-checkpoint.mjs', import.meta.url));
+function child(root: string, mode: string) {
+  const process = fork(fixture, [root, mode], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [] });
+  let stdout = '', stderr = ''; process.stdout!.on('data', b => { stdout += b; }); process.stderr!.on('data', b => { stderr += b; });
+  return { process, exited: once(process, 'exit'), output: () => ({ stdout, stderr }) };
+}
+for (const interrupt of [false, true]) test(`persisted real script Workflow retains accepted files in a fresh process; SIGKILL=${interrupt}`, { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-workflow-checkpoint-')); let resource: string | undefined, removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, interrupt ? 'interrupt' : 'run'); processes.push(running);
+    if (interrupt) {
+      const [message] = await Promise.race([once(running.process, 'message'), running.exited.then(() => { throw new Error(running.output().stderr || 'worker exited before B started'); })]); assert.equal(message.event, 'b-started'); resource = message.resource.id;
+      assert.match(resource!, /^af-[a-f0-9-]+$/);
+      running.process.kill('SIGKILL'); assert.deepEqual(await running.exited, [null, 'SIGKILL']);
+      // A host exit is not proof that its container stopped. Only this test-owned id is inspected/removed.
+      assert.equal(await docker(['inspect', '--format', '{{.State.Running}}', resource!]), 'true');
+      await docker(['rm', '-f', resource!]); resource = undefined;
+    } else {
+      const [code] = await running.exited; assert.equal(code, 0, running.output().stderr);
+      assert.equal(JSON.parse(running.output().stdout).status, 'succeeded');
+    }
+    assert.equal(await readFile(join(root, 'source/value.txt'), 'utf8'), 'seed');
+    // Remove original inputs and all ephemeral state; only the Run DB and durable archive remain.
+    for (const name of ['source', 'temporary', 'work', 'attempts']) await rm(join(root, name), { recursive: true, force: true });
+    const reading = child(root, 'read'); processes.push(reading); const [code] = await reading.exited;
+    assert.equal(code, 0, reading.output().stderr);
+    const { record, texts } = JSON.parse(reading.output().stdout), checkpoint = record.content as WorkflowCheckpoint;
+    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v1'); assert.equal(checkpoint.execution.version, 1);
+    assert.deepEqual(texts, interrupt ? ['seed', 'seedA'] : ['seed', 'seedA', 'seedAB']);
+    assert.equal(checkpoint.snapshot.steps.length, interrupt ? 1 : 2);
+    assert.equal(checkpoint.snapshot.status, interrupt ? 'running' : 'succeeded');
+    assert.equal(checkpoint.cursor.node, interrupt ? 'b' : null);
+    if (interrupt) assert.deepEqual(checkpoint.snapshot.currentIdentity, { runId: 'run', nodeTaskId: 'task-2', attemptId: 'attempt-1', attemptNumber: 1 });
+    const accepted = checkpoint.values[1]!.saved as any;
+    assert.equal(accepted.receipt.componentId, 'a'); assert.equal(accepted.receipt.script.identity.nodeTaskId, 'task-1');
+    assert.equal(accepted.runId, 'run'); assert.deepEqual(accepted.receipt.predecessor, checkpoint.values[0]!.value);
+    assert.deepEqual(accepted.value, checkpoint.snapshot.steps[0]!.result.status === 'accepted' && checkpoint.snapshot.steps[0]!.result.output);
+    removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
+    if (resource) await docker(['rm', '-f', resource]);
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained checkpoint evidence: ${root}\n`);
+  }
+});
+
+
+test('real script output archive failure records failure without acceptance or successor execution', { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-checkpoint-archive-fail-')); let removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, 'archive-fail'); processes.push(running); const [code] = await running.exited;
+    assert.equal(code, 0, running.output().stderr);
+    const result = JSON.parse(running.output().stdout);
+    assert.equal(result.status, 'failed'); assert.equal(result.reason, 'WORKFLOW_VALUE_PERSISTENCE_FAILED');
+    assert.deepEqual(result.started, ['a']); assert.deepEqual(result.steps, []);
+    const reading = child(root, 'read'); processes.push(reading); const [readCode] = await reading.exited;
+    assert.equal(readCode, 0, reading.output().stderr);
+    const { record, texts } = JSON.parse(reading.output().stdout);
+    assert.equal(record.content.snapshot.status, 'failed'); assert.equal(record.content.snapshot.lastAccepted, null);
+    assert.deepEqual(texts, ['seed']); removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained checkpoint evidence: ${root}\n`);
+  }
+});

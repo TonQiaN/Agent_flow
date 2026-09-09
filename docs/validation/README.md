@@ -66,3 +66,5 @@
 - [断网脚本执行绑定及阶段复盘](2026-09-10-script-execution-binding.md)：实际镜像冻结、标签删除后执行及后续 checkpoint 主线。
 
 - [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：launcher 退出而后代持有管道的确定性反例、专属进程组终止与真实文件隔离回归。
+
+[共享 Workflow 检查点](2026-09-10-workflow-checkpoints.md)：提交顺序、取消落盘、写入故障与真实宿主 SIGKILL 后的归档读取。

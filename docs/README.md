@@ -39,10 +39,12 @@
 
 [私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。
 
-[Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；流程快照和重启恢复尚未接入，完整持久化能力仍待后续验收。
+[Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；已接入下述正常运行检查点，重启恢复仍待接通。
 
 [耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；尚未接入 Workflow 恢复。
 
 [Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；断网脚本绑定见下方，其他执行绑定及节点恢复仍待接入。
 
-[脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；运行检查点与恢复仍待接入。
+[脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；正常运行检查点已接入，重启恢复仍待接通。
+
+[Workflow 检查点](guides/workflow-checkpoints.md)已接入共享正常执行、耐久文件值与异步取消确认；尚未开放重启执行。
