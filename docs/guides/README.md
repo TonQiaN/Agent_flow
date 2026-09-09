@@ -39,3 +39,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [真实 Codex 批卷 Workflow](tutor-grading-codex.md)
 
 - [Claude 调用计划与协议](claude-adapter.md)
+
+- [Claude 订阅执行组合](claude-execution.md)

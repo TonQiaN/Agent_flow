@@ -26,6 +26,16 @@ endpoint 与允许目标由宿主配置；Codex 订阅首个组合只接受实�
 
 秘密脱敏由绑定侧提供：只在受信内存中记住本次初始及刷新 token 和已知账号标识，普通事件经过替换；格式或脱敏失败时不发布消息 payload。原始日志仍私有，不能把值替换宣称为任意编码或业务 PII 的完整过滤。旧系统导入属于私有验证桥接，在原系统的独占锁期间读取/运行/同步刷新，不能使两套系统各自持锁却同时使用同一 token。产品实现不依赖旧系统模块。
 
+### Claude 订阅执行细化
+
+Claude 2.1.226 使用独立 `.credentials.json`，只接纳 `claudeAiOauth` 内固定版本的字段；不导入同文件中的 MCP、API key 或其他服务秘密。codec 验证 access/refresh token、毫秒过期时间、scope 和可选刷新过期时间/clientId/订阅元数据；本地检查不证明远端有效。该格式没有稳定 account_id，不能照搬 Codex 的账号一致性结论：刷新保留 clientId，禁止无效状态重新变成有效 bundle，账号归属仍需远端证据。
+
+实际 CLI 会在 invalid_grant 后把 accessToken、refreshToken 清空并把 expiresAt 置零。这个明确的无效状态需要条件回存，不能作为破损 JSON 丢弃后恢复旧 token；随后执行在取得租约后、写入工作副本前拒绝，需要用户重新配置。其他畸形结果仍保持旧存储并报告刷新失败。此语义与旧系统只恢复无法解析的文件相容，不扩展为自动登录或任意凭据恢复。
+
+绑定支持固定相对文件名中的单个前导点，继续拒绝 `.`、`..`、绝对路径、空段、反斜线及不安全父目录。Docker 的 state 环境校验保持原边界；Claude 独立组合把非秘密的固定管理路径/开关作为 `env` 程序的分立 argv 参数注入，不接受用户任意环境覆盖。所有源秘密仍只经独占绑定进入本次私有 state。
+
+两个订阅组合共享 integrations 内的执行收尾和文件交接机制，通过独立配方注入版本解析、Adapter、Profile、脱敏和固定调用材料；engine 和通用 Docker 后端不增加 provider 条件分支。Claude 请求目标限定 api.anthropic.com、platform.claude.com；受控代理与实际工具隔离必须分别验证，合成 CLI 通过不能视为真实 Claude 模型或 OAuth 成功。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

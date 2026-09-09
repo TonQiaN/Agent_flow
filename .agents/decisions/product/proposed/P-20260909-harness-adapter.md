@@ -65,3 +65,5 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 - 2026-09-09：按开发流程核对 Blackbox Agent Flow 的独立 provider-state 与订阅 egress 修复；真实 0.153.4 流暴露的初始化警告和失败终态按上述边界补充回归。
 
 - 2026-09-09：在用户已授权的可写隔离输入与首个真实组合修复范围内，补充临时任务元数据映射；先核对 Blackbox，再参考实际版本官方权限实现，保留敏感目录 deny 与输出 contract 验证。
+
+2026-09-09 执行组合核对：Claude 的 Read/Edit 文件规则以双斜线锚定绝对路径（如 Read(//task/state/**)），不复制旧单斜线规则；sandbox.filesystem 使用普通绝对路径，两者语法不能混用。Grep/Glob 的文件拒绝由 Read 规则表达；实际版本的工具执行隔离仍须独立验收。

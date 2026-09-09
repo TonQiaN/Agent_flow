@@ -23,6 +23,7 @@ test('Claude plan preserves prompt, separates fixed paths and subscription requi
   assert.equal(plan.authentication.file, '/task/state/claude/.credentials.json'); assert.equal(plan.environment['CLAUDE_CONFIG_DIR'], '/task/state/claude');
   const policy = JSON.parse(plan.configFiles[0]!.content); assert.equal(policy.sandbox.failIfUnavailable, true); assert.equal(policy.sandbox.allowUnsandboxedCommands, false);
   assert.ok(policy.sandbox.filesystem.allowWrite.includes('/task/input')); assert.ok(policy.sandbox.filesystem.denyRead.includes('/task/state'));
+  assert.deepEqual(policy.permissions.deny, ['Read(//task/state/**)', 'Edit(//task/state/**)', 'Edit(//task/config/**)', 'Agent', 'WebSearch', 'WebFetch']);
   assert.deepEqual(policy.sandbox.network.allowedDomains, []); assert.ok(policy.sandbox.filesystem.denyWrite.includes('/task/config'));
   for (const extra of [{ search: true }, { subagents: true }, { reasoning: 'off' }, { model: '--help' }, { budget: 10 }, { env: {} }])
     assert.throws(() => adapter.plan({ ...task(), config: { model: 'sonnet', subagents: false, search: false, ...extra } }), /UNSUPPORTED_CLAUDE_CONFIGURATION/);
