@@ -10,6 +10,8 @@ import type { WorkflowCheckpoint, WorkflowCheckpointValue } from './checkpoint.j
 import { assertWorkflowExecutionMatches } from './execution.js';
 import { advanceWorkflowRoute } from './route.js';
 import { issueValueRestore, WorkflowRestoreError } from './restore-value.js';
+import { unwrapWorkflowRecovery } from './recovery-record.js';
+import type { WorkflowRecoveryProgress } from './recovery-record.js';
 import type { WorkflowValueRestoreData } from './restore-value.js';
 import type { CompiledWorkflow, WorkflowIssue, WorkflowLimitEvent, WorkflowStep } from './types.js';
 
@@ -116,6 +118,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
 export interface LoadedWorkflowCheckpoint {
   readonly revision: number;
   readonly checkpoint: WorkflowCheckpoint;
+  readonly recovery: WorkflowRecoveryProgress | null;
   dispose(): Promise<void>;
 }
 /** Loads facts and independent files. Never calls execute, writes Run state, or queries/stops a container. */
@@ -125,9 +128,15 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   let record: typeof result;
   try { record = snapshot(result); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   valid(shape(record, ['runId', 'revision', 'content']) && record.runId === runId && Number.isSafeInteger(record.revision) && record.revision >= 1);
+  const unwrapped = unwrapWorkflowRecovery(record);
   let validated: ReturnType<typeof validate>;
-  try { validated = validate(compiled, runId, record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
+  try { validated = validate(compiled, runId, unwrapped.record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   const { checkpoint, requests } = validated;
+  if (unwrapped.recovery) {
+    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null ? last : null;
+    if (!['queued', 'running'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
+      || active?.launch?.endsWith('_pending') || !active?.resource && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
+  }
   await assertWorkflowExecutionMatches(compiled, checkpoint.execution);
   const definitions = new Map<string, JsonValue>();
   for (const attempt of checkpoint.attempts) if (attempt.resource !== null) {
@@ -159,7 +168,8 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
         if (!issues(checked) || checked.length) throw new DefinitionError('WORKFLOW_RESTORED_CONTRACT_MISMATCH');
       }
     }
-    return Object.freeze({ revision: record.revision, get checkpoint() { return snapshot(checkpoint); }, dispose });
+    return Object.freeze({ revision: record.revision, get checkpoint() { return snapshot(checkpoint); },
+      get recovery() { return snapshot(unwrapped.recovery); }, dispose });
   } catch (error) {
     if (error instanceof WorkflowRestoreError) disposers.push(error.dispose);
     try { await dispose(); } catch { throw new WorkflowRestoreError('WORKFLOW_RESTORE_CLEANUP_FAILED', dispose); }

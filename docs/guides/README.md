@@ -61,3 +61,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [检查点加载与文件恢复](workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
 
 [Runner 资源保存与恢复](runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
+
+[Workflow 恢复认领与旧资源清理](workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。

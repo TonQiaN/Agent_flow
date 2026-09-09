@@ -3,7 +3,7 @@ import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { copyJson } from '../json.js';
 import { Runner } from '../runner/runner.js';
-import type { Cancellation, CapturedFile, Clock, ExecutionBackend, RunnerResult, RunnerResourceSink } from '../runner/types.js';
+import type { Cancellation, CapturedFile, Clock, ExecutionBackend, RunnerResult, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '../runner/types.js';
 
 export const SCRIPT_RESULT_SCHEMA = 'agentflow-script-result/v1';
 export const SCRIPT_RESULT_MAX_BYTES = 65536;
@@ -92,6 +92,8 @@ export class ScriptExecutor {
     if (backend === null || typeof backend !== 'object' || Array.isArray(backend) || typeof backend['schema'] !== 'string' || !backend['schema']) throw new DefinitionError('INVALID_EXECUTION_DEFINITION');
     return backend;
   }
+  /** Reinstall the actual backend's ownership for common recovery, never execute an old session. */
+  async restoreResource(record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> { return this.#runner.restore(record); }
   async execute(request: ScriptRequest, cancellation: Cancellation = { requested: () => false }, persistence?: RunnerResourceSink): Promise<ScriptAttempt> {
     let r: ScriptRequest;
     try { r = clone(request); } catch { throw new DefinitionError('INVALID_SCRIPT_REQUEST'); }
