@@ -32,7 +32,7 @@ Claude 2.1.226 使用独立 `.credentials.json`，只接纳 `claudeAiOauth` 内�
 
 实际 CLI 会在 invalid_grant 后把 accessToken、refreshToken 清空并把 expiresAt 置零。这个明确的无效状态需要条件回存，不能作为破损 JSON 丢弃后恢复旧 token；随后执行在取得租约后、写入工作副本前拒绝，需要用户重新配置。其他畸形结果仍保持旧存储并报告刷新失败。此语义与旧系统只恢复无法解析的文件相容，不扩展为自动登录或任意凭据恢复。
 
-绑定支持固定相对文件名中的单个前导点，继续拒绝 `.`、`..`、绝对路径、空段、反斜线及不安全父目录。Docker 的 state 环境校验保持原边界；Claude 独立组合把非秘密的固定管理路径/开关作为 `env` 程序的分立 argv 参数注入，不接受用户任意环境覆盖。所有源秘密仍只经独占绑定进入本次私有 state。
+绑定支持固定相对文件名中的单个前导点，继续拒绝 `.`、`..`、绝对路径、空段、反斜线及不安全父目录。Docker 的 state 环境校验保持原边界；Claude 独立组合把两项非秘密固定开关作为 `env` 程序的分立 argv 参数注入，不接受用户任意环境覆盖；管理策略通过宿主受限只读映射进入实际 /etc/claude-code/managed-settings.json 位置。固定发布程序未采用管理路径环境变量，不能把设置它当作策略已加载。所有源秘密仍只经独占绑定进入本次私有 state。
 
 两个订阅组合共享 integrations 内的执行收尾和文件交接机制，通过独立配方注入版本解析、Adapter、Profile、脱敏和固定调用材料；engine 和通用 Docker 后端不增加 provider 条件分支。Claude 请求目标限定 api.anthropic.com、platform.claude.com；受控代理与实际工具隔离必须分别验证，合成 CLI 通过不能视为真实 Claude 模型或 OAuth 成功。
 
