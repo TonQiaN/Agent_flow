@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证接口切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证、Agent 接纳及串行 JSON Workflow 切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -13,7 +13,7 @@ Agent_flow/
 ├── src/
 │   ├── apps/cli/                  # 当前仅 demo 命令
 │   ├── packages/domain/           # 业务类型与执行身份
-│   ├── packages/engine/           # contracts、components、runner、harness/auth 接口；无环境依赖
+│   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth 接口；无环境依赖
 │   ├── packages/integrations/     # Docker、CONNECT 代理、Codex 映射/parser、私有凭据存储/绑定、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程

@@ -22,3 +22,5 @@
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
 当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务与文件交接，不包含完整 Workflow 或 Tutor 验收。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+
+- [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
