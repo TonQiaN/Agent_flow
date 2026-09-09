@@ -28,3 +28,5 @@ export { EffectExecutor, EFFECT_RECEIPT_SCHEMA } from './components/effect-execu
 export type { EffectMode, EffectStatus, EffectRequest, EffectReceipt, EffectAdapter, EffectAdapterRequest, EffectApproval, EffectResult, EffectRecordView } from './components/effect-executor.js';
 export { EffectWorkflowCatalog } from './workflow/effects.js';
 export type { EffectWorkflowBinding } from './workflow/effects.js';
+
+export { copyJson as snapshotJson } from './json.js';

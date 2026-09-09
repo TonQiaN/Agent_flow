@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [Tutor 合成闭环与文件转换](2026-09-09-tutor-grading-fixture.md) |
 | 2026-09-09 | [模拟 Effect](2026-09-09-workflow-effects.md) |
 | 2026-09-09 | [确定性脚本 Workflow](2026-09-09-workflow-scripts.md) |
 | 2026-09-09 | [Workflow 文件与 Agent 交接](2026-09-09-workflow-files.md) |
@@ -24,6 +25,6 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow 及合成 Agent/Gate/Fixer 集成；JSON Transform/模拟 Effect 已验证，完整 Tutor 验收仍未完成。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow、文件到 JSON 转换及 Tutor 合成 Agent/Gate/Fixer/模拟 Effect 闭环；真实批卷、报告和 PDF 验收仍未完成。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
 
 - [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
