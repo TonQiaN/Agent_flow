@@ -107,6 +107,11 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     this.validateBinding(b);
   }
   contract(id: string): WorkflowContract { this.contracts.definition(id); return { kind: 'files', id }; }
+  contractDefinition(id: string): import('@agentflow/engine').WorkflowContractDefinition {
+    const definition = this.contracts.definition(id);
+    const ids = [...new Set(definition.rules.flatMap(rule => rule.jsonContract === undefined ? [] : [rule.jsonContract]))].sort();
+    return { kind: 'files', id, definition, jsonContracts: Object.fromEntries(ids.map(ref => [ref, this.contracts.json.definition(ref)])) };
+  }
   private reference(value: JsonValue): Reference {
     if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).join(',') !== 'fileRef'
       || typeof value['fileRef'] !== 'string') throw new DefinitionError('INVALID_WORKFLOW_FILE_REFERENCE');

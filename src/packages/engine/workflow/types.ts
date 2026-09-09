@@ -1,4 +1,5 @@
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
+import type { WorkflowContractDefinition } from './structure.js';
 import type { Cancellation } from '../runner/types.js';
 
 export interface WorkflowContract { readonly kind: 'json' | 'files'; readonly id: string }
@@ -26,6 +27,8 @@ export type WorkflowNodeResult = { readonly identity: ExecutionIdentity; readonl
 export interface WorkflowNodeExecutor {
   validate(component: ComponentDefinition): void;
   contract(id: string): WorkflowContract;
+  /** Actual registered definitions; optional for legacy executors, required for a structure snapshot. */
+  contractDefinition?(id: string): WorkflowContractDefinition;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
   execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult>;
 }

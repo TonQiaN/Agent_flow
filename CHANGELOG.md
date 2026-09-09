@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+新增实际 Workflow 结构与契约快照，支持跨 Catalog 同名定义一致性核对；尚未包含执行环境或 Run 恢复。
+
 新增独立耐久文件归档、带摘要引用及跨进程可写物化；临时句柄释放不会删除归档，尚未接入 Workflow 恢复。
 
 新增独立 RunRecordStore 与私有 SQLite 状态保存、版本 CAS 和损坏拒绝；尚未接入 Workflow 重启恢复。

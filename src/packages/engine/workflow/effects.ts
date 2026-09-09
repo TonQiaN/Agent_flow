@@ -34,6 +34,9 @@ export class EffectWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecu
     this.executor.validateComponent(component.id);
   }
   contract(id: string): WorkflowContract { if (!this.contracts.has(id)) throw new DefinitionError('UNKNOWN_CONTRACT'); return { kind: 'json', id }; }
+  contractDefinition(id: string): import('./structure.js').WorkflowContractDefinition {
+    this.contract(id); return { kind: 'json', id, schema: this.contracts.definition(id) };
+  }
   check(id: string, value: JsonValue): readonly WorkflowIssue[] {
     const result = this.contracts.check(id, value); return result.valid ? [] : result.issues.map(i => ({ contractId: i.contractId, path: i.instancePath, rule: i.schemaPath, code: i.keyword }));
   }
