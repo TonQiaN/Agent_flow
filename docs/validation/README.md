@@ -56,3 +56,5 @@
 - [矩阵当前验收核对](2026-09-09-matrix-readiness.md)：认证缺口闭合、共用业务入口和剩余真实证据。
 
 - [DeepSeek 偶发超时诊断](2026-09-09-deepseek-timeout-diagnostics.md)：操作/子进程证据、有界重复检查及失败捕获保留。
+
+- [Run 记录存储验证](2026-09-09-run-record-store.md)：多进程 CAS、提交前后 SIGKILL 和损坏拒绝。

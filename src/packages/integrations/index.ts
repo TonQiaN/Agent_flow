@@ -52,3 +52,5 @@ export type { SubscriptionLoginDriver, SubscriptionLoginAttempt, SubscriptionLog
 export { CodexSubscriptionLoginDriver, ClaudeSubscriptionLoginDriver, CODEX_LOGIN_HOSTS, CLAUDE_LOGIN_HOSTS } from './auth/native-login.js';
 export type { DockerLoginOptions } from './auth/docker-login.js';
 export type { DockerInteraction } from './docker/process.js';
+
+export { SqliteRunRecordStore } from './persistence/sqlite-store.js';

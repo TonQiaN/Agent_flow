@@ -30,3 +30,6 @@ export { EffectWorkflowCatalog } from './workflow/effects.js';
 export type { EffectWorkflowBinding } from './workflow/effects.js';
 
 export { copyJson as snapshotJson } from './json.js';
+
+export { RunStoreError } from './persistence/types.js';
+export type { RunRecord, RunRecordStore } from './persistence/types.js';

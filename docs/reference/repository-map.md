@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证、Agent 接纳及串行 JSON Workflow 切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证、Agent 接纳及串行 JSON Workflow、Run 记录存储切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -11,11 +11,11 @@ Agent_flow/
 ├── package.json / package-lock.json # npm workspaces 与固定依赖
 ├── tsconfig*.json                 # 共享严格构建与独立测试检查
 ├── src/
-│   ├── apps/cli/                  # 当前仅 demo 命令
+│   ├── apps/cli/                  # demo 与显式本地认证管理/登录命令
 │   ├── packages/domain/           # 业务类型与执行身份
-│   ├── apps/deepseek-tools/          # 容器内文件服务，使用镜像提供的 SDK
-│   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth 接口；无环境依赖
-│   ├── packages/integrations/     # Docker、CONNECT 代理、Codex 映射/parser、私有凭据存储/绑定、系统时钟
+│   ├── apps/deepseek-tools/        # 容器内文件服务，使用镜像提供的 SDK
+│   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth/persistence 接口；无环境依赖
+│   ├── packages/integrations/     # Docker、CONNECT 代理、独立 Harness、私有凭据存储/绑定、SQLite 状态存储、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
 │   └── tooling/                   # 依赖边界与测试发现工具

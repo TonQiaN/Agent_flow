@@ -19,3 +19,5 @@ integrations/execution/codex-runner 组合首个服务 Profile、纯 Adapter、�
 Workflow 编译器只通过 catalog 解析定义、实现和契约；运行控制只调用单节点端口，不依赖 Harness 或 IO。定义及计划、输入和运行查询取副本；每条业务出口与执行失败分开。详见 [串行 Workflow](../guides/workflow.md)。
 
 integrations/execution/credential-runner 和 credential-agent-driver 复用版本预检、执行/凭据收尾和 Agent 文件交接。独立配方选择订阅长租约或静态 key 快照，以及 stdout/具名会话证据；provider 不进入 engine/Docker 条件分支。DeepSeek 容器资产由 apps/deepseek-tools 的固定命令打包，再由受信宿主显式交给执行入口，库不反向加载应用源码。见 [DeepSeek 执行说明](../guides/deepseek-adapter.md)。
+
+engine/persistence 提供 RunRecordStore 与 revision 错误契约，integrations/persistence 使用私有 SQLite/WAL 实现完整记录的 CAS。存储端口不调用执行或认证模块；Workflow checkpoint、耐久产物与重启恢复尚未接入，详见 [当前存储能力](../guides/run-record-store.md)。
