@@ -80,3 +80,5 @@
 [Workflow 恢复认领与旧资源清理](2026-09-10-workflow-recovery-claim.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
 
 - [Workflow 新 Attempt 恢复](2026-09-10-workflow-resume.md)：保留中断历史，共享正常执行路径，真实连续 SIGKILL。
+
+- [Agent 实际执行定义](2026-09-10-agent-execution-binding.md)：非秘密 Profile、实际 Harness/资产与固定执行及代理镜像。

@@ -1,8 +1,9 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Runner } from '@agentflow/engine';
+import { Runner, snapshotJson } from '@agentflow/engine';
 import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation } from '@agentflow/engine';
-import type { SystemConfigMount } from '../docker/backend.js';
+import type { JsonValue } from '@agentflow/domain';
+import type { DockerOptions, SystemConfigMount } from '../docker/backend.js';
 import { DockerBackend } from '../docker/backend.js';
 import { docker } from '../docker/process.js';
 import { EnvironmentExecutionCredentialBinding } from '../auth/environment-binding.js';
@@ -44,56 +45,90 @@ export interface CredentialExecutionResult {
 export class CredentialHarnessRunner<P extends CredentialIdentity> {
   readonly #store: CredentialStore;
   readonly #options: { workspaceRoot: string; image: string; proxyImage: string };
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }, private readonly recipe: CredentialRecipe<P>) {
+  readonly #recipe: CredentialRecipe<P>;
+  #started = false;
+  #images: { image: string; proxyImage: string } | undefined;
+  #imagesPending: Promise<{ image: string; proxyImage: string }> | undefined;
+  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }, recipe: CredentialRecipe<P>) {
     if (!options || Object.keys(options).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
-    // Validate host choices before any credential lease or owned execution exists.
-    new DockerBackend({ image: options.image, workspaceRoot: options.workspaceRoot, sandbox: 'nested-userns-v1',
-      ...(recipe.memoryMiB ? { memoryMiB: recipe.memoryMiB } : {}),
-      ...(recipe.systemConfigMounts ? { systemConfigMounts: recipe.systemConfigMounts } : {}),
-      network: { kind: 'connect-proxy', proxyImage: options.proxyImage, allowedHosts: this.recipe.hosts } });
+    this.#recipe = Object.freeze({ ...recipe, hosts: Object.freeze([...recipe.hosts]), versionCommand: Object.freeze([...recipe.versionCommand]),
+      ...(recipe.systemConfigMounts ? { systemConfigMounts: Object.freeze(recipe.systemConfigMounts.map(m => Object.freeze({ ...m }))) } : {}) });
     this.#store = store; this.#options = Object.freeze({ ...options });
+    // Use exactly the same validated environment options for descriptions and execution.
+    new DockerBackend(this.#backendOptions(options.image, options.proxyImage));
+  }
+  #backendOptions(image: string, proxyImage: string): DockerOptions {
+    return { workspaceRoot: this.#options.workspaceRoot, image, sandbox: 'nested-userns-v1',
+      ...(this.#recipe.memoryMiB ? { memoryMiB: this.#recipe.memoryMiB } : {}),
+      ...(this.#recipe.systemConfigMounts ? { systemConfigMounts: this.#recipe.systemConfigMounts } : {}),
+      network: { kind: 'connect-proxy', proxyImage, allowedHosts: this.#recipe.hosts } };
+  }
+  async #freezeImages(): Promise<{ image: string; proxyImage: string }> {
+    if (this.#images) return this.#images;
+    if (this.#imagesPending) return this.#imagesPending;
+    if (this.#started) throw new Error('EXECUTION_DEFINITION_AFTER_START');
+    this.#imagesPending = (async () => {
+      const [image, proxyImage] = await Promise.all([this.#options.image, this.#options.proxyImage]
+        .map(name => docker(['image', 'inspect', '--format', '{{.Id}}', name])));
+      if (!image || !proxyImage || ![image, proxyImage].every(id => /^sha256:[a-f0-9]{64}$/.test(id))) throw new Error('INVALID_IMAGE_ID');
+      this.#images = Object.freeze({ image, proxyImage }); return this.#images;
+    })();
+    try { return await this.#imagesPending; } finally { this.#imagesPending = undefined; }
+  }
+  /** Inspect actual host choices without opening the credential store or starting a version probe. */
+  async definitionSnapshot(task: HarnessTask, rawProfile: P, timeoutMs: number): Promise<JsonValue> {
+    const captured = structuredClone(task), profile = this.#recipe.profile(structuredClone(rawProfile));
+    const { identity: _identity, ...plan } = this.#recipe.adapter().plan(captured);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
+    const invocation = this.#recipe.invocation({ ...plan, identity: captured.identity });
+    const images = await this.#freezeImages();
+    return snapshotJson({ schema: 'agentflow-credential-execution/v1',
+      task: { prompt: captured.prompt, config: captured.config, outcomes: captured.outcomes ?? null }, plan, invocation,
+      profile, timeoutMs, version: this.#recipe.version, versionCommand: this.#recipe.versionCommand,
+      authentication: { binding: this.#recipe.binding, stateFile: this.#recipe.stateFile ?? null,
+        environment: this.#recipe.stateEnvironment({ ...plan, identity: captured.identity }) },
+      environment: new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
   }
 
   async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }): Promise<CredentialExecution> {
     let task: HarnessTask;
     try { task = structuredClone(request.task); } catch { throw new Error('INVALID_HARNESS_TASK'); }
-    const adapter = this.recipe.adapter(); const plan = adapter.plan(task);
-    const invocation = this.recipe.invocation(plan);
-    const profile = this.recipe.profile(request.profile);
+    const adapter = this.#recipe.adapter(); const plan = adapter.plan(task);
+    const invocation = this.#recipe.invocation(plan);
+    const profile = this.#recipe.profile(request.profile);
     const inputSource = request.inputSource; const timeoutMs = request.timeoutMs;
     if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || typeof inputSource !== 'string'
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
-    const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
+    this.#started = true;
+    if (this.#imagesPending) await this.#imagesPending;
+    const imageId = this.#images?.image ?? await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     const probeBackend = new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image: imageId });
     const probeRunner = new Runner(probeBackend, systemClock);
     await mkdir(this.#options.workspaceRoot, { recursive: true, mode: 0o700 });
     const empty = await mkdtemp(join(this.#options.workspaceRoot, 'version-input-'));
     let probe: RunnerResult;
-    try { probe = await probeRunner.run({ identity: task.identity, inputSource: empty, timeoutMs: 10_000, invocation: { argv: this.recipe.versionCommand } }, cancellation); }
+    try { probe = await probeRunner.run({ identity: task.identity, inputSource: empty, timeoutMs: 10_000, invocation: { argv: this.#recipe.versionCommand } }, cancellation); }
     finally { await rm(empty, { recursive: true, force: true }); }
     let actual: string | null = null;
     if (probe.phase === 'exited' && probe.exitCode === 0 && probe.stop === 'confirmed' && probe.cleanup === 'removed'
       && probe.capture?.imageId === imageId && [probe.capture.stdout, probe.capture.stderr].every(file => file.complete && !file.truncated && !file.error)) {
-      try { actual = this.recipe.parseVersion(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await readCapturedBytes(probe.capture.stdout, 16 * 1024 * 1024))); } catch { /* Static mismatch below. */ }
+      try { actual = this.#recipe.parseVersion(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await readCapturedBytes(probe.capture.stdout, 16 * 1024 * 1024))); } catch { /* Static mismatch below. */ }
     }
-    const version = Object.freeze({ expected: this.recipe.version, actual, imageId });
-    if (actual !== this.recipe.version) return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['HARNESS_VERSION_NOT_VERIFIED']);
+    const version = Object.freeze({ expected: this.#recipe.version, actual, imageId });
+    if (actual !== this.#recipe.version) return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['HARNESS_VERSION_NOT_VERIFIED']);
     try { if (probe.resource) await probeRunner.release(probe.resource); }
     catch { return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['VERSION_WORKSPACE_RELEASE_FAILED']); }
 
-    const redactor = this.recipe.redactor();
+    const redactor = this.#recipe.redactor();
     const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
-    const binding = this.recipe.binding === 'environment'
-      ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.recipe.secretEnvironment, 0, content => redactor.remember(content))
-      : await (this.recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
-        this.#store, { identity: task.identity, credential, stateFile: this.recipe.stateFile, environment: this.recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
+    const binding = this.#recipe.binding === 'environment'
+      ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.#recipe.secretEnvironment, 0, content => redactor.remember(content))
+      : await (this.#recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
+        this.#store, { identity: task.identity, credential, stateFile: this.#recipe.stateFile, environment: this.#recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
-      backend = new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image: imageId, sandbox: 'nested-userns-v1',
-        ...(this.recipe.memoryMiB ? { memoryMiB: this.recipe.memoryMiB } : {}),
-        ...(this.recipe.systemConfigMounts ? { systemConfigMounts: this.recipe.systemConfigMounts } : {}),
-        network: { kind: 'connect-proxy', proxyImage: this.#options.proxyImage, allowedHosts: this.recipe.hosts } }, binding);
+      backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding);
       runner = new Runner(backend, systemClock);
       result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation);
     } catch { await binding.abandon(); throw new Error('SUBSCRIPTION_EXECUTION_NOT_PREPARED'); }

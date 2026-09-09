@@ -1,6 +1,6 @@
 # Workflow 执行绑定快照
 
-`snapshotWorkflowExecution(compiled)` 组合已编译结构与各节点实际执行器给出的绑定描述；`assertWorkflowExecutionMatches(compiled, saved)` 对当前安装重新取得的描述进行完整内容核对。当前内置实现先支持断网 Docker 脚本，尚未提供 Run 重启恢复入口。
+`snapshotWorkflowExecution(compiled)` 组合已编译结构与各节点实际执行器给出的绑定描述；`assertWorkflowExecutionMatches(compiled, saved)` 对当前安装重新取得的描述进行完整内容核对。当前内置实现支持断网 Docker 脚本和实际 Agent 执行定义；断网脚本已接入[恢复](workflow-recovery.md)，Agent 资源与认证恢复仍待接通。
 
 ```ts
 import { snapshotWorkflowExecution, assertWorkflowExecutionMatches } from '@agentflow/engine';
@@ -24,8 +24,18 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 ## 当前限制
 
-内置 Agent、文件函数、JSON 函数、文件到 JSON 和 Effect 的执行绑定描述尚未接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。后续需要从实际安装取得函数部署身份、Agent 用户说明与行为配置、Harness/模型、代理、认证 Profile 及非秘密连接身份，不能用函数 toString 证明闭包一致，也不能存放 token/key。
+文件函数、JSON 函数、文件到 JSON 和 Effect 的执行绑定描述尚未接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。函数部署身份仍须从实际安装取得，不能用函数 toString 证明闭包一致。
 
-执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，尚未接入恢复协调；#13 的节点边界恢复仍需后续贯通。
+执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，断网脚本的恢复协调与新 Attempt 已接入；Agent 私有资源/认证及其他绑定仍需贯通。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证及复盘](../validation/2026-09-10-script-execution-binding.md) · [结构快照](workflow-structure.md)
+
+## Agent 执行定义
+
+FileWorkflowCatalog 使用实际注册的 AgentExecutor，后者只调用实际 Driver 的 definitionSnapshot；旧自定义 Driver 未提供该端口时明确拒绝。Codex、Claude、DeepSeek 的 CredentialAgentDriver 向自己的 CredentialHarnessRunner 取得实际描述，不额外要求用户提供一份声称正确的配置。
+
+agentflow-credential-execution/v1 保存用户 prompt/config/outcomes、实际 Adapter 计划和 Harness 版本、实际 argv/configFiles/recordFiles（包括 DeepSeek 注入资产）、期限、非秘密 Profile 与认证传输方式，以及同一 Docker 配置生成的路径、资源限制、沙箱、系统映射和固定镜像 ID。执行镜像和代理镜像同时解析成功才固定，后续版本探针及执行使用固定 ID；原标签改指不改变该 Runner 已固定的选择。新组合仍解析其当前选择，与保存描述完整核对。
+
+读取定义只查询本地镜像元数据，不启动版本探针、分配执行目录、访问凭据存储、获取租约或调用模型。实际运行仍执行原生版本验证后才取凭据；定义中的预期版本不能冒充实际探针通过。Profile 的 credentialRef/service/method/endpoint 等非秘密配置参与比较，凭据 generation/revision/token/key 不进入描述，正常刷新不会使定义变化。用户业务 prompt/config 仍会作为运行定义保存，描述器不承担任意业务文本的秘密识别。
+
+同一 Runner 的并发定义请求共享镜像解析；返回值独立。已开始运行而尚未冻结定义时拒绝事后首次描述。DockerBackend.configurationSnapshot 只导出已校验的非秘密配置，不授予网络或私有资源恢复能力；其 definition 仍拒绝缺少身份/收尾证据的网络或私有绑定。Agent startPersisted 当前仍因 resourceDefinition 缺失而在写库/执行前拒绝；定义可比较并不表示 Agent 已能重启恢复。见[验证](../validation/2026-09-10-agent-execution-binding.md)。

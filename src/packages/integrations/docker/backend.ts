@@ -98,6 +98,12 @@ export class DockerBackend implements ExecutionBackend {
     return owned;
   }
 
+  /** Nonsecret configured options only; this does not make a private/network resource restorable. */
+  configurationSnapshot(): JsonValue {
+    return JSON.parse(JSON.stringify({ options: { ...this.#options, image: this.#pinnedImage ?? this.#options.image },
+      paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
+  }
+
   /** Only environment choices actually controlled by this backend are described. No resources are started. */
   async definition(): Promise<JsonValue> {
     if (this.#definition !== undefined) return structuredClone(this.#definition);
@@ -107,10 +113,8 @@ export class DockerBackend implements ExecutionBackend {
     this.#definitionPromise = (async () => {
       const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
       if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
-      const { image: _image, ...options } = this.#options;
       this.#pinnedImage = imageId;
-      this.#definition = JSON.parse(JSON.stringify({ schema: 'agentflow-docker-execution/v1', options: { ...options, image: imageId },
-        paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
+      this.#definition = { schema: 'agentflow-docker-execution/v1', ...this.configurationSnapshot() as Record<string, JsonValue> };
       return structuredClone(this.#definition!);
     })();
     try { return structuredClone(await this.#definitionPromise); }

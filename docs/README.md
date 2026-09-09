@@ -58,3 +58,5 @@
 [Runner 启动操作记录](validation/2026-09-10-runner-launch-journal.md)：正常 Workflow 的前后 CAS、异步启动观测和真实中断边界，尚未开放自动恢复。
 
 [Workflow 恢复认领与旧资源清理](guides/workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；同一 NodeTask 的新 Attempt 已通过一次/连续两次 SIGKILL 恢复，见[验证](validation/2026-09-10-workflow-resume.md)。
+
+[Agent 执行定义](guides/workflow-execution-snapshot.md)：实际 Harness、用户说明、运行资产及非秘密 Profile，执行/代理镜像固定并用于后续运行；Agent 资源与认证恢复仍待接通。

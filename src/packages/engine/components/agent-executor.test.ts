@@ -129,3 +129,16 @@ test('definition and cancellation failures occur before a driver call; failed st
   assert.equal(brokenCancellation.result.status, 'failed'); assert.equal(h.runs.length, 0);
   await brokenCancellation.releaseExecution(); assert.deepEqual(h.released, ['snapshot-1']);
 });
+
+test('Agent definition uses the installed driver without reading or capturing task input', async () => {
+  const f = fixture(); let seen: HarnessTask | null = null;
+  f.driver.definitionSnapshot = async task => { seen = task; return { schema: 'fixture-agent-definition/v1', prompt: task.prompt, config: task.config }; };
+  const definition = await f.executor.definitionSnapshot(request);
+  assert.deepEqual(definition, { schema: 'fixture-agent-definition/v1', prompt: request.prompt, config: request.config });
+  assert.equal((seen as HarnessTask | null)?.prompt, request.prompt); assert.deepEqual(f.captures, []); assert.deepEqual(f.runs, []);
+  await assert.rejects(f.executor.definitionSnapshot({ ...request, prompt: '' }), /INVALID_AGENT_REQUEST/);
+});
+test('an old custom Agent driver can execute but cannot claim an absent persistence definition', async () => {
+  const f = fixture(); await assert.rejects(f.executor.definitionSnapshot(request), /EXECUTION_DEFINITION_UNAVAILABLE/);
+  assert.deepEqual(f.captures, []); assert.equal((await f.executor.execute(request)).result.status, 'accepted');
+});

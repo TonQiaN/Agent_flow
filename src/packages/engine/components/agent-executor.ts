@@ -23,6 +23,8 @@ export interface AgentExecutionHandle {
 export interface AgentExecutionDriver {
   readonly harness: string;
   validate(task: HarnessTask): void;
+  /** Actual installed execution definition; no credential reads or node execution. */
+  definitionSnapshot?(task: HarnessTask): Promise<JsonValue>;
   /** Materialize this exact snapshot independently before executing; retain cleanup capabilities on failure. */
   run(task: HarnessTask, input: FileManifest, cancellation: Cancellation): Promise<AgentExecutionHandle>;
 }
@@ -98,6 +100,12 @@ export class AgentExecutor {
 
   /** Side-effect-free definition preflight; no Attempt reservation or input capture. */
   validate(request: AgentExecutionRequest): void { this.prepare(request); }
+
+  async definitionSnapshot(request: AgentExecutionRequest): Promise<JsonValue> {
+    const { task } = this.prepare(request);
+    if (!this.driver.definitionSnapshot) throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
+    return clone(await this.driver.definitionSnapshot(clone(task)));
+  }
 
   private prepare(request: AgentExecutionRequest) {
     let captured: AgentExecutionRequest;
