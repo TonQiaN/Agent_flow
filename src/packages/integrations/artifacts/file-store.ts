@@ -17,6 +17,10 @@ export class FileArtifactStore implements ArtifactStore {
     this.#snapshots.set(snapshot.manifest.id, snapshot);
     return structuredClone(snapshot.manifest);
   }
+  async inspect(id: string): Promise<FileManifest> {
+    const snapshot = this.#snapshots.get(id); if (!snapshot) throw new ArtifactError('UNKNOWN_SNAPSHOT');
+    return structuredClone(snapshot.manifest);
+  }
   async materialize(id: string, destination: string): Promise<void> {
     const snapshot = this.#snapshots.get(id); if (!snapshot) throw new ArtifactError('UNKNOWN_SNAPSHOT');
     await materializeSnapshot(this.root, snapshot, destination);
