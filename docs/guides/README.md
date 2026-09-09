@@ -45,3 +45,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [订阅登录接口与终端入口](subscription-login.md)
 
 - [私有凭据备份与恢复](credential-recovery.md)
+
+- [三种 Harness 共用批卷验收](harness-grading-matrix.md)：显式组装、离线预检和同一业务契约。

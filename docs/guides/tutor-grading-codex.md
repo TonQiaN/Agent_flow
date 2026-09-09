@@ -2,7 +2,7 @@
 
 `src/examples/tutor-grading/codex.ts` 在受控 Docker 中调用真实 Codex，使用样例内的合成试题、参考答案和学生作答。它验证真实 Agent 与同一套文件契约、Gate、返修及模拟发布的交接，不代表真实学生试卷或 OCR 已验收。
 
-共享应用由 flow.ts 提供，只依赖 AgentExecutionDriver 工厂、用户提供的 Component/prompt/config 绑定及普通 Workflow 定义。fixture.ts 安装固定答案替身；codex.ts 安装已有 CodexAgentDriver 与 CodexSubscriptionRunner。具体 Harness、认证与镜像选择只在后者，Gate 和发布策略保持同一实现。
+共享应用由 flow.ts 提供，只依赖 AgentExecutionDriver 工厂、用户提供的 Component/prompt/config 绑定及普通 Workflow 定义。fixture.ts 安装固定答案替身；codex.ts 安装已有 CodexAgentDriver 与 CodexSubscriptionRunner。具体 Harness、认证与镜像选择由 selected-harness.ts 组装，codex.ts 固定调用共用 grading.ts，Gate 和发布策略保持同一实现。
 
 ## 配置与执行
 
@@ -35,3 +35,5 @@ node --import tsx src/examples/tutor-grading/codex.ts
 每次运行保留 summary.json、各 Run 的 Workflow/来源记录、最后一次 Gate 接纳文件和执行证据。原始日志仅存于私有证据目录。资源清理失败时保留目录和明确失败结果，不用直接删除整个目录冒充清理完成。成功不证明实际 OAuth 刷新发生；真实学生反馈报告及 PDF 仍是后续验收。
 
 [合成替身样例](tutor-grading-fixture.md) · [真实验证记录](../validation/2026-09-09-tutor-grading-codex.md)
+
+[三种 Harness 共用入口](harness-grading-matrix.md)现在复用相同业务流程；Codex 入口继续固定选择 Codex。
