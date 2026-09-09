@@ -55,3 +55,5 @@ export type { DockerInteraction } from './docker/process.js';
 
 export { SqliteRunRecordStore } from './persistence/sqlite-store.js';
 export { FileArtifactArchive } from './artifacts/file-archive.js';
+
+export type { CredentialVersionResourceCheckpoint, CredentialVersionResourceSink } from './execution/credential-runner.js';

@@ -34,7 +34,7 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 FileWorkflowCatalog 使用实际注册的 AgentExecutor，后者只调用实际 Driver 的 definitionSnapshot；旧自定义 Driver 未提供该端口时明确拒绝。Codex、Claude、DeepSeek 的 CredentialAgentDriver 向自己的 CredentialHarnessRunner 取得实际描述，不额外要求用户提供一份声称正确的配置。
 
-agentflow-credential-execution/v1 保存用户 prompt/config/outcomes、实际 Adapter 计划和 Harness 版本、实际 argv/configFiles/recordFiles（包括 DeepSeek 注入资产）、期限、非秘密 Profile 与认证传输方式，以及同一 Docker 配置生成的路径、资源限制、沙箱、系统映射和固定镜像 ID。执行镜像和代理镜像同时解析成功才固定，后续版本探针及执行使用固定 ID；原标签改指不改变该 Runner 已固定的选择。新组合仍解析其当前选择，与保存描述完整核对。
+agentflow-credential-execution/v2 保存用户 prompt/config/outcomes、实际 Adapter 计划和 Harness 版本、实际 argv/configFiles/recordFiles（包括 DeepSeek 注入资产）、期限、非秘密 Profile 与认证传输方式，以及同一 Docker 配置生成的路径、资源限制、沙箱、系统映射和固定镜像 ID。其中 versionProbe 另含实际断网 Docker 定义、探针命令、预期版本与期限；探针资源可以独立记录和清理，见[探针验证](../validation/2026-09-10-version-resource-recovery.md)。执行镜像和代理镜像同时解析成功才固定，后续版本探针及执行使用固定 ID；原标签改指不改变该 Runner 已固定的选择。新组合仍解析其当前选择，与保存描述完整核对。
 
 读取定义只查询本地镜像元数据，不启动版本探针、分配执行目录、访问凭据存储、获取租约或调用模型。实际运行仍执行原生版本验证后才取凭据；定义中的预期版本不能冒充实际探针通过。Profile 的 credentialRef/service/method/endpoint 等非秘密配置参与比较，凭据 generation/revision/token/key 不进入描述，正常刷新不会使定义变化。用户业务 prompt/config 仍会作为运行定义保存，描述器不承担任意业务文本的秘密识别。
 

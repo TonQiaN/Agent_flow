@@ -84,3 +84,5 @@
 - [Agent 实际执行定义](2026-09-10-agent-execution-binding.md)：非秘密 Profile、实际 Harness/资产与固定执行及代理镜像。
 
 - [联网 Runner 资源恢复](2026-09-10-network-resource-recovery.md)：完整资源归属、部分清理重试及 CONNECT Workflow 新 Attempt。
+
+[Agent 版本探针资源](2026-09-10-version-resource-recovery.md)已接通独立记录与共同 Runner 清理；完整 Agent 认证/执行恢复仍待接入。

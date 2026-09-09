@@ -46,9 +46,19 @@ test('Codex composition: synthetic executable exercises version, binding, refres
       finally { await held.release(); }
       // Repoint only this test's aliases: execution and its proxy must consume the pinned IDs.
       execFileSync('docker', ['tag', 'node:22-bookworm-slim', executionTag]); execFileSync('docker', ['tag', 'alpine:3', proxyTag]);
+      const probeEvents: string[] = []; let probeCheckpoint: any;
       const execution = await runtime.run({ task: { identity: { runId: 'composition', nodeTaskId: 'task', attemptId: 'first', attemptNumber: 1 },
         prompt: 'synthetic protocol wiring', config: { model: 'fixture-model', subagents: false, search: false } },
-      profile: { id: 'test', ...credential, service: 'openai', method: 'subscription', endpoint: 'official', capacity: 1 }, inputSource: input, timeoutMs: 10_000 });
+      profile: { id: 'test', ...credential, service: 'openai', method: 'subscription', endpoint: 'official', capacity: 1 }, inputSource: input, timeoutMs: 10_000 }, undefined, {
+        async save(record) { probeCheckpoint = record; probeEvents.push('allocated'); },
+        async launch(state) { probeEvents.push(state); },
+        async complete() {
+          assert.equal(execFileSync('docker', ['container', 'ls', '--all', '--filter', `name=^/${probeCheckpoint.runner.resource.id}$`, '--format', '{{.ID}}'], { encoding: 'utf8' }).trim(), '');
+          probeEvents.push('complete');
+        },
+      });
+      assert.deepEqual(probeEvents, ['allocated', 'prepare_pending', 'prepare_completed', 'create_pending', 'create_completed', 'start_pending', 'start_completed', 'complete']);
+      assert.deepEqual(probeCheckpoint.definition, definition.versionProbe);
       try {
         const result = execution.result;
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);

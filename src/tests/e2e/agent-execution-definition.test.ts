@@ -42,9 +42,11 @@ for (const provider of ['codex', 'claude', 'deepseek']) test(`actual ${provider}
     const f = setup(), parallel = await Promise.all([snapshotWorkflowExecution(f.compiled), snapshotWorkflowExecution(f.compiled)]);
     assert.deepEqual(parallel[0], parallel[1]);
     const snapshot = parallel[0]!, binding = snapshot.bindings['a'] as any;
-    assert.equal(binding.schema, 'agentflow-credential-execution/v1'); assert.equal(binding.profile.credentialRef, 'fixture');
+    assert.equal(binding.schema, 'agentflow-credential-execution/v2'); assert.equal(binding.profile.credentialRef, 'fixture');
     assert.equal(binding.task.prompt, 'User-owned task'); assert.equal(binding.plan.harness, provider);
     assert.match(binding.environment.options.image, /^sha256:[a-f0-9]{64}$/); assert.match(binding.environment.options.network.proxyImage, /^sha256:[a-f0-9]{64}$/);
+    assert.equal(binding.versionProbe.backend.options.network, 'none'); assert.deepEqual(binding.versionProbe.argv, binding.versionCommand);
+    assert.equal(binding.versionProbe.backend.options.image, binding.environment.options.image);
     assert.equal(binding.environment.paths.work, '/task/work'); assert.equal(binding.timeoutMs, 30000);
     assert.ok(!JSON.stringify(snapshot).includes('caller-mutated'));
     await assertWorkflowExecutionMatches(setup().compiled, snapshot);

@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Runner, snapshotJson } from '@agentflow/engine';
-import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation } from '@agentflow/engine';
+import { Runner, snapshotJson, canonicalJson } from '@agentflow/engine';
+import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation, RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from '@agentflow/engine';
 import type { JsonValue } from '@agentflow/domain';
 import type { DockerOptions, SystemConfigMount } from '../docker/backend.js';
 import { DockerBackend } from '../docker/backend.js';
@@ -41,6 +41,19 @@ export interface CredentialExecutionResult {
   readonly diagnostics: readonly string[];
 }
 
+/** Separate pre-authentication resource. This is not the later Agent execution checkpoint. */
+export interface CredentialVersionResourceCheckpoint {
+  readonly schema: 'agentflow-credential-version-resource/v1';
+  readonly definition: JsonValue;
+  readonly runner: RunnerResourceCheckpoint;
+}
+export interface CredentialVersionResourceSink {
+  save(checkpoint: CredentialVersionResourceCheckpoint): Promise<void>;
+  launch(state: Exclude<RunnerLaunchState, 'allocated'>): Promise<void>;
+  /** Called only after successful version verification and confirmed resource release; rejection blocks credentials. */
+  complete(): Promise<void>;
+}
+
 /** Environment composition. Engine Runner and the pure Adapter have no provider-auth branches. */
 export class CredentialHarnessRunner<P extends CredentialIdentity> {
   readonly #store: CredentialStore;
@@ -75,6 +88,19 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     })();
     try { return await this.#imagesPending; } finally { this.#imagesPending = undefined; }
   }
+  #probeBackend(image: string): DockerBackend { return new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image }); }
+  async versionProbeDefinition(): Promise<JsonValue> {
+    const { image } = await this.#freezeImages();
+    return snapshotJson({ schema: 'agentflow-credential-version/v1', expected: this.#recipe.version,
+      argv: this.#recipe.versionCommand, timeoutMs: 10_000, backend: await this.#probeBackend(image).definition() });
+  }
+  /** Trusted saved facts; the caller must fence recovery. Never probes, acquires credentials or starts Agent execution. */
+  async restoreVersionResource(value: CredentialVersionResourceCheckpoint): Promise<RestoredRunnerResource> {
+    const record = snapshotJson(value) as unknown as CredentialVersionResourceCheckpoint;
+    if (!record || Object.keys(record).sort().join(',') !== 'definition,runner,schema' || record.schema !== 'agentflow-credential-version-resource/v1'
+      || canonicalJson(record.definition) !== canonicalJson(await this.versionProbeDefinition())) throw new Error('VERSION_RESOURCE_DEFINITION_MISMATCH');
+    return new Runner(this.#probeBackend(this.#images!.image), systemClock).restore(record.runner);
+  }
   /** Inspect actual host choices without opening the credential store or starting a version probe. */
   async definitionSnapshot(task: HarnessTask, rawProfile: P, timeoutMs: number): Promise<JsonValue> {
     const captured = structuredClone(task), profile = this.#recipe.profile(structuredClone(rawProfile));
@@ -82,7 +108,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
     const invocation = this.#recipe.invocation({ ...plan, identity: captured.identity });
     const images = await this.#freezeImages();
-    return snapshotJson({ schema: 'agentflow-credential-execution/v1',
+    return snapshotJson({ schema: 'agentflow-credential-execution/v2', versionProbe: await this.versionProbeDefinition(),
       task: { prompt: captured.prompt, config: captured.config, outcomes: captured.outcomes ?? null }, plan, invocation,
       profile, timeoutMs, version: this.#recipe.version, versionCommand: this.#recipe.versionCommand,
       authentication: { binding: this.#recipe.binding, stateFile: this.#recipe.stateFile ?? null,
@@ -90,7 +116,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       environment: new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
   }
 
-  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }): Promise<CredentialExecution> {
+  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }, probePersistence?: CredentialVersionResourceSink): Promise<CredentialExecution> {
     let task: HarnessTask;
     try { task = structuredClone(request.task); } catch { throw new Error('INVALID_HARNESS_TASK'); }
     const adapter = this.#recipe.adapter(); const plan = adapter.plan(task);
@@ -99,16 +125,23 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     const inputSource = request.inputSource; const timeoutMs = request.timeoutMs;
     if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || typeof inputSource !== 'string'
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
+    if (probePersistence && (typeof probePersistence.save !== 'function' || typeof probePersistence.launch !== 'function' || typeof probePersistence.complete !== 'function'))
+      throw new Error('INVALID_VERSION_RESOURCE_SINK');
+    const probeDefinition = probePersistence ? await this.versionProbeDefinition() : undefined;
+    const probeSink: RunnerResourceSink | undefined = probePersistence ? {
+      save: checkpoint => probePersistence.save({ schema: 'agentflow-credential-version-resource/v1', definition: structuredClone(probeDefinition!), runner: checkpoint }),
+      launch: state => probePersistence.launch(state),
+    } : undefined;
     this.#started = true;
     if (this.#imagesPending) await this.#imagesPending;
     const imageId = this.#images?.image ?? await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
-    const probeBackend = new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image: imageId });
+    const probeBackend = this.#probeBackend(imageId);
     const probeRunner = new Runner(probeBackend, systemClock);
     await mkdir(this.#options.workspaceRoot, { recursive: true, mode: 0o700 });
     const empty = await mkdtemp(join(this.#options.workspaceRoot, 'version-input-'));
     let probe: RunnerResult;
-    try { probe = await probeRunner.run({ identity: task.identity, inputSource: empty, timeoutMs: 10_000, invocation: { argv: this.#recipe.versionCommand } }, cancellation); }
+    try { probe = await probeRunner.run({ identity: task.identity, inputSource: empty, timeoutMs: 10_000, invocation: { argv: this.#recipe.versionCommand } }, cancellation, probeSink); }
     finally { await rm(empty, { recursive: true, force: true }); }
     let actual: string | null = null;
     if (probe.phase === 'exited' && probe.exitCode === 0 && probe.stop === 'confirmed' && probe.cleanup === 'removed'
@@ -119,6 +152,9 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     if (actual !== this.#recipe.version) return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['HARNESS_VERSION_NOT_VERIFIED']);
     try { if (probe.resource) await probeRunner.release(probe.resource); }
     catch { return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['VERSION_WORKSPACE_RELEASE_FAILED']); }
+
+    try { await probePersistence?.complete(); }
+    catch { return new CredentialExecution('version', probe, probeBackend, probeRunner, version, null, null, null, ['VERSION_COMPLETION_NOT_PERSISTED']); }
 
     const redactor = this.#recipe.redactor();
     const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
