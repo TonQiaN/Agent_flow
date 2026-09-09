@@ -91,6 +91,7 @@ export class WorkflowRuntime {
         const node = run.node!, binding = plan.bindings.get(node)!;
         const identity: ExecutionIdentity = { runId: run.view.runId, nodeTaskId: `task-${run.steps.length + 1}`, attemptId: 'attempt-1', attemptNumber: 1 };
         run.view.status = 'running'; run.view.currentNode = node; run.view.currentIdentity = identity;
+        run.writer?.beginAttempt(node, identity);
         await this.#checkpoint(run);
         let check: readonly WorkflowIssue[];
         try { check = snapshot(binding.executor.check(binding.component.inputContract, snapshot(run.value))); }
@@ -100,13 +101,16 @@ export class WorkflowRuntime {
         // The input validator is trusted code too and may synchronously request cancellation.
         if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
         let result: WorkflowNodeResult;
-        try { result = snapshot(await binding.executor.execute(snapshot(binding.component), snapshot(run.value), snapshot(identity), { requested: () => run.view.cancelRequested })); }
+        const persistence = run.writer?.resourceSink(node, identity, () => this.#checkpoint(run));
+        try { result = snapshot(await binding.executor.execute(snapshot(binding.component), snapshot(run.value), snapshot(identity), { requested: () => run.view.cancelRequested }, persistence?.sink)); }
         catch { return end('failed', 'EXECUTION_STOP_UNCONFIRMED'); }
+        finally { persistence?.close(); }
         if (!result || !isExecutionIdentity(result.identity) || Object.keys(result.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId' || !same(identity, result.identity) || result.componentId !== binding.component.id) return end('failed', 'EXECUTION_IDENTITY_MISMATCH');
         if (result.status === 'failed') {
           if (Object.keys(result).sort().join(',') !== 'code,componentId,identity,issues,status,stopped' || !isIdentifier(result.code)
             || typeof result.stopped !== 'boolean' || !issuesValid(result.issues)) return end('failed', 'INVALID_NODE_RESULT');
           run.steps.push({ node, result });
+          run.writer?.finishAttempt(run.steps.length - 1);
           if (!result.stopped) return end('failed', 'EXECUTION_STOP_UNCONFIRMED', result.issues);
           if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
           return end('failed', result.code, result.issues);
@@ -123,6 +127,7 @@ export class WorkflowRuntime {
         catch { return end('failed', 'WORKFLOW_VALUE_PERSISTENCE_FAILED'); }
         if (saved) run.writer!.acceptValue(saved);
         const step = { node, result }; run.steps.push(step); run.view.lastAccepted = step; run.value = snapshot(result.output);
+        run.writer?.finishAttempt(run.steps.length - 1);
         if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
         const { destination: to, exhausted, event } = advanceWorkflowRoute(compiled, node, result.outcome, run.steps.length, run.traversals);
         if (event) run.limits.push(event);

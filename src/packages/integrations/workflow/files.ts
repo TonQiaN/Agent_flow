@@ -3,6 +3,7 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
+import type { RunnerResourceSink } from '@agentflow/engine';
 import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
@@ -118,6 +119,11 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     this.validate(component); const binding = this.#bindings.get(component.id)!;
     if (binding.kind !== 'script') throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
     return binding.executor.definitionSnapshot(clone(binding.definition));
+  }
+  async resourceDefinition(component: ComponentDefinition): Promise<JsonValue> {
+    this.validate(component); const binding = this.#bindings.get(component.id)!;
+    if (binding.kind !== 'script') throw new DefinitionError('RESOURCE_DEFINITION_UNAVAILABLE');
+    return binding.executor.resourceDefinition();
   }
   /** Durable data for the trusted Run store; never a workflow-callable import or acceptance endpoint. */
   async checkpointValue(value: JsonValue, runId: string, contractId: string): Promise<JsonValue> {
@@ -273,7 +279,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       this.#resources.delete(key(identity));
     } finally { resources.cleaning = false; }
   }
-  async execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult> {
+  async execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink): Promise<WorkflowNodeResult> {
     component = clone(component); identity = clone(identity);
     this.validate(component);
     if (!isExecutionIdentity(identity) || this.#attempts.has(key(identity))) throw new DefinitionError('INVALID_FILE_WORKFLOW_ATTEMPT');
@@ -307,7 +313,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.pendingOutput = () => this.artifacts.release(output.id);
       } else if (b.kind === 'script') {
         resources.stopped = false;
-        resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation);
+        resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
         if (result.status === 'failed') return failed(result.code);
         script = result.evidence; outcome = script.outcome;

@@ -39,7 +39,7 @@ export type { WorkflowContractDefinition, WorkflowStoredContract, WorkflowStruct
 export { snapshotWorkflowExecution, assertWorkflowExecutionMatches } from './workflow/execution.js';
 export type { WorkflowExecutionSnapshot } from './workflow/execution.js';
 
-export type { WorkflowCheckpoint, WorkflowCheckpointValue, WorkflowCursor } from './workflow/checkpoint.js';
+export type { WorkflowCheckpoint, WorkflowCheckpointValue, WorkflowCursor, WorkflowAttemptCheckpoint } from './workflow/checkpoint.js';
 export type { WorkflowPersistentRunHandle } from './workflow/runtime.js';
 
 export { loadWorkflowCheckpoint } from './workflow/load-checkpoint.js';

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ContractRegistry, FileContractRegistry, ScriptExecutor, WorkflowRuntime, compileWorkflow, loadWorkflowCheckpoint } from '@agentflow/engine';
+import { ContractRegistry, FileContractRegistry, ScriptExecutor, WorkflowRuntime, Runner, compileWorkflow, loadWorkflowCheckpoint } from '@agentflow/engine';
 import { DockerBackend, FileArtifactStore, FileArtifactArchive, FileWorkflowCatalog, SqliteRunRecordStore, systemClock } from '@agentflow/integrations';
 
 const [root, operation, definitionMode = 'run'] = process.argv.slice(2);
-const mode = operation === 'load' ? definitionMode : operation;
+const mode = ['load', 'recover-resource'].includes(operation) ? definitionMode : operation;
 const contracts = new FileContractRegistry(new ContractRegistry());
 contracts.register('files', { rules: [{ id: 'value', kind: 'file', match: 'value.txt', minCount: 1, maxCount: 1, mediaTypes: ['text/plain'], maxBytes: 1000 }], maxFiles: 1, maxTotalBytes: 1000, unmatched: 'reject' });
 const archive = new FileArtifactArchive(join(root, 'archive'), contracts);
@@ -14,6 +14,19 @@ if (mode === 'archive-fail') {
   archive.capture = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
 }
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
+if (['resource-fail', 'resource-pause'].includes(mode)) {
+  const cas = store.compareAndSwap.bind(store);
+  store.compareAndSwap = async (runId, revision, content) => {
+    const resource = content.attempts.at(-1)?.resource;
+    if (resource && mode === 'resource-fail') throw new Error('resource CAS failure');
+    const record = await cas(runId, revision, content);
+    if (resource && mode === 'resource-pause') {
+      process.send({ event: 'resource-saved', resource: resource.resource });
+      await new Promise(() => { setInterval(() => {}, 1000); });
+    }
+    return record;
+  };
+}
 try {
   if (mode === 'read') {
     const record = await store.read('run'), texts = [];
@@ -25,9 +38,16 @@ try {
   } else {
     const artifacts = new FileArtifactStore(join(root, 'temporary'), contracts);
     const files = new FileWorkflowCatalog(contracts, artifacts, join(root, 'work'), archive);
-    const started = [];
+    const started = [], created = [], backends = new Map();
     for (const node of ['a', 'b']) {
       class Backend extends DockerBackend {
+        async create(resource, request) {
+          created.push(node);
+          const attempt = (await store.read('run')).content.attempts.at(-1);
+          assert.equal(attempt.node, node); assert.deepEqual(attempt.identity, request.identity);
+          assert.deepEqual(attempt.resource.resource, resource); assert.equal(attempt.resultStep, null);
+          await super.create(resource, request);
+        }
         async start(resource) {
           await super.start(resource); started.push(node);
           if (node === 'b' && mode === 'interrupt') {
@@ -41,6 +61,7 @@ try {
         }
       }
       const backend = new Backend({ workspaceRoot: join(root, 'attempts'), image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3' });
+      backends.set(node, backend);
       const executor = new ScriptExecutor(backend, systemClock, { read: async file => readFile(file.path, 'utf8') });
       const pause = node === 'b' && mode === 'interrupt' ? 'sleep 60; ' : '';
       files.registerScript({ id: node, kind: 'transform', inputContract: 'files', outcomes: { ok: 'files' }, implementation: node }, executor,
@@ -49,7 +70,7 @@ try {
     const flow = compileWorkflow({ id: 'checkpoints', start: 'a', input: { kind: 'files', id: 'files' }, maxSteps: 2,
       nodes: { a: { component: 'a' }, b: { component: 'b' } }, outcomes: { done: { kind: 'files', id: 'files' } },
       routes: [{ from: 'a', outcome: 'ok', to: { node: 'b' } }, { from: 'b', outcome: 'ok', to: { end: 'done' } }] }, files);
-    if (operation === 'load') {
+    if (['load', 'recover-resource'].includes(operation)) {
       const before = await store.read('run');
       let loaded;
       try { loaded = await loadWorkflowCheckpoint(flow, 'run', store); }
@@ -59,7 +80,13 @@ try {
         console.log(JSON.stringify({ error: error.code, started }));
       }
       if (loaded) {
-        const checkpoint = loaded.checkpoint, texts = [];
+        const checkpoint = loaded.checkpoint, texts = [], recovered = [];
+        if (operation === 'recover-resource') for (const attempt of checkpoint.attempts) if (attempt.resource && attempt.resultStep === null) {
+          const handle = await new Runner(backends.get(attempt.node), systemClock).restore(attempt.resource);
+          const observation = await handle.query(), stopped = await handle.stopAndRemove();
+          assert.equal(stopped.confirmed, true); await handle.release();
+          recovered.push({ node: attempt.node, identity: attempt.identity, observation, ...stopped });
+        }
         for (const [index, record] of checkpoint.values.entries()) {
           assert.deepEqual(files.check('files', record.value), []);
           const info = files.inspect(record.value, 'run');
@@ -78,15 +105,18 @@ try {
         for (const name of ['temporary', 'work']) assert.deepEqual(await readdir(join(root, name)), []);
         const again = await loadWorkflowCheckpoint(flow, 'run', store); await again.dispose();
         assert.deepEqual(await store.read('run'), before); assert.deepEqual(started, []);
-        console.log(JSON.stringify({ checkpoint, revision: loaded.revision, texts, started }));
+        console.log(JSON.stringify({ checkpoint, revision: loaded.revision, texts, started, recovered }));
       }
     } else {
     const input = await files.prepareInput('run', join(root, 'source'), 'files');
     const handle = await new WorkflowRuntime().startPersisted(flow, 'run', input, store);
-    const result = await handle.completion;
-    console.log(JSON.stringify({ ...result, started }));
+    let result;
+    try { result = await handle.completion; }
+    catch (error) { if (mode !== 'resource-fail') throw error; result = handle.query(); }
+    console.log(JSON.stringify({ ...result, started, created }));
     await files.release(input, 'run');
     for (const step of result.steps) if (step.result.status === 'accepted') await files.release(step.result.output, 'run');
+    for (const step of result.steps) if (step.result.status === 'failed') await files.cleanup(step.result.identity);
     }
   }
 } finally { store.close(); process.disconnect?.(); }

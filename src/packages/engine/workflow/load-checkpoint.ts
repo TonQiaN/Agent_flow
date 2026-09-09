@@ -3,6 +3,7 @@ import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { canonicalJson, copyJson } from '../json.js';
 import type { RunRecordStore } from '../persistence/types.js';
+import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
 import { getPlan, snapshot } from './compiler.js';
 import type { WorkflowCheckpoint, WorkflowCheckpointValue } from './checkpoint.js';
 import { assertWorkflowExecutionMatches } from './execution.js';
@@ -21,9 +22,9 @@ const identity = (runId: string, number: number): ExecutionIdentity => ({ runId,
 
 function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { checkpoint: WorkflowCheckpoint; requests: WorkflowValueRestoreData[] } {
   let raw: JsonValue; try { raw = copyJson(value); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
-  valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values']));
+  valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values', 'attempts']));
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
-  valid(c.schema === 'agentflow-workflow-checkpoint/v1' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
+  valid(c.schema === 'agentflow-workflow-checkpoint/v2' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
     && ['queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
@@ -91,6 +92,22 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
       }
     }
   }
+  valid(Array.isArray(c.attempts));
+  const active = v.currentIdentity !== null && !failed;
+  const cancelledPending = v.status === 'cancelled' && !failed && !terminal && v.steps.length < plan.definition.maxSteps;
+  valid(active ? c.attempts.length === v.steps.length + 1
+    : c.attempts.length === v.steps.length || cancelledPending && c.attempts.length === v.steps.length + 1);
+  const resourceIds = new Set<string>();
+  for (const [index, attempt] of c.attempts.entries()) {
+    const step = v.steps[index];
+    valid(shape(attempt, ['node', 'identity', 'resultStep', 'resource']) && equal(attempt.identity, identity(runId, index + 1))
+      && attempt.node === (step?.node ?? node) && attempt.resultStep === (step ? index : null));
+    if (attempt.resource !== null) {
+      const resource = validateRunnerResourceCheckpoint(attempt.resource);
+      valid(equal(resource.identity, attempt.identity) && !resourceIds.has(resource.resource.id));
+      resourceIds.add(resource.resource.id);
+    }
+  }
   return { checkpoint: c, requests };
 }
 
@@ -110,6 +127,13 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   try { validated = validate(compiled, runId, record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   const { checkpoint, requests } = validated;
   await assertWorkflowExecutionMatches(compiled, checkpoint.execution);
+  const definitions = new Map<string, JsonValue>();
+  for (const attempt of checkpoint.attempts) if (attempt.resource !== null) {
+    const binding = getPlan(compiled).bindings.get(attempt.node)!;
+    if (!binding.executor.resourceDefinition) throw new DefinitionError('RESOURCE_DEFINITION_UNAVAILABLE');
+    if (!definitions.has(attempt.node)) definitions.set(attempt.node, snapshot(await binding.executor.resourceDefinition(snapshot(binding.component))));
+    if (!equal(attempt.resource.execution, definitions.get(attempt.node))) throw new DefinitionError('WORKFLOW_RESOURCE_EXECUTION_MISMATCH');
+  }
   const disposers: (() => Promise<void>)[] = []; let closing: Promise<void> | null = null;
   const dispose = (): Promise<void> => {
     if (closing) return closing;

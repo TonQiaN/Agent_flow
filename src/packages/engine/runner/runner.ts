@@ -1,6 +1,7 @@
 import { isExecutionIdentity } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { copyJson, canonicalJson } from '../json.js';
+import { validateRunnerResourceCheckpoint } from './checkpoint.js';
 import type { Cancellation, Clock, ExecutionBackend, ExecutionResource, RawCapture, RunnerRequest, RunnerResult, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from './types.js';
 
 export class Runner {
@@ -90,13 +91,7 @@ export class Runner {
 
   /** Trusted storage facts only. The caller must fence recovery before using this handle. */
   async restore(value: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
-    let record: RunnerResourceCheckpoint;
-    try { record = copyJson(value) as unknown as RunnerResourceCheckpoint; }
-    catch { throw new DefinitionError('INVALID_RUNNER_RESOURCE_CHECKPOINT'); }
-    if (!record || Object.keys(record).sort().join(',') !== 'backend,execution,identity,resource,schema'
-      || record.schema !== 'agentflow-runner-resource/v1' || !isExecutionIdentity(record.identity)
-      || Object.keys(record.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId'
-      || !record.resource || Object.keys(record.resource).join(',') !== 'id' || typeof record.resource.id !== 'string' || !record.resource.id) throw new DefinitionError('INVALID_RUNNER_RESOURCE_CHECKPOINT');
+    const record = validateRunnerResourceCheckpoint(value);
     if (!this.backend.definition || !this.backend.restoreResource) throw new DefinitionError('RUNNER_RESOURCE_RESTORE_UNAVAILABLE');
     if (canonicalJson(copyJson(await this.backend.definition())) !== canonicalJson(record.execution)) throw new DefinitionError('RUNNER_RESOURCE_EXECUTION_MISMATCH');
     const resource = await this.backend.restoreResource(record.backend, record.identity, record.resource);
