@@ -12,7 +12,7 @@ Codex 调用采用 exec --json、严格配置、独立 CODEX_HOME、忽略用户
 
 真实沙箱探测表明 CODEX_HOME 下含 codex-linux-sandbox 启动别名，禁止读取整个目录会阻止沙箱启动。因此只拒绝声明的 auth.json/profile.json，保留该 Attempt 的临时程序可执行；状态目录仍逐任务隔离。已用合成凭据验证直接读取、符号链接、硬链接、父目录移动和 /proc root 读取均不能取出认证内容；这不代替真实刷新与联网集成验收。
 
-stdout JSONL 的 turn.completed 是 Harness 终态证据；还须 Runner 实际退出 0、停止确认及完整采集才可返回正常结束。合法 JSON、聊天“完成”、单个消息或非空目录都不能替代终态。缺失终态、畸形事件、未知编码、截断、冲突终态及 Harness 错误为执行失败。相同终态重复只接纳一次；usage 只取明确终态字段，不遍历嵌套同名字段、不累计重复快照，缺失为 unknown。
+stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是失败终态；失败终态不再误报为缺失终态，也不要求正常出口响应。thread.started 之后、turn.started 之前可出现 item.completed/error 形式的初始化警告；只记录类型且不公开其载荷，不将警告单独当作失败或成功依据。其他业务 item 仍须在 turn.started 之后，终态后的事件仍拒绝。还须 Runner 实际退出 0、停止确认及完整采集才可返回正常结束。合法 JSON、聊天“完成”、单个消息或非空目录都不能替代终态。缺失终态、畸形事件、未知编码、截断、冲突终态及 Harness 错误为执行失败。相同终态重复只接纳一次；usage 只取明确终态字段，不遍历嵌套同名字段、不累计重复快照，缺失为 unknown。
 
 普通事件由传入的脱敏接口处理消息/工具文本；认证层提供秘密过滤，Adapter 不取得秘密存储权限。保留事件类型、item ID、来源及 Attempt 关联；未知事件记录类型与诊断，不把未知载荷整段复制进普通日志。raw 原件保持私有。首个 parser 使用结束后完整流解析，不宣称实时推送或完整原生轨迹。
 
@@ -42,3 +42,5 @@ stdout JSONL 的 turn.completed 是 Harness 终态证据；还须 Runner 实际�
 ## 确认与变更留痕
 
 - 2026-09-09：用户已确认职责分离、固定目录、三个独立实现和严格配置，并授权按顺序开发。首个组合/版本及严格 parser 是授权内实施选择；旧目录只读输入规则不迁入。官方协议参考 [非交互模式](https://learn.chatgpt.com/docs/non-interactive-mode) 与 [认证](https://learn.chatgpt.com/docs/auth)，并已查询真实镜像的版本和 CLI 帮助；没有把阅读当作真实模型验收。
+
+- 2026-09-09：按开发流程核对 Blackbox Agent Flow 的独立 provider-state 与订阅 egress 修复；真实 0.153.4 流暴露的初始化警告和失败终态按上述边界补充回归。
