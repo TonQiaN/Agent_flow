@@ -1,6 +1,6 @@
 # 本地 Run 记录存储
 
-`RunRecordStore` 是 engine 的状态保存端口，`SqliteRunRecordStore` 是 integrations 的首个实现。它保存一个 Run 的 JSON 内容和 revision；尚未自动连接 WorkflowRuntime，也不会核对/停止旧容器或恢复节点。完整 #13 仍待实现。
+`RunRecordStore` 是 engine 的状态保存端口，`SqliteRunRecordStore` 是 integrations 的首个实现。它保存一个 Run 的 JSON 内容和 revision；已由 [Workflow 检查点](workflow-checkpoints.md)接入正常执行，但不会核对/停止旧容器或恢复节点。完整 #13 仍待实现。
 
 ```ts
 import { SqliteRunRecordStore } from '@agentflow/integrations';

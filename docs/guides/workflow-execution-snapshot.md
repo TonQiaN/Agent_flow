@@ -26,6 +26,6 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 内置 Agent、文件函数、JSON 函数、文件到 JSON 和 Effect 的执行绑定描述尚未接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。后续需要从实际安装取得函数部署身份、Agent 用户说明与行为配置、Harness/模型、代理、认证 Profile 及非秘密连接身份，不能用函数 toString 证明闭包一致，也不能存放 token/key。
 
-执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口尚未接入 WorkflowRuntime 的 checkpoint 和恢复协调；#13 的节点边界恢复仍需后续贯通。
+执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，尚未接入恢复协调；#13 的节点边界恢复仍需后续贯通。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证及复盘](../validation/2026-09-10-script-execution-binding.md) · [结构快照](workflow-structure.md)

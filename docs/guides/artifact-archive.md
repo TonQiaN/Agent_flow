@@ -1,6 +1,6 @@
 # 耐久文件归档
 
-`ArtifactArchive` 是 engine 的耐久文件端口，`FileArtifactArchive` 是 integrations 的本地实现。它与临时 `ArtifactStore` 分开：归档不提供 `release`，因此执行句柄的清理不会删除 Run 恢复需要的文件。当前尚未自动接入 WorkflowRuntime；完整节点恢复仍待实现。
+`ArtifactArchive` 是 engine 的耐久文件端口，`FileArtifactArchive` 是 integrations 的本地实现。它与临时 `ArtifactStore` 分开：归档不提供 `release`，因此执行句柄的清理不会删除 Run 恢复需要的文件。已通过 [Workflow 检查点](workflow-checkpoints.md)接入正常脚本流程；完整节点恢复仍待实现。
 
 ```ts
 import { FileArtifactArchive, SqliteRunRecordStore } from '@agentflow/integrations';

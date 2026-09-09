@@ -68,3 +68,5 @@ Agent_flow/
 `src/packages/engine/workflow/structure.ts` 从受信编译计划导出结构与实际契约，供后续持久化核对；不负责 Runner 环境或执行恢复。见[结构指南](../guides/workflow-structure.md)。
 
 `src/packages/engine/workflow/execution.ts` 组合实际执行绑定描述；脚本环境由 `ScriptExecutor` 和具体 backend 提供，engine 不解析 Docker 配置。见[执行绑定指南](../guides/workflow-execution-snapshot.md)。
+
+`src/packages/engine/workflow/checkpoint.ts` 组合实际定义、流程状态和值保存端口；runtime.ts 的普通与持久入口共用执行循环。具体文件归档留在 integrations/workflow/files.ts，见[指南](../guides/workflow-checkpoints.md)。

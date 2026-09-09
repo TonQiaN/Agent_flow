@@ -31,6 +31,8 @@ export interface WorkflowNodeExecutor {
   contractDefinition?(id: string): WorkflowContractDefinition;
   /** Installed binding evidence, resolved before any Run executes. Missing evidence prevents persistence. */
   executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
+  /** Save a live value through its actual owner; only trusted checkpoint coordination calls this port. */
+  checkpointValue?(value: JsonValue, runId: string, contractId: string): Promise<JsonValue>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
   execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult>;
 }
