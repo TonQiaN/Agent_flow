@@ -23,3 +23,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [受控联网](controlled-egress.md) 说明独立代理、精确目标及真实网络验证；首个 Codex 订阅组合已接通。
 
 [文件契约与独立交接](file-contracts.md) 说明 outputs 自动收集、目录树约束、JSON 文件 schema 与交接完整性检查。
+
+[Agent 接纳与可信收据](agent-acceptance.md) 说明单次执行接纳、可信前序引用和失败后的清理句柄。

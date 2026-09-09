@@ -25,6 +25,9 @@ export interface FileContract {
 export type FileEntry = { readonly path: string; readonly kind: 'directory' }
   | { readonly path: string; readonly kind: 'file'; readonly bytes: number; readonly mediaType: string; readonly json?: JsonValue };
 export interface FileIssue { readonly path: string; readonly rule: string; readonly code: string }
+export class ArtifactError extends Error {
+  constructor(readonly code: string, readonly path = '', readonly issues: readonly FileIssue[] = []) { super(code); }
+}
 export interface FileManifest {
   readonly id: string;
   readonly contractId: string;
@@ -37,7 +40,7 @@ export interface ArtifactStore {
   materialize(id: string, destination: string): Promise<void>;
   release(id: string): Promise<void>;
 }
-export type FileCheck = { readonly valid: true; readonly assignments: readonly { readonly path: string; readonly rule: string }[] }
+export type FileCheck = { readonly valid: true; readonly assignments: readonly { readonly path: string; readonly rule: string }[]; readonly directories: readonly string[] }
   | { readonly valid: false; readonly issues: readonly FileIssue[] };
 
 export function isArtifactPath(value: unknown): value is string {
@@ -153,6 +156,7 @@ export class FileContractRegistry {
       }
     }
     const assignments: { path: string; rule: string }[] = [];
+    const directories: string[] = [];
     for (const entry of entries) {
       let rule = roots.get(entry.path);
       const parts = entry.path.split('/'); parts.pop();
@@ -161,16 +165,18 @@ export class FileContractRegistry {
         parts.pop();
       }
       if (!rule) {
-        if (entry.kind === 'file' || !structuralParents.has(entry.path)) fail(entry.path, '', 'UNMATCHED_ENTRY');
+        if (entry.kind === 'file') fail(entry.path, '', 'UNMATCHED_ENTRY');
+        else if (structuralParents.has(entry.path)) directories.push(entry.path);
         continue;
       }
       assignments.push({ path: entry.path, rule: rule.id });
+      if (entry.kind === 'directory') directories.push(entry.path);
       if (entry.kind === 'file') {
         if (entry.bytes > rule.maxBytes) fail(entry.path, rule.id, 'MAX_BYTES');
         if (!rule.mediaTypes.includes(entry.mediaType)) fail(entry.path, rule.id, 'MEDIA_TYPE');
         if (entry.mediaType === 'application/json' && rule.jsonContract && !this.json.check(rule.jsonContract, entry.json).valid) fail(entry.path, rule.id, 'JSON_CONTRACT');
       }
     }
-    return issues.length ? { valid: false, issues } : { valid: true, assignments };
+    return issues.length ? { valid: false, issues } : { valid: true, assignments, directories };
   }
 }

@@ -82,3 +82,15 @@ test('media detection checks PDF/image signatures and JSON syntax, independently
   await writeFile(join(source, 'bundle/fake.pdf'), 'not PDF'); await assert.rejects(store.capture(source, 'files'), /FILE_CONTRACT_VIOLATION/);
   assert.equal((await stat(join(root, 'store'))).mode & 0o777, 0o700);
 });
+
+test('unclaimed empty helper directories are omitted, while declared empty trees and unknown contents remain meaningful', async t => {
+  const { root, source, store } = await fixture(t);
+  for (const path of ['.agents', '.codex', '.git', 'arbitrary/empty']) await mkdir(join(source, path), { recursive: true });
+  const result = await store.capture(source, 'files'); assert.deepEqual(result.directories, ['bundle', 'bundle/nested']);
+  await store.materialize(result.id, join(root, 'accepted')); assert.deepEqual(await readdir(join(root, 'accepted')), ['bundle']);
+  await writeFile(join(source, '.agents/hidden.txt'), 'uncontracted');
+  await assert.rejects(store.capture(source, 'files'), error => error instanceof ArtifactError && error.issues.some(issue => issue.path === '.agents/hidden.txt'));
+  const empty = await fixture(t, { ...definition, rules: [{ ...definition.rules[0]!, minFiles: 0 }] });
+  await rm(join(empty.source, 'bundle/nested/answer.json'));
+  const declared = await empty.store.capture(empty.source, 'files'); assert.deepEqual(declared.directories, ['bundle', 'bundle/nested']);
+});

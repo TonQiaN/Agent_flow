@@ -1,13 +1,11 @@
 import { constants } from 'node:fs';
-import { lstat, mkdir, mkdtemp, open, opendir, realpath, rm } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, open, opendir, realpath, rm, rmdir } from 'node:fs/promises';
 import type { Stats } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { FileContractRegistry, isArtifactPath } from '@agentflow/engine';
-import type { ArtifactStore, FileManifest, FileEntry, FileIssue } from '@agentflow/engine';
-export class ArtifactError extends Error {
-  constructor(readonly code: string, readonly path = '', readonly issues: readonly FileIssue[] = []) { super(code); }
-}
+import { ArtifactError, FileContractRegistry, isArtifactPath } from '@agentflow/engine';
+import type { ArtifactStore, FileManifest, FileEntry } from '@agentflow/engine';
+export { ArtifactError } from '@agentflow/engine';
 const LIMITS = { entries: 10_000, fileBytes: 64 * 1024 * 1024, totalBytes: 256 * 1024 * 1024, jsonBytes: 1024 * 1024 };
 const same = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs && b.nlink === 1;
 const within = (parent: string, child: string): boolean => { const p = relative(parent, child); return p === '' || p !== '..' && !p.startsWith('..' + sep) && !isAbsolute(p); };
@@ -105,7 +103,10 @@ export class FileArtifactStore implements ArtifactStore {
       const check = this.contracts.check(contractId, entries);
       if (!check.valid) throw new ArtifactError('FILE_CONTRACT_VIOLATION', '', check.issues);
       const owners = new Map(check.assignments.map(entry => [entry.path, entry.rule]));
-      const manifest: FileManifest = { id: randomUUID(), contractId, directories: directories.sort(), files: files.map(file => ({ ...file, rule: owners.get(file.path)! })).sort((a, b) => a.path.localeCompare(b.path)) };
+      const keptDirectories = new Set(check.directories);
+      // Only unclaimed empty directories are omitted. rmdir fails if unexpected content exists.
+      for (const path of directories.filter(path => !keptDirectories.has(path)).sort((a, b) => b.length - a.length)) await rmdir(join(stage!, path));
+      const manifest: FileManifest = { id: randomUUID(), contractId, directories: [...keptDirectories].sort(), files: files.map(file => ({ ...file, rule: owners.get(file.path)! })).sort((a, b) => a.path.localeCompare(b.path)) };
       this.#snapshots.set(manifest.id, { root: stage, manifest }); stage = undefined;
       return clone(manifest);
     } catch (error) {

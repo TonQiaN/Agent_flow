@@ -1,11 +1,13 @@
 export { ContractRegistry } from './contracts/registry.js';
 export type { ContractIssue, ContractCheck } from './contracts/registry.js';
-export { FileContractRegistry, isArtifactPath } from './contracts/files.js';
+export { ArtifactError, FileContractRegistry, isArtifactPath } from './contracts/files.js';
 export type { FileRule, FileContract, FileEntry, FileIssue, FileCheck, FileManifest, ArtifactStore } from './contracts/files.js';
 export { DefinitionError } from './errors.js';
 export { ComponentRegistry, FunctionRegistry } from './components/registry.js';
 export type { ComponentFunction } from './components/registry.js';
 export { ComponentExecutor } from './components/executor.js';
+export { AgentExecutor, AgentAttempt } from './components/agent-executor.js';
+export type { AgentExecutionDriver, AgentExecutionHandle, AgentExecutionFacts, AgentExecutionRequest, AgentAcceptanceResult, ExecutionReceipt } from './components/agent-executor.js';
 export type { ExecutionResult, ExecutionFailureCode } from './components/executor.js';
 export { Runner } from './runner/runner.js';
 export { TASK_PATHS } from './runner/types.js';
