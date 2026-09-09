@@ -27,4 +27,4 @@
 
 [DeepSeek 原生文件隔离](validation/2026-09-09-deepseek-file-isolation.md) 已允许固定输入副本/输出写入并保护私有文件；[Bash 与搜索隔离](validation/2026-09-09-deepseek-process-isolation.md) 也已通过真实 CLI 的合成测试，完整执行组合仍待接通。
 
-[DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，宿主认证与完整 Harness 组合仍在开发。
+[DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，[API key 与不可变快照绑定](validation/2026-09-09-deepseek-api-key.md) 已通过宿主存储驱动的原生 CLI 验证，完整联网 Harness 组合仍在开发。

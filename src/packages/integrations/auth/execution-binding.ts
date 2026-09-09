@@ -22,7 +22,7 @@ export interface BindingFinalization {
   readonly diagnostics: readonly string[];
 }
 
-/** A lease and its one mutable execution copy. No Harness or business-outcome interpretation. */
+/** A lease or immutable snapshot with one execution copy. No Harness or business-outcome interpretation. */
 export class FileExecutionCredentialBinding implements PrivateStateBinding {
   readonly environment: Readonly<Record<string, string>>;
   readonly #identity: ExecutionIdentity;
@@ -46,13 +46,39 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
     this.#remember = remember;
   }
   static async acquire(store: CredentialStore, options: CredentialBindingOptions, waitMs = 0, remember?: (content: string) => void): Promise<FileExecutionCredentialBinding> {
+    return this.#acquire(store, options, waitMs, remember, false);
+  }
+  /** Read a versioned snapshot under a short lease; execution never holds or writes the source store. */
+  static async acquireSnapshot(store: CredentialStore, options: CredentialBindingOptions, waitMs = 0, remember?: (content: string) => void): Promise<FileExecutionCredentialBinding> {
+    return this.#acquire(store, options, waitMs, remember, true);
+  }
+  static async #acquire(store: CredentialStore, options: CredentialBindingOptions, waitMs: number, remember: ((content: string) => void) | undefined, immutable: boolean): Promise<FileExecutionCredentialBinding> {
     if (!options || Object.keys(options).sort().join(',') !== 'credential,environment,identity,stateFile'
       || !isExecutionIdentity(options.identity) || typeof options.stateFile !== 'string' || options.stateFile.length > 256
       || options.stateFile.split('/').length > 8 || !options.stateFile.split('/').every(part => /^\.?[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(part))) throw new CredentialError('INVALID_CREDENTIAL_BINDING');
     const snapshot = { ...options, identity: Object.freeze({ ...options.identity }), credential: Object.freeze({ ...options.credential }), environment: stateEnvironment(options.environment) };
     if (remember !== undefined && typeof remember !== 'function') throw new CredentialError('INVALID_SECRET_OBSERVER');
     const lease = await store.acquire(snapshot.credential, waitMs);
-    return new FileExecutionCredentialBinding(snapshot, lease, remember);
+    if (!immutable) return new FileExecutionCredentialBinding(snapshot, lease, remember);
+    let content: string;
+    const metadata = Object.freeze({ ...lease.metadata });
+    try { content = await lease.readSecret(); }
+    catch { throw new CredentialError('CREDENTIAL_SNAPSHOT_FAILED'); }
+    finally { try { await lease.release(); } catch { throw new CredentialError('CREDENTIAL_LEASE_RELEASE_FAILED'); } }
+    // No source reference or committer is retained. Rotation/deletion cannot be overwritten by this execution.
+    let material: string | null = content;
+    const copy: CredentialLease = {
+      metadata,
+      async readSecret() { if (material === null) throw new CredentialError('CREDENTIAL_LEASE_RELEASED'); return material; },
+      async commitSecret(next, revision) {
+        if (material === null) throw new CredentialError('CREDENTIAL_LEASE_RELEASED');
+        if (revision !== metadata.revision) throw new CredentialError('CREDENTIAL_REVISION_CONFLICT');
+        if (next !== material) throw new CredentialError('CREDENTIAL_SNAPSHOT_CHANGED');
+        return metadata;
+      },
+      async release() { material = null; },
+    };
+    return new FileExecutionCredentialBinding(snapshot, copy, remember);
   }
   get metadata(): CredentialMetadata { return this.#lease.metadata; }
   toJSON(): { credential: CredentialMetadata; released: boolean } { return { credential: this.metadata, released: this.#released }; }
