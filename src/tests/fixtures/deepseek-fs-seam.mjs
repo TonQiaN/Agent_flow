@@ -5,7 +5,8 @@ import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import IsolatedFileSystem from '/task/config/deepseek-policy/fs-service.mjs';
 import { Context } from '/task/config/deepseek-policy/sdk.mjs';
-const service = new IsolatedFileSystem(new Context());
+import ToolSpace from '/task/config/deepseek-policy/tool-space.mjs';
+const ctx = new Context(), space = new ToolSpace(ctx), service = new IsolatedFileSystem(ctx);
 try {
   const temporary = await service.resolve('/tmp/persistent.txt');
   await service.writeText(temporary, '跨请求临时文件');
@@ -46,6 +47,7 @@ try {
   assert.equal(await service.readText(output), 'two');
   await service.closeWorker();
   await assert.rejects(service.readText(output), { code: 'FS_ABORTED' });
+  await space.close();
   assert.deepEqual((await host.readdir('/tmp')).filter(name => name.startsWith('agentflow-tools-')), []);
   console.log('isolated_fs_seam_verified');
-} finally { await service.closeWorker(); }
+} finally { await space.close(); }

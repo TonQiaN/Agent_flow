@@ -37,3 +37,5 @@
 原生文件 read/edit/write 已验证；readBytes 接口经过二进制测试，但尚未用真实 read_image 工具完成图像模型交接。Bash 及直接走原生 subprocess 的搜索路径仍须接入同等权限策略，不能声称全部模型工具或完整凭据隔离已完成。纯 Adapter、可信原生事件采集/解释、API key 绑定、真实 DeepSeek 调用与完整矩阵仍未完成；当前没有将本服务装配为可执行 Harness。
 
 固定目录保持 /task/work 和 /task/outputs；旧 stock 策略预检仍保留，作为缺口对照。本次作者检查，未做独立评审、远端 CI 或发布。完整 npm run check 回归 174 项通过、0 失败、0 跳过（约 104 秒）。最终补充“只读模式也拒绝临时文件写入”后，2 组受影响的真实文件测试再次通过；最终 manifest 与锁文件更新也通过依赖检查。
+
+后续进程切片将临时目录所有权提升为任务级 ToolSpace，供文件与进程服务共享，全部服务退出后才删除；Bash 和直接走 subprocess 的搜索也已接入，见 [后续验证](2026-09-09-deepseek-process-isolation.md)。上述 174 项记录保留当时范围。
