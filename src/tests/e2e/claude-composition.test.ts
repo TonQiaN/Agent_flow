@@ -64,6 +64,9 @@ test('Claude composition: synthetic executable exercises version, binding, refre
         const message = result.harness!.events.find(event => event.kind === 'message'); assert.deepEqual(message!.data, { blockType: 'text', text: '[redacted] [redacted]' });
         (result.runner as { cleanup: string }).cleanup = 'blocked'; assert.equal(execution.result.runner.cleanup, 'removed');
       } finally { await execution.retryCleanup(); await execution.release(); }
+      await assert.rejects(runtime.definitionSnapshot({ identity: { runId: 'snapshot', nodeTaskId: 'task', attemptId: 'attempt', attemptNumber: 1 },
+        prompt: 'synthetic protocol wiring', config: { model: 'fixture-model', subagents: false, search: false } },
+        { id: 'test', ...credential, service: 'anthropic', method: 'subscription', endpoint: 'official', capacity: 1 }, 10000), /EXECUTION_DEFINITION_AFTER_START/);
       const json = new ContractRegistry();
       json.register('input', { type: 'object', properties: { numbers: { type: 'array', items: { type: 'integer' } } }, required: ['numbers'], additionalProperties: false });
       json.register('answer', { type: 'object', properties: { sum: { type: 'integer', const: 6 } }, required: ['sum'], additionalProperties: false });

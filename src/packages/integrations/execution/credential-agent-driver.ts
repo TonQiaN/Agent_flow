@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import type { JsonValue } from '@agentflow/domain';
 import { isAbsolute, join } from 'node:path';
 import { ArtifactError } from '@agentflow/engine';
 import type { CredentialIdentity, HarnessAdapter, AgentExecutionDriver, AgentExecutionFacts, AgentExecutionHandle, ArtifactStore, Cancellation, FileManifest, HarnessTask } from '@agentflow/engine';
@@ -12,12 +13,16 @@ export class CredentialAgentDriver<P extends CredentialIdentity> implements Agen
   readonly #options: { inputRoot: string; timeoutMs: number };
   constructor(private readonly runtime: CredentialHarnessRunner<P>, private readonly artifacts: ArtifactStore,
     profile: P, options: { inputRoot: string; timeoutMs: number }, private readonly adapter: HarnessAdapter) {
-    this.#profile = profile; this.harness = adapter.id;
+    this.#profile = Object.freeze(structuredClone(profile)); this.harness = adapter.id;
     if (!options || Object.keys(options).sort().join(',') !== 'inputRoot,timeoutMs' || !isAbsolute(options.inputRoot)
       || !Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_DRIVER');
     this.#options = Object.freeze({ ...options });
   }
   validate(task: HarnessTask): void { this.adapter.plan(task); }
+  async definitionSnapshot(task: HarnessTask): Promise<JsonValue> {
+    this.validate(task);
+    return this.runtime.definitionSnapshot(task, this.#profile, this.#options.timeoutMs);
+  }
   async run(task: HarnessTask, input: FileManifest, cancellation: Cancellation): Promise<AgentExecutionHandle> {
     this.validate(task);
     await mkdir(this.#options.inputRoot, { recursive: true, mode: 0o700 });

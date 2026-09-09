@@ -25,7 +25,7 @@ for(const event of [{type:'thread.started',thread_id:'fixture-thread'},{type:'tu
 test('Codex composition: synthetic executable exercises version, binding, refresh, redaction and output handoff without model calls',
   { skip: process.env['AGENTFLOW_EGRESS_TESTS'] !== '1', timeout: 90_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'af-codex-composition-')); const tag = `agentflow-test/codex-fixture:${randomUUID()}`;
-    let built = false;
+    let built = false; const executionTag = `${tag}-execution`, proxyTag = `${tag}-proxy`; let aliases = false;
     try {
       const build = join(root, 'build'); await mkdir(build);
       await writeFile(join(build, 'Dockerfile'), 'FROM node:22-bookworm-slim\nCOPY --chmod=755 codex /usr/local/bin/codex\n');
@@ -35,7 +35,17 @@ test('Codex composition: synthetic executable exercises version, binding, refres
       const credential = { credentialRef: 'fixture', service: 'openai', method: 'subscription' };
       const store = new FileCredentialStore(join(root, 'store'), [new CodexSubscriptionCodec()]);
       await store.configure(credential, { content: JSON.stringify({ auth_mode: 'chatgpt', tokens: { id_token: 'fixture-id-original', access_token: 'fixture-access-original', refresh_token: 'fixture-refresh-original', account_id: 'fixture-account' } }) });
-      const runtime = new CodexSubscriptionRunner(store, { workspaceRoot: join(root, 'attempts'), image: tag, proxyImage: 'node:22-bookworm-slim' });
+      execFileSync('docker', ['tag', tag, executionTag]); execFileSync('docker', ['tag', 'node:22-bookworm-slim', proxyTag]); aliases = true;
+      const runtime = new CodexSubscriptionRunner(store, { workspaceRoot: join(root, 'attempts'), image: executionTag, proxyImage: proxyTag });
+      const definitionTask = { identity: { runId: 'definition', nodeTaskId: 'task', attemptId: 'attempt', attemptNumber: 1 },
+        prompt: 'synthetic protocol wiring', config: { model: 'fixture-model', subagents: false, search: false } };
+      const profile = { id: 'test', ...credential, service: 'openai' as const, method: 'subscription' as const, endpoint: 'official' as const, capacity: 1 as const };
+      const held = await store.acquire(credential);
+      let definition: any;
+      try { definition = await runtime.definitionSnapshot(definitionTask, profile, 10000); }
+      finally { await held.release(); }
+      // Repoint only this test's aliases: execution and its proxy must consume the pinned IDs.
+      execFileSync('docker', ['tag', 'node:22-bookworm-slim', executionTag]); execFileSync('docker', ['tag', 'alpine:3', proxyTag]);
       const execution = await runtime.run({ task: { identity: { runId: 'composition', nodeTaskId: 'task', attemptId: 'first', attemptNumber: 1 },
         prompt: 'synthetic protocol wiring', config: { model: 'fixture-model', subagents: false, search: false } },
       profile: { id: 'test', ...credential, service: 'openai', method: 'subscription', endpoint: 'official', capacity: 1 }, inputSource: input, timeoutMs: 10_000 });
@@ -43,6 +53,9 @@ test('Codex composition: synthetic executable exercises version, binding, refres
         const result = execution.result;
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);
         assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential.revision, 2); assert.deepEqual(result.diagnostics, []);
+        assert.equal(result.runner.capture!.imageId, definition.environment.options.image);
+        assert.equal(result.runner.capture!.network!.proxyImageId, definition.environment.options.network.proxyImage);
+        assert.deepEqual(await runtime.definitionSnapshot(definitionTask, profile, 10000), definition);
         assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.equal(result.version.actual, '0.153.4');
         assert.equal(await readFile(join(input, 'numbers.json'), 'utf8'), original);
         assert.deepEqual(JSON.parse(await readFile(join(result.runner.capture!.outputsPath, 'answer.json'), 'utf8')), { sum: 6 });
@@ -79,6 +92,7 @@ test('Codex composition: synthetic executable exercises version, binding, refres
       }
       assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
     } finally {
+      if (aliases) execFileSync('docker', ['image', 'rm', executionTag, proxyTag], { stdio: 'pipe' });
       if (built) execFileSync('docker', ['image', 'rm', tag], { stdio: 'pipe' });
       await rm(root, { recursive: true, force: true });
     }

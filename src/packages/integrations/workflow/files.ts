@@ -117,6 +117,10 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   }
   async executionDefinition(component: ComponentDefinition): Promise<JsonValue> {
     this.validate(component); const binding = this.#bindings.get(component.id)!;
+    if (binding.kind === 'agent') return binding.executor.definitionSnapshot({ componentId: component.id,
+      identity: { runId: 'preflight', nodeTaskId: 'preflight', attemptId: 'preflight', attemptNumber: 1 },
+      prompt: binding.prompt, config: clone(binding.config), outcomes: clone(component.outcomes),
+      input: { contractId: component.inputContract, source: '/workflow-preflight/input' } });
     if (binding.kind !== 'script') throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
     return binding.executor.definitionSnapshot(clone(binding.definition));
   }
