@@ -19,3 +19,5 @@ export { FileWorkflowCatalog } from './workflow/files.js';
 export type { FileFunctionContext, FileWorkflowFunction, FileWorkflowReceipt } from './workflow/files.js';
 
 export { FileScriptRecordReader } from './execution/script-record-reader.js';
+
+export { SimulatedEffectService } from './effects/simulated-service.js';

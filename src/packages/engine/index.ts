@@ -23,3 +23,8 @@ export type { WorkflowDefinition, WorkflowContract, WorkflowDestination, Workflo
 
 export { ScriptExecutor, ScriptAttempt, parseScriptResult, SCRIPT_RESULT_SCHEMA, SCRIPT_RESULT_MAX_BYTES } from './components/script-executor.js';
 export type { ScriptDefinition, ScriptRequest, ScriptRecordReader, ScriptEvidence, ScriptResult } from './components/script-executor.js';
+
+export { EffectExecutor, EFFECT_RECEIPT_SCHEMA } from './components/effect-executor.js';
+export type { EffectMode, EffectStatus, EffectRequest, EffectReceipt, EffectAdapter, EffectAdapterRequest, EffectApproval, EffectResult, EffectRecordView } from './components/effect-executor.js';
+export { EffectWorkflowCatalog } from './workflow/effects.js';
+export type { EffectWorkflowBinding } from './workflow/effects.js';

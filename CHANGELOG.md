@@ -6,6 +6,8 @@
 
 ### 新增
 
+- 新增独立模拟 Effect 和 JSON Workflow 接入：默认 dry-run、绑定请求与执行身份的一次授权、独立业务凭据、幂等复用和冲突；结果未知时保留占位并阻止重发，取消不冒充回滚。
+
 - Workflow 新增确定性脚本适配：stdout 单份结构化 outcome、stderr 日志、outputs 契约产物，通过既有 Runner 确认退出和清理；真实 Docker 文件 Gate 交接、异常协议、取消与超时通过验证。
 
 - Workflow 接入可信文件 Gate/Transform 与 AgentExecutor：私有引用绑定 Run 和前序，独立可写输入在交接时复核摘要，执行资源清理失败阻止推进并保留可重试能力；新增跨 Agent/Gate/Fixer 的合成集成验证。

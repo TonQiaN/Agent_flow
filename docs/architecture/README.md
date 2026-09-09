@@ -6,7 +6,7 @@
 
 依赖方向与目录取舍见 [源码结构决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)。确定性调用接受独立 JSON 副本，函数直接返回 outcome/output，引擎校验对应契约；业务 rejected 可以正常接纳，违约或异常属于 failed。具体接口见 [Component 使用指南](../guides/components.md) 和 [执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)。
 
-engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt 分配，通过窄执行端口接入现有 JSON 函数；持久恢复与共享调度尚未实现。Component 不持有路由、文件系统、Docker、认证或 Harness。engine/runner 协调一次执行，integrations/docker 实现文件与容器操作；integrations/workflow/files 将文件函数和 AgentExecutor 接入同一端口，私有引用维护跨节点来源，文件 IO 不进入编译和调度；engine/components/script-executor 通过 backend/clock/记录读取端口接入确定性脚本，Effect 适配仍待完成。可信函数运行在调用进程中，内存副本隔离不等于安全沙箱。
+engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt 分配，通过窄执行端口接入现有 JSON 函数；持久恢复与共享调度尚未实现。Component 不持有路由、文件系统、Docker、认证或 Harness。engine/runner 协调一次执行，integrations/docker 实现文件与容器操作；integrations/workflow/files 将文件函数和 AgentExecutor 接入同一端口，私有引用维护跨节点来源，文件 IO 不进入编译和调度；engine/components/script-executor 通过 backend/clock/记录读取端口接入确定性脚本，engine/components/effect-executor 独立处理一次授权、幂等占位和上下文收据，workflow/effects 接入 JSON 执行；模拟服务位于 integrations/effects，仅写内存。可信函数运行在调用进程中，内存副本隔离不等于安全沙箱。
 
 用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
 
