@@ -138,9 +138,10 @@ export class WorkflowRuntime {
         if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
         let result: WorkflowNodeResult;
         const persistence = run.writer?.resourceSink(node, identity, () => this.#checkpoint(run));
-        try { result = snapshot(await binding.executor.execute(snapshot(binding.component), snapshot(run.value), snapshot(identity), { requested: () => run.view.cancelRequested }, persistence?.sink)); }
+        const phases = run.writer?.phaseSink(node, identity, () => this.#checkpoint(run));
+        try { result = snapshot(await binding.executor.execute(snapshot(binding.component), snapshot(run.value), snapshot(identity), { requested: () => run.view.cancelRequested }, persistence?.sink, phases?.sink)); }
         catch { return end('failed', 'EXECUTION_STOP_UNCONFIRMED'); }
-        finally { persistence?.close(); }
+        finally { persistence?.close(); phases?.close(); }
         if (!result || !isExecutionIdentity(result.identity) || Object.keys(result.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId' || !same(identity, result.identity) || result.componentId !== binding.component.id) return end('failed', 'EXECUTION_IDENTITY_MISMATCH');
         if (result.status === 'failed') {
           if (Object.keys(result).sort().join(',') !== 'code,componentId,identity,issues,status,stopped' || !isIdentifier(result.code)
@@ -157,6 +158,7 @@ export class WorkflowRuntime {
         catch { return end('failed', 'CONTRACT_CHECK_FAILED'); }
         if (!issuesValid(check)) return end('failed', 'INVALID_CONTRACT_DIAGNOSTICS');
         if (check.length) return end('failed', 'INVALID_NODE_OUTPUT', check);
+        if (run.writer && !run.writer.phasesComplete(node)) return end('failed', 'WORKFLOW_PHASES_INCOMPLETE');
         // Archive actual accepted bytes before recording acceptance and its successor in one CAS.
         let saved: WorkflowCheckpointValue | undefined;
         try { saved = await run.writer?.saveValue(node, binding.outcomes.get(result.outcome)!, result.output); }

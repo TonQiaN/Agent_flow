@@ -52,3 +52,5 @@ export type { RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, R
 export { claimWorkflowRecovery } from './workflow/recovery.js';
 export type { WorkflowRecoveryRecord, WorkflowRecoverySnapshot, WorkflowRecoveryHandle } from './workflow/recovery.js';
 export type { WorkflowRecoveryProgress } from './workflow/recovery-record.js';
+
+export type { InvocationResourcePlan, InvocationPhaseDefinition, InvocationPhaseCheckpoint, InvocationPhaseSink, InvocationPhaseHandle } from './workflow/phases.js';

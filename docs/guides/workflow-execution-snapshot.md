@@ -48,3 +48,5 @@ agentflow-credential-execution/v2 保存用户 prompt/config/outcomes、实际 A
 
 
 不可变环境凭据的 Docker 定义为 agentflow-docker-execution/v3，增加只含 credentialRef/service/method 与变量名称的 privateState；没有密钥、内容摘要或源存储 generation/revision。DeepSeek 的 Agent 定义现在包含这个实际环境、固定代理镜像与代理程序摘要；同一组合保留描述，实际执行重新准备后必须一致，否则在分配容器前拒绝。恢复使用只管理绑定，无须当前凭据仍然存在。探针和执行资源的单独恢复能力尚不代表 Workflow 可以恢复 Agent。
+
+当前执行快照为 version 2，增加 resourcePlans。实际 executor 可提供 resourcePlan(component)，返回有序且唯一的 1–8 个 resource/operation 阶段；resource 包含实际环境定义。编译固定描述和恢复方法，快照保存独立副本；恢复须与当前安装完整一致，不能从保存计划生成执行器。未提供该能力的节点使用空映射中的缺省单资源路径。见[阶段指南](workflow-phases.md)。

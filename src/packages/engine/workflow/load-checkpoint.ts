@@ -1,3 +1,4 @@
+import { assertPhasePlan, phaseUnconfirmed, invocationPlanFor } from './phases.js';
 import { isIdentifier } from '@agentflow/domain';
 import type { JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
@@ -25,7 +26,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   let raw: JsonValue; try { raw = copyJson(value); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values', 'attempts']));
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
-  valid(c.schema === 'agentflow-workflow-checkpoint/v4' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
+  valid(c.schema === 'agentflow-workflow-checkpoint/v5' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
     && ['queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
@@ -123,7 +124,7 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   if (unwrapped.recovery) {
     const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted ? last : null;
     if (!['queued', 'running'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
-      || active?.launch?.endsWith('_pending') || !active?.resource && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
+      || active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases) || !active?.resource && !active?.phases?.some(p => p.resource) && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
   }
   await assertWorkflowExecutionMatches(compiled, checkpoint.execution);
   const definitions = new Map<string, JsonValue>();
@@ -132,6 +133,14 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
     if (!binding.executor.resourceDefinition) throw new DefinitionError('RESOURCE_DEFINITION_UNAVAILABLE');
     if (!definitions.has(attempt.node)) definitions.set(attempt.node, snapshot(await binding.executor.resourceDefinition(snapshot(binding.component))));
     if (!equal(attempt.resource.execution, definitions.get(attempt.node))) throw new DefinitionError('WORKFLOW_RESOURCE_EXECUTION_MISMATCH');
+  }
+  for (const attempt of checkpoint.attempts) {
+    const phasePlan = invocationPlanFor(checkpoint.execution.resourcePlans, attempt.node);
+    if (phasePlan) {
+      valid(attempt.phases !== undefined); assertPhasePlan(attempt.phases, phasePlan);
+      if (attempt.resultStep !== null && checkpoint.snapshot.steps[attempt.resultStep]?.result.status === 'accepted')
+        valid(attempt.phases.length === phasePlan.phases.length && attempt.phases.every(p => p.status === 'completed'));
+    } else valid(attempt.phases === undefined);
   }
   const disposers: (() => Promise<void>)[] = []; let closing: Promise<void> | null = null;
   const dispose = (): Promise<void> => {
