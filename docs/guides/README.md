@@ -65,3 +65,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [Workflow 恢复认领与旧资源清理](workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
 
 [Workflow 通用阶段](workflow-phases.md)：有序资源和宿主操作、共同 CAS 与中断恢复边界。
+
+[Runner 输入物化](runner-owned-input.md)：在已登记资源目录内准备 ArtifactStore 快照或空输入。

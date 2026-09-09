@@ -40,6 +40,8 @@ finish 核对 Runner 身份、资源、停止和清理，确认容器移除后�
 
 `run({ task, profile, inputSource, timeoutMs }, cancellation?)` 先解析不可变镜像 ID，再离线验证实际 dsh 版本；通过后取得 key 快照，并只开放 api.deepseek.com:443 的受控 CONNECT 代理。固定 13 个容器运行资产和 deepseek.json 只读挂载，任务工作路径不变。返回 DeepSeekExecution，result 区分 version/execution 阶段、Runner/Harness/认证结果与静态诊断，不含原始日志内容。
 
-调用者保存需要的输出或私有证据后执行 retryCleanup/release；未知停止或凭据收尾未完成时不能跳过清理门槛。清理重试不升级原 Harness 结果。DeepSeekAgentDriver 接收 runtime、ArtifactStore、Profile 和 inputRoot/timeoutMs，交由 AgentExecutor 执行输出契约接纳。单出口由引擎分配，多出口取结构化结果；都不能只凭退出码或“完成”文字通过。
+调用者保存需要的输出或私有证据后执行 retryCleanup/release；未知停止或凭据收尾未完成时不能跳过清理门槛。清理重试不升级原 Harness 结果。DeepSeekAgentDriver 接收 runtime、ArtifactStore、Profile 和 timeoutMs，交由 AgentExecutor 执行输出契约接纳。单出口由引擎分配，多出口取结构化结果；都不能只凭退出码或“完成”文字通过。
 
 本地协议替身验证了组合的成功/失败/取消/版本漂移路径，原生 CLI 另有工具与交接回归；真实官方模型调用尚未验收。见 [宿主执行组合验证](../validation/2026-09-09-deepseek-execution.md)。
+
+Driver 输入在已登记的 Runner 工作目录内物化，见[输入物化](runner-owned-input.md)。

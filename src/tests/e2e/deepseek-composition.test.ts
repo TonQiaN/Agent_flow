@@ -67,7 +67,7 @@ test('DeepSeek composition: fixed launch, snapshot, controlled egress, native ev
         rules: [{ id, kind: 'file', match: path, minCount: 1, maxCount: 1, mediaTypes: ['application/json'], maxBytes: 1024, jsonContract: schema }], maxFiles: 1, maxTotalBytes: 1024, unmatched: 'reject',
       });
       const artifacts = new FileArtifactStore(join(root, 'artifacts'), files);
-      const driver = new DeepSeekAgentDriver(runtime, artifacts, profile, { inputRoot: join(root, 'driver-inputs'), timeoutMs: 15000 });
+      const driver = new DeepSeekAgentDriver(runtime, artifacts, profile, { timeoutMs: 15000 });
       const executor = new AgentExecutor(files, artifacts, driver);
       for (const mode of ['single', 'multi', 'bad-contract']) {
         const attempt = await executor.execute({ componentId: 'sum', identity: { runId: 'coordinated', nodeTaskId: 'sum', attemptId: mode, attemptNumber: 1 }, prompt: mode,
@@ -82,7 +82,7 @@ test('DeepSeek composition: fixed launch, snapshot, controlled egress, native ev
           assert.equal(await readFile(join(input, 'numbers.json'), 'utf8'), original); await executor.releaseOutput(result.receipt.id);
         } finally { await attempt.retryCleanup(); await attempt.releaseExecution(); }
       }
-      assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+      await assert.rejects(readdir(join(root, 'driver-inputs')), { code: 'ENOENT' }); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
       // A different actual CLI version must stop before credentials are acquired or egress is opened.
       await writeFile(join(build, 'dsh-package.json'), JSON.stringify({ name: '@deepseek-ai/dsh', version: '0.1.1-rc.1' }));
       execFileSync('docker', ['build', '--network', 'none', '--pull=false', '--tag', tag, build], { stdio: 'pipe', timeout: 60000 });

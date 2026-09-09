@@ -15,7 +15,7 @@ const contracts = new FileContractRegistry(json);
 for (const [id, path] of [['input','numbers.json'],['answer','answer.json']]) contracts.register(id, { rules: [{ id, kind: 'file', match: path, minCount: 1, maxCount: 1, mediaTypes: ['application/json'], maxBytes: 1024, jsonContract: id }], maxFiles: 1, maxTotalBytes: 1024, unmatched: 'reject' });
 const artifacts = new FileArtifactStore(join(root, 'artifacts'), contracts), archive = new FileArtifactArchive(join(root, 'archive'), contracts);
 const runtime = new DeepSeekApiKeyRunner(source, { workspaceRoot: join(root, 'attempts'), image, proxyImage: 'node:22-bookworm-slim' }, JSON.parse(await readFile(assetsPath,'utf8')));
-const driver = new DeepSeekAgentDriver(runtime, artifacts, profile, { inputRoot: join(root, 'driver-inputs'), timeoutMs: 15000 });
+const driver = new DeepSeekAgentDriver(runtime, artifacts, profile, { timeoutMs: 15000 });
 const executor = new AgentExecutor(contracts, artifacts, driver), catalog = new FileWorkflowCatalog(contracts, artifacts, join(root, 'work'), archive);
 const calls=[]; const execute = catalog.execute.bind(catalog); catalog.execute = (...args) => { calls.push(args[0].id); return execute(...args); };
 for (const id of ['a','b']) catalog.registerAgent({ id, kind:'agent', implementation:id,inputContract:id==='a'?'input':'answer',outcomes:{ok:'answer'}},executor,{prompt: (operation === 'failure' || stage === 'failure') && id === 'b' ? 'nonzero' : 'normal',config:{model:'deepseek-v4-flash',reasoning:'off',search:false,subagents:false}});

@@ -49,3 +49,5 @@ DeepSeekApiKeyRunner 可通过 `executionResourceDefinition(profile)` 取得实�
 宿主确认恢复所有权后调用 `restoreExecutionResource(checkpoint, profile)`，再使用共同 query、stopAndRemove、release。恢复不读凭据存储、不获取旧 key、不写回已轮换或已删除记录；通过实际环境定义、完整资源身份及私有目录标记核对，再清理任务、代理和两张网络。获取凭据期间没有执行资源记录时仍不可自动恢复，不能以宿主退出推断占用结束。
 
 这个接口已接入不可变 API key Agent 的 Workflow 多阶段和文件收据，使用合成 DeepSeek 验证新 Attempt；真实官方模型、订阅占用与宿主临时目录崩溃清理尚未验收。见[不可变凭据资源验证](../validation/2026-09-10-credential-resource-recovery.md)。
+
+探针和 Agent Driver 输入已放入同一 Runner 资源工作目录，恢复释放包含这些副本，见[输入物化](runner-owned-input.md)；旧遗留目录不按前缀扫描删除。

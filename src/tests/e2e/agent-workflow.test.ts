@@ -35,11 +35,15 @@ for(const [stage,interruptions]of [['a:version',1],['b:execution',1],['b:executi
  const first=await pause(f.root,'run',stage);assert.equal(first.credentialCalls,stage==='a:version'?0:2);
  if(interruptions===2)assert.equal((await pause(f.root,'resume-pause',stage)).identity.attemptNumber,2);
  const prior:any=(await record(f.root)).content,ids=prior.attempts.flatMap((a:any)=>(a.phases??[]).flatMap((p:any)=>p.resource?[p.resource.resource.id]:[]));
+ await assert.rejects(readdir(join(f.root,'driver-inputs')),{code:'ENOENT'});
+ const attemptDirectories=prior.attempts.flatMap((a:any)=>(a.phases??[]).flatMap((p:any)=>p.resource?[p.resource.backend.directory]:[]));
+ assert.ok((await readdir(join(f.root,'attempts'))).every(name=>!name.startsWith('version-input-')));
  await rm(join(f.root,'source'),{recursive:true});const result=await finish(child(f.root,'resume'));
  assert.equal(result.result.status,'succeeded');assert.deepEqual(result.calls,stage==='a:version'?['a','b']:['b']);assert.equal(result.credentialCalls,result.calls.length);
  const last=result.result.lastAccepted;assert.equal(last.result.identity.attemptNumber,stage==='a:version'?1:interruptions+1);
  assert.deepEqual(JSON.parse(await readFile(join(f.root,'result-output/answer.json'),'utf8')),{sum:6});
  for(const id of ids)assert.equal(await docker(['container','ls','-a','--filter',`name=^/${id}(-proxy)?$`,'--format','{{.ID}}']),'');
+ for(const directory of attemptDirectories) await assert.rejects(readdir(directory),{code:'ENOENT'});
  const before=await record(f.root),loaded=await finish(child(f.root,'load'));assert.deepEqual(loaded.calls,[]);assert.equal(loaded.credentialCalls,0);assert.deepEqual(await record(f.root),before);
  assert.deepEqual(JSON.parse(await readFile(join(f.root,'loaded-output/answer.json'),'utf8')),{sum:6});
  }finally{await cleanup(f.root);}
@@ -61,7 +65,7 @@ test('Agent file receipt restoration rejects identity, predecessor, files and in
 test('failed persistent Agent can retry cleanup after its phase port closes without upgrading the result', {skip:!enabled,timeout:60000},async()=>{
  const f=await setup();try{
    const result=await finish(child(f.root,'failure')); assert.equal(result.result.status,'failed');assert.deepEqual(result.calls,['a','b']);
-   assert.equal(result.result.lastAccepted.node,'a');assert.deepEqual(await readdir(join(f.root,'driver-inputs')),[]);assert.deepEqual(await readdir(join(f.root,'attempts')),[]);
+   assert.equal(result.result.lastAccepted.node,'a');await assert.rejects(readdir(join(f.root,'driver-inputs')),{code:'ENOENT'});assert.deepEqual(await readdir(join(f.root,'attempts')),[]);
    const saved:any=(await record(f.root)).content;assert.equal(saved.snapshot.status,'failed');assert.equal(saved.attempts[1].phases.at(-1).status,'active');
    const loaded=await finish(child(f.root,'load','failure'));assert.equal(loaded.checkpoint.snapshot.status,'failed');assert.equal(loaded.credentialCalls,0);
  }finally{await cleanup(f.root);}

@@ -92,3 +92,5 @@
 [Workflow 通用阶段记录与恢复](2026-09-10-workflow-phases.md)记录本轮验证和未完成边界。
 
 [实际 Agent Workflow 阶段与文件收据](2026-09-10-agent-workflow.md)。
+
+[Runner 目录内输入物化验证](2026-09-10-owned-runner-input.md)。

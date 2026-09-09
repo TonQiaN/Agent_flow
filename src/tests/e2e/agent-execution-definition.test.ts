@@ -25,7 +25,7 @@ for (const provider of ['codex', 'claude', 'deepseek']) test(`actual ${provider}
       const localAssets = structuredClone(assets); if (change.assets) localAssets.files[0].content += '\n// changed deployment asset';
       const runtime: any = provider === 'codex' ? new CodexSubscriptionRunner(store, options) : provider === 'claude'
         ? new ClaudeSubscriptionRunner(store, options) : new DeepSeekApiKeyRunner(store, options, localAssets);
-      const driverOptions = { inputRoot: join(root, 'input'), timeoutMs: change.timeout ?? 30000 };
+      const driverOptions = { timeoutMs: change.timeout ?? 30000 };
       const driver = provider === 'codex' ? new CodexAgentDriver(runtime, artifacts, profile, driverOptions) : provider === 'claude'
         ? new ClaudeAgentDriver(runtime, artifacts, profile, driverOptions) : new DeepSeekAgentDriver(runtime, artifacts, profile, driverOptions);
       const executor = new AgentExecutor(contracts, artifacts, driver);

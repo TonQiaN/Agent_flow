@@ -10,10 +10,13 @@ export interface Invocation {
   /** Relative to the private state directory. Raw evidence, never business outputs. */
   readonly recordFiles?: readonly { readonly id: string; readonly path: string; readonly maxBytes: number }[];
 }
+/** Installed host capability. It materializes into a backend-owned staging path, never saved JSON. */
+export interface RunnerInputMaterializer { materialize(destination: string): Promise<void> }
 export interface RunnerRequest {
   readonly identity: ExecutionIdentity;
   readonly invocation: Invocation;
-  readonly inputSource: string;
+  /** null requests an owned empty input, or the installed backend materializer. */
+  readonly inputSource: string | null;
   readonly timeoutMs: number;
 }
 export interface Cancellation { requested(): boolean }
