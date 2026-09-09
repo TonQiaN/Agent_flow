@@ -34,3 +34,9 @@ Runner 先取得实际执行环境描述，再 allocate。分配后由 backend �
 [Workflow 恢复协调](workflow-recovery.md)已通过实际节点的 ScriptExecutor 绑定本接口，先认领 CAS 再核对、停止、移除和释放，确认记录留在同一 Run。该协调当前仍不启动新 Attempt。
 
 CONNECT 恢复会核对任务容器、代理和内外两张网络的完整身份；代理还核对固定镜像。即使任务容器缺失，仍须移除代理/网络才确认收尾；工作目录丢失不会跳过 Docker 核对。代理已停止或缺失不阻止恢复者收尾，但查询错误、同名异属或网络仍有其他成员导致移除失败时，不确认清理完成，不释放资源归属目录。恢复不会删除其他成员容器。见[验证](../validation/2026-09-10-network-resource-recovery.md)。
+
+## Agent 版本探针
+
+CodexSubscriptionRunner、ClaudeSubscriptionRunner 和 DeepSeekApiKeyRunner 共享 `versionProbeDefinition()` 与 `restoreVersionResource(checkpoint)`。宿主可通过 `run(request, cancellation, probeSink)` 单独记录认证获取前的版本探针：`save` 接收带实际探针定义的 Runner 资源，`launch` 接收共同启动日志，`complete` 在核验版本、移除容器并释放目录后被等待；任何记录拒绝都不能进入凭据获取。
+
+恢复只返回共同 Runner 管理句柄，调用者须先确认恢复所有权，再查询、停止/移除和释放。这个端口尚未接入 Workflow 的阶段检查点，也不记录后续模型执行资源或认证占用；不能据此恢复完整 Agent。实际中断与反例见[验证记录](../validation/2026-09-10-version-resource-recovery.md)。

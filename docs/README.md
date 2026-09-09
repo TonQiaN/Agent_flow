@@ -62,3 +62,5 @@
 [Agent 执行定义](guides/workflow-execution-snapshot.md)：实际 Harness、用户说明、运行资产及非秘密 Profile，执行/代理镜像固定并用于后续运行；Agent 资源与认证恢复仍待接通。
 
 [联网资源恢复](validation/2026-09-10-network-resource-recovery.md)：无私有认证的 CONNECT Script 经共同 Runner 核对并清理任务容器、代理与网络，再进入正常新 Attempt；Agent 认证恢复仍待完成。
+
+[Agent 版本探针资源](validation/2026-09-10-version-resource-recovery.md)已接通独立记录与共同 Runner 清理；完整 Agent 认证/执行恢复仍待接入。
