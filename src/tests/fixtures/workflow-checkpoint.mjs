@@ -14,14 +14,20 @@ if (mode === 'archive-fail') {
   archive.capture = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
 }
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
-if (['resource-fail', 'resource-pause'].includes(mode)) {
+if (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-')) {
   const cas = store.compareAndSwap.bind(store);
   store.compareAndSwap = async (runId, revision, content) => {
-    const resource = content.attempts.at(-1)?.resource;
+    const attempt = content.attempts.at(-1), resource = attempt?.resource;
+    if (mode === `journal-fail-${attempt?.launch}`) throw new Error('launch CAS failure');
+    if (mode === `journal-conflict-${attempt?.launch}`) {
+      const competing = await SqliteRunRecordStore.open(join(root, 'db'));
+      try { const current = await competing.read(runId); await competing.compareAndSwap(runId, current.revision, current.content); }
+      finally { competing.close(); }
+    }
     if (resource && mode === 'resource-fail') throw new Error('resource CAS failure');
     const record = await cas(runId, revision, content);
-    if (resource && mode === 'resource-pause') {
-      process.send({ event: 'resource-saved', resource: resource.resource });
+    if (resource && (mode === 'resource-pause' || mode === `journal-pause-${attempt.launch}`)) {
+      process.send({ event: 'resource-saved', resource: resource.resource, launch: attempt.launch });
       await new Promise(() => { setInterval(() => {}, 1000); });
     }
     return record;
@@ -46,10 +52,25 @@ try {
           const attempt = (await store.read('run')).content.attempts.at(-1);
           assert.equal(attempt.node, node); assert.deepEqual(attempt.identity, request.identity);
           assert.deepEqual(attempt.resource.resource, resource); assert.equal(attempt.resultStep, null);
+          assert.equal(attempt.launch, 'create_pending');
           await super.create(resource, request);
+          if (mode === 'journal-inside-create') {
+            process.send({ event: 'inside-operation', resource, launch: 'create_pending' });
+            await new Promise(() => { setInterval(() => {}, 1000); });
+          }
         }
         async start(resource) {
+          assert.equal((await store.read('run')).content.attempts.at(-1).launch, 'start_pending');
           await super.start(resource); started.push(node);
+          if (mode === 'journal-inside-start') {
+            const deadline = Date.now() + 5000;
+            while ((await super.observe(resource)).state !== 'running') {
+              if (Date.now() > deadline) throw new Error('test container did not start');
+              await new Promise(resolve => setTimeout(resolve, 20));
+            }
+            process.send({ event: 'inside-operation', resource, launch: 'start_pending' });
+            await new Promise(() => { setInterval(() => {}, 1000); });
+          }
           if (node === 'b' && mode === 'interrupt') {
             const deadline = Date.now() + 5000;
             while ((await super.observe(resource)).state !== 'running') {
@@ -63,7 +84,7 @@ try {
       const backend = new Backend({ workspaceRoot: join(root, 'attempts'), image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3' });
       backends.set(node, backend);
       const executor = new ScriptExecutor(backend, systemClock, { read: async file => readFile(file.path, 'utf8') });
-      const pause = node === 'b' && mode === 'interrupt' ? 'sleep 60; ' : '';
+      const pause = (node === 'b' && mode === 'interrupt' || mode.startsWith('journal-')) ? 'sleep 60; ' : '';
       files.registerScript({ id: node, kind: 'transform', inputContract: 'files', outcomes: { ok: 'files' }, implementation: node }, executor,
         { argv: ['/bin/sh', '-c', `set -eu; ${pause}cat /task/input/value.txt > /task/outputs/value.txt; printf ${node.toUpperCase()} >> /task/outputs/value.txt; printf changed > /task/input/value.txt; printf '%s' '{"schema":"agentflow-script-result/v1","outcome":"ok"}'`], timeoutMs: 70000 });
     }
@@ -112,7 +133,7 @@ try {
     const handle = await new WorkflowRuntime().startPersisted(flow, 'run', input, store);
     let result;
     try { result = await handle.completion; }
-    catch (error) { if (mode !== 'resource-fail') throw error; result = handle.query(); }
+    catch (error) { if (mode !== 'resource-fail' && !mode.startsWith('journal-fail-') && !mode.startsWith('journal-conflict-')) throw error; result = handle.query(); }
     console.log(JSON.stringify({ ...result, started, created }));
     await files.release(input, 'run');
     for (const step of result.steps) if (step.result.status === 'accepted') await files.release(step.result.output, 'run');

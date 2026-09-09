@@ -4,6 +4,7 @@ import { DefinitionError } from '../errors.js';
 import { canonicalJson, copyJson } from '../json.js';
 import type { RunRecordStore } from '../persistence/types.js';
 import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
+import { runnerLaunchStates } from '../runner/launch.js';
 import { getPlan, snapshot } from './compiler.js';
 import type { WorkflowCheckpoint, WorkflowCheckpointValue } from './checkpoint.js';
 import { assertWorkflowExecutionMatches } from './execution.js';
@@ -24,7 +25,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   let raw: JsonValue; try { raw = copyJson(value); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values', 'attempts']));
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
-  valid(c.schema === 'agentflow-workflow-checkpoint/v2' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
+  valid(c.schema === 'agentflow-workflow-checkpoint/v3' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
     && ['queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
@@ -100,13 +101,14 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   const resourceIds = new Set<string>();
   for (const [index, attempt] of c.attempts.entries()) {
     const step = v.steps[index];
-    valid(shape(attempt, ['node', 'identity', 'resultStep', 'resource']) && equal(attempt.identity, identity(runId, index + 1))
+    valid(shape(attempt, ['node', 'identity', 'resultStep', 'resource', 'launch']) && equal(attempt.identity, identity(runId, index + 1))
       && attempt.node === (step?.node ?? node) && attempt.resultStep === (step ? index : null));
     if (attempt.resource !== null) {
       const resource = validateRunnerResourceCheckpoint(attempt.resource);
       valid(equal(resource.identity, attempt.identity) && !resourceIds.has(resource.resource.id));
+      valid(attempt.launch !== null && runnerLaunchStates.includes(attempt.launch));
       resourceIds.add(resource.resource.id);
-    }
+    } else valid(attempt.launch === null);
   }
   return { checkpoint: c, requests };
 }

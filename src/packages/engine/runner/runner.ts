@@ -27,6 +27,17 @@ export class Runner {
     let stage = 'ALLOCATE';
     const diagnostics: string[] = [];
     const interruption = (): 'cancelled' | 'timed_out' | null => cancellation.requested() ? 'cancelled' : this.clock.now() >= deadline ? 'timed_out' : null;
+    const launch = async (operation: 'prepare' | 'create' | 'start', call: () => Promise<void>): Promise<boolean> => {
+      stage = 'RESOURCE_PERSISTENCE';
+      await persistence?.launch?.(`${operation}_pending`);
+      const interrupted = interruption();
+      if (interrupted) { phase = interrupted; return false; }
+      stage = operation.toUpperCase(); await call();
+      stage = 'RESOURCE_PERSISTENCE';
+      // start may only dispatch an asynchronous attach; observation, not return, confirms launch.
+      if (operation !== 'start') await persistence?.launch?.(`${operation}_completed`);
+      return true;
+    };
     try {
       const initial = interruption();
       if (initial) phase = initial;
@@ -34,7 +45,8 @@ export class Runner {
         let execution;
         if (persistence) {
           stage = 'RESOURCE_PERSISTENCE';
-          if (typeof persistence.save !== 'function' || !this.backend.definition || !this.backend.snapshotResource) throw new DefinitionError('RUNNER_RESOURCE_PERSISTENCE_UNAVAILABLE');
+          if (typeof persistence.save !== 'function' || persistence.launch !== undefined && typeof persistence.launch !== 'function'
+            || !this.backend.definition || !this.backend.snapshotResource) throw new DefinitionError('RUNNER_RESOURCE_PERSISTENCE_UNAVAILABLE');
           execution = copyJson(await this.backend.definition());
         }
         stage = 'ALLOCATE';
@@ -44,28 +56,24 @@ export class Runner {
           const backend = copyJson(await this.backend.snapshotResource!(resource, input.identity));
           await persistence.save(copyJson({ schema: 'agentflow-runner-resource/v1', identity: input.identity, resource, execution, backend }) as unknown as RunnerResourceCheckpoint);
         }
-        stage = 'PREPARE';
-        await this.backend.prepare(resource, input);
-        let interrupted = interruption();
-        if (interrupted) phase = interrupted;
-        else {
-          stage = 'CREATE';
-          await this.backend.create(resource, input);
-          interrupted = interruption();
-          if (interrupted) phase = interrupted;
-          else {
-            stage = 'START';
-            await this.backend.start(resource);
+        const owned = resource;
+        if (await launch('prepare', () => this.backend.prepare(owned, input))
+          && await launch('create', () => this.backend.create(owned, input))
+          && await launch('start', () => this.backend.start(owned))) {
             stage = 'OBSERVE';
+            let launched = false;
             for (;;) {
               const observed = await this.backend.observe(resource);
+              if (!launched && (observed.state === 'running' || observed.state === 'exited')) {
+                stage = 'RESOURCE_PERSISTENCE'; await persistence?.launch?.('start_completed');
+                launched = true; stage = 'OBSERVE';
+              }
               if (observed.state === 'exited') { phase = 'exited'; exitCode = observed.exitCode; stop = 'confirmed'; break; }
               if (observed.state === 'absent') throw new Error('EXECUTION_DISAPPEARED');
-              interrupted = interruption();
+              const interrupted = interruption();
               if (interrupted) { phase = interrupted; break; }
               await this.clock.sleep(Math.min(25, Math.max(1, deadline - this.clock.now())));
             }
-          }
         }
       }
     } catch { diagnostics.push(`${stage}_FAILED`); }

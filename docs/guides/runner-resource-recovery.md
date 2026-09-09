@@ -28,3 +28,5 @@ Runner 先取得实际执行环境描述，再 allocate。分配后由 backend �
 调用者必须在使用恢复句柄前取得上层恢复所有权，并阻止旧宿主晚到的创建/启动操作。该 Runner 端口不取得 Workflow CAS 租约、不刷新认证、不重新执行节点；私有绑定、交互、联网和 Agent 完整恢复继续实施。示例中的存储必须来自受信宿主，不能把模型提供的 JSON 当作资源管理授权。
 
 [Runner 基础](runner.md) · [检查点加载](workflow-checkpoint-loading.md) · [验证记录](../validation/2026-09-10-runner-resource-recovery.md)
+
+正常持久 Workflow 还提供 RunnerResourceSink.launch 操作记录端口，准备/创建/启动前置记录等待 CAS，启动完成以共同 observe 为准。仅使用 save 的独立 Runner 调用没有这份操作进度证据，不能将其视为具备自动恢复条件。见 [验证与边界](../validation/2026-09-10-runner-launch-journal.md)。

@@ -3,7 +3,8 @@ import { DefinitionError } from '../errors.js';
 import type { RunRecordStore } from '../persistence/types.js';
 import { canonicalJson, copyJson } from '../json.js';
 import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
-import type { RunnerResourceCheckpoint, RunnerResourceSink } from '../runner/types.js';
+import type { RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState } from '../runner/types.js';
+import { runnerLaunchStates } from '../runner/launch.js';
 import { getPlan, snapshot } from './compiler.js';
 import { snapshotWorkflowExecution } from './execution.js';
 import type { WorkflowExecutionSnapshot } from './execution.js';
@@ -23,7 +24,7 @@ export interface WorkflowCursor {
 }
 /** Inspectable durable facts, not an executable plan or permission to resume a Run. */
 export interface WorkflowCheckpoint {
-  readonly schema: 'agentflow-workflow-checkpoint/v2';
+  readonly schema: 'agentflow-workflow-checkpoint/v3';
   readonly execution: WorkflowExecutionSnapshot;
   readonly snapshot: WorkflowSnapshot;
   readonly cursor: WorkflowCursor;
@@ -35,6 +36,7 @@ export interface WorkflowAttemptCheckpoint {
   readonly identity: ExecutionIdentity;
   readonly resultStep: number | null;
   readonly resource: RunnerResourceCheckpoint | null;
+  readonly launch: RunnerLaunchState | null;
 }
 
 /** One writer per live Run; failed writes poison the lane rather than skipping a revision. */
@@ -56,20 +58,32 @@ export class CheckpointWriter {
     return writer;
   }
   beginAttempt(node: string, identity: ExecutionIdentity): void {
-    this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null });
+    this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null, launch: null });
   }
   finishAttempt(resultStep: number): void { this.#attempts.at(-1)!.resultStep = resultStep; }
   resourceSink(node: string, identity: ExecutionIdentity, commit: () => Promise<void>): { sink: RunnerResourceSink; close(): void } | undefined {
     const definition = this.#resourceDefinitions.get(node); if (definition === undefined) return undefined;
-    const attempt = this.#attempts.at(-1)!; let closed = false;
+    const attempt = this.#attempts.at(-1)!; let closed = false, writing = false;
+    const active = () => {
+      if (closed || writing || attempt !== this.#attempts.at(-1) || attempt.resultStep !== null) throw new DefinitionError('WORKFLOW_RESOURCE_PORT_CLOSED');
+    };
+    const persist = async () => {
+      writing = true;
+      try { await commit(); } catch (error) { closed = true; throw error; } finally { writing = false; }
+    };
     return { close: () => { closed = true; }, sink: Object.freeze({ save: async (value: RunnerResourceCheckpoint) => {
-      if (closed || attempt !== this.#attempts.at(-1) || attempt.resultStep !== null || attempt.resource !== null) throw new DefinitionError('WORKFLOW_RESOURCE_PORT_CLOSED');
+      active(); if (attempt.resource !== null) throw new DefinitionError('WORKFLOW_RESOURCE_PORT_CLOSED');
       const record = validateRunnerResourceCheckpoint(value);
       if (attempt.node !== node || canonicalJson(copyJson(record.identity)) !== canonicalJson(copyJson(identity))
         || canonicalJson(record.execution) !== canonicalJson(definition)
         || this.#attempts.some(a => a.resource?.resource.id === record.resource.id)) throw new DefinitionError('WORKFLOW_RESOURCE_MISMATCH');
-      attempt.resource = record;
-      await commit();
+      attempt.resource = record; attempt.launch = 'allocated';
+      await persist();
+    }, launch: async (state: Exclude<RunnerLaunchState, 'allocated'>) => {
+      active();
+      if (!attempt.resource || attempt.launch === null || !runnerLaunchStates.includes(state)
+        || state !== runnerLaunchStates[runnerLaunchStates.indexOf(attempt.launch) + 1]) throw new DefinitionError('WORKFLOW_LAUNCH_TRANSITION_INVALID');
+      attempt.launch = state; await persist();
     } }) };
   }
   async saveValue(node: string, contract: WorkflowContract, value: JsonValue): Promise<WorkflowCheckpointValue> {
@@ -83,7 +97,7 @@ export class CheckpointWriter {
   /** Publish with the corresponding input/accepted step, without an intervening await. */
   acceptValue(value: WorkflowCheckpointValue): void { this.#values.push(snapshot(value)); }
   write(view: WorkflowSnapshot, cursor: WorkflowCursor): Promise<void> {
-    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v2', execution: this.execution,
+    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v3', execution: this.execution,
       snapshot: view, cursor, values: this.#values, attempts: this.#attempts }) as unknown as JsonValue;
     this.#tail = this.#tail.then(async () => {
       const record = this.#revision === undefined ? await this.store.create(this.runId, content)

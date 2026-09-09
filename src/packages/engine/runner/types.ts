@@ -60,7 +60,12 @@ export interface RunnerResourceCheckpoint {
   readonly execution: JsonValue;
   readonly backend: JsonValue;
 }
-export interface RunnerResourceSink { save(checkpoint: RunnerResourceCheckpoint): Promise<void> }
+export type RunnerLaunchState = 'allocated' | 'prepare_pending' | 'prepare_completed' | 'create_pending' | 'create_completed' | 'start_pending' | 'start_completed';
+export interface RunnerResourceSink {
+  save(checkpoint: RunnerResourceCheckpoint): Promise<void>;
+  /** Per-invocation durable operation journal; a rejected write prevents further launch operations. */
+  launch?(state: Exclude<RunnerLaunchState, 'allocated'>): Promise<void>;
+}
 export interface RestoredRunnerResource {
   readonly identity: ExecutionIdentity;
   readonly resource: ExecutionResource;
