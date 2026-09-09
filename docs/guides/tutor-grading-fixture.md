@@ -13,7 +13,9 @@ node --import tsx src/examples/tutor-grading/demo.ts /tmp/agentflow-tutor-fixtur
 
 ## 用户定义与业务边界
 
-`src/examples/tutor-grading/flow.ts` 的 gradingDefinition 返回普通 Workflow 定义，节点引用已安装 Component，返修目标、次数与最大步数由调用方选择。示例支持 marker、fixer、repairs 和 maxSteps 选项；revision 只是业务数据，不能控制引擎计数。不同题型的评分规则可替换 gate.ts，核心引擎没有 Tutor 专用分支。fixture-driver.ts 从独立固定答案文件生成候选，只是测试替身。
+`src/examples/tutor-grading/flow.ts` 的 gradingWorkflow 返回普通 Workflow 定义，节点引用已安装 Component，返修目标、次数与最大步数由调用方选择。fixture.ts 的 gradingDefinition 给固定答案替身选择 marker、fixer、repairs 和 maxSteps；revision 只是业务数据，不能控制引擎计数。不同题型的评分规则可替换 gate.ts，核心引擎没有 Tutor 专用分支。fixture-driver.ts 从独立固定答案文件生成候选，只是测试替身。
+
+createGradingApplication 接受 source、driver 工厂、agents 绑定和 definition。Agent 绑定由用户提供 Component、prompt 和 config，应用安装到既有 AgentExecutor；替换驱动无需修改 Gate 或路由规则。应用在异步准备前复制绑定和定义，拒绝 Agent 占用 Gate/Transform/Effect 的受信 Component ID。固定答案包装位于 fixture.ts，真实 Codex 入口位于 codex.ts，共享 flow.ts 不导入任何具体 Harness 或凭据实现。
 
 Gate 核对原始来源摘要、试卷/学生身份、题目覆盖、评分、总分和页码/答案证据。来源改变直接 rejected；评分或证据错误走 revise；候选 JSON 不合约直接执行失败，不进入业务返修路由。正常 rejected 与引擎 failed、最大步数 exhausted 分开记录。
 

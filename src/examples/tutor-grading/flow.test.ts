@@ -4,8 +4,12 @@ import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { compileWorkflow } from '@agentflow/engine';
-import { createGradingFixture, gradingDefinition } from './flow.js';
-import type { GradingOptions, GradingRun } from './flow.js';
+import { createGradingFixture, gradingDefinition } from './fixture.js';
+import type { GradingOptions } from './fixture.js';
+import type { GradingRun } from './flow.js';
+import { createGradingApplication, gradingComponent, gradingWorkflow } from './flow.js';
+import { GradingFixtureDriver, fixtureRoot } from './fixture-driver.js';
+import type { AgentExecutionDriver, HarnessTask } from '@agentflow/engine';
 import { sourcePaths } from './gate.js';
 import type { GateReport } from './gate.js';
 
@@ -102,4 +106,37 @@ test('Tutor: apply requires host permission even with a genuine passing Gate', a
   const f = await fixture(t, { marker: 'correct', mode: 'apply' }), run = await f.run('no-grant');
   assert.equal(run.snapshot.status, 'failed'); assert.equal((await report(f, run)).decision, 'passed'); assert.equal(f.service.writes, 0);
   await assert.rejects(f.run('no-grant'), /DUPLICATE_GRADING_RUN/); await clean(f, run);
+});
+
+test('Tutor: injected driver, user prompt and Component names replace fixture bindings without changing Gate or routing', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'af-tutor-injected-')); t.after(() => rm(root, { recursive: true, force: true }));
+  const tasks: HarnessTask[] = [];
+  const bindings = [{ component: gradingComponent('user-marker', 'agent', 'source-files', { completed: 'candidate-files' }), prompt: 'User marking instructions', config: { recipe: 'wrong' } },
+    { component: gradingComponent('user-fixer', 'agent', 'reviewed-files', { completed: 'candidate-files' }), prompt: 'User repair instructions', config: { recipe: 'correct' } }];
+  const definition = gradingWorkflow({ id: 'injected', marker: 'user-marker', fixer: 'user-fixer', repairs: 1 });
+  const pending = createGradingApplication(root, { source: join(fixtureRoot, 'source'), agents: bindings, definition, driver: artifacts => {
+    const fixture = new GradingFixtureDriver(artifacts, join(root, 'agents'));
+    const adapt = (task: HarnessTask): HarnessTask => ({ ...task, config: { mode: (task.config as { recipe: string }).recipe } });
+    const driver: AgentExecutionDriver = { harness: fixture.harness, validate(task) { fixture.validate(adapt(task)); },
+      run(task, input) { tasks.push(structuredClone(task)); return fixture.run(adapt(task), input); } }; return driver;
+  } });
+  bindings[0]!.prompt = 'mutated'; bindings[0]!.config.recipe = 'malformed';
+  (definition.nodes as Record<string, { component: string }>)['marker']!.component = 'unknown';
+  const app = await pending, run = await app.run('injected');
+  assert.equal(run.snapshot.outcome, 'published'); assert.equal(run.snapshot.steps.length, 7);
+  assert.deepEqual(tasks.map(t => t.prompt), ['User marking instructions', 'User repair instructions']);
+  assert.deepEqual(tasks.map(t => t.config), [{ recipe: 'wrong' }, { recipe: 'correct' }]);
+  assert.equal(app.service.writes, 0); await app.release(run);
+  assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+});
+
+test('Tutor: custom Agent bindings cannot replace a trusted Gate or reuse another binding ID', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'af-tutor-bindings-')); t.after(() => rm(root, { recursive: true, force: true })); let factories = 0;
+  const base = { source: join(fixtureRoot, 'source'), definition: gradingWorkflow({ id: 'invalid', marker: 'marker', fixer: 'fixer' }),
+    driver: () => { factories++; throw new Error('MUST_NOT_CONSTRUCT'); } };
+  const binding = { component: gradingComponent('grading-gate', 'agent', 'source-files', { completed: 'candidate-files' }), prompt: 'invalid', config: {} };
+  await assert.rejects(createGradingApplication(root, { ...base, agents: [binding] }), /INVALID_GRADING_AGENT_BINDING/);
+  binding.component = gradingComponent('duplicate', 'agent', 'source-files', { completed: 'candidate-files' });
+  await assert.rejects(createGradingApplication(root, { ...base, agents: [binding, binding] }), /INVALID_GRADING_AGENT_BINDING/);
+  assert.equal(factories, 0); assert.deepEqual(await readdir(root), []);
 });
