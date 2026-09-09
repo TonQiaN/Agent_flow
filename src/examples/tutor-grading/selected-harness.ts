@@ -37,7 +37,7 @@ export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.Pr
   const store = new FileCredentialStore(storeRoot, [new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec(), new DeepSeekApiKeyCodec()]);
   const options = (root: string) => ({ workspaceRoot: join(root, 'attempts'), image, proxyImage });
   const driver = (artifacts: ArtifactStore, root: string): AgentExecutionDriver => {
-    const execution = { inputRoot: join(root, 'driver-inputs'), timeoutMs: 180_000 };
+    const execution = { timeoutMs: 180_000 };
     const common = { id: 'tutor-acceptance', credentialRef, endpoint: 'official' as const };
     if (harness === 'codex') return new CodexAgentDriver(new CodexSubscriptionRunner(store, options(root)), artifacts,
       { ...common, service: 'openai', method: 'subscription', capacity: 1 }, execution);

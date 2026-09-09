@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS, snapshotJson } from '@agentflow/engine';
 import type { JsonValue, ExecutionIdentity } from '@agentflow/domain';
-import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
+import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, RunnerInputMaterializer, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
 import type { AttachedProcess, DockerInteraction } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
@@ -69,9 +69,10 @@ export class DockerBackend implements ExecutionBackend {
   readonly #options: Required<DockerOptions>;
   readonly #binding: PrivateStateBinding | undefined;
   readonly #interaction: DockerInteraction | undefined;
+  readonly #input: RunnerInputMaterializer | undefined;
   readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction) {
+  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction, input?: RunnerInputMaterializer) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
       uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
@@ -88,6 +89,8 @@ export class DockerBackend implements ExecutionBackend {
     this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
     if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function' || binding.secretEnvironment !== undefined && typeof binding.secretEnvironment !== 'function')) throw new Error('INVALID_STATE_BINDING');
     if (interaction && (typeof interaction.open !== 'function' || typeof interaction.output !== 'function')) throw new Error('INVALID_DOCKER_INTERACTION');
+    if (input && (Object.keys(input).some(key => key !== 'materialize') || typeof input.materialize !== 'function')) throw new Error('INVALID_INPUT_MATERIALIZER');
+    this.#input = input ? Object.freeze({ materialize: input.materialize.bind(input) }) : undefined;
     this.#interaction = interaction;
     this.#binding = binding;
     this.#stateEnv = stateEnvironment(binding?.environment ?? {});
@@ -185,9 +188,15 @@ export class DockerBackend implements ExecutionBackend {
       || new Set(configs.map(file => file.name)).size !== configs.length
       || configs.some(file => configs.some(other => other.name.startsWith(`${file.name}/`)))) throw new Error('INVALID_CONFIG_FILES');
     if (this.#options.systemConfigMounts.some(m => !configs.some(f => f.name === m.name))) throw new Error('MISSING_SYSTEM_CONFIG_SOURCE');
+    if (this.#input && request.inputSource !== null) throw new Error('AMBIGUOUS_INPUT_SOURCE');
     owned.request = request;
     for (const name of [...Object.keys(TASK_PATHS), 'raw']) await mkdir(join(owned.directory, name), { mode: 0o700 });
-    await copyInput(request.inputSource, join(owned.directory, 'input'));
+    if (this.#input) {
+      const staged = join(owned.directory, 'input-source');
+      await this.#input.materialize(staged);
+      await copyInput(staged, join(owned.directory, 'input'));
+      await rm(staged, { recursive: true });
+    } else if (request.inputSource !== null) await copyInput(request.inputSource, join(owned.directory, 'input'));
     for (const file of configs) {
       const path = join(owned.directory, 'config', file.name);
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });

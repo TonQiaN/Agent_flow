@@ -1,7 +1,5 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { Runner, snapshotJson, canonicalJson } from '@agentflow/engine';
-import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation, RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from '@agentflow/engine';
+import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation, RunnerInputMaterializer, RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from '@agentflow/engine';
 import type { JsonValue } from '@agentflow/domain';
 import type { DockerOptions, SystemConfigMount } from '../docker/backend.js';
 import { DockerBackend } from '../docker/backend.js';
@@ -30,7 +28,7 @@ interface CredentialRecipeBase<P extends CredentialIdentity> {
 }
 
 export interface CredentialRunRequest<P extends CredentialIdentity> {
-  readonly task: HarnessTask; readonly profile: P; readonly inputSource: string; readonly timeoutMs: number;
+  readonly task: HarnessTask; readonly profile: P; readonly inputSource: string | null; readonly timeoutMs: number;
 }
 export interface CredentialExecutionResult {
   readonly stage: 'version' | 'execution';
@@ -152,15 +150,17 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
         : new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
   }
 
-  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }, persistence?: CredentialRunPersistence): Promise<CredentialExecution> {
+  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }, persistence?: CredentialRunPersistence, materializer?: RunnerInputMaterializer): Promise<CredentialExecution> {
     let task: HarnessTask;
     try { task = structuredClone(request.task); } catch { throw new Error('INVALID_HARNESS_TASK'); }
     const adapter = this.#recipe.adapter(); const plan = adapter.plan(task);
     const invocation = this.#recipe.invocation(plan);
     const profile = this.#recipe.profile(request.profile);
     const inputSource = request.inputSource; const timeoutMs = request.timeoutMs;
-    if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || typeof inputSource !== 'string'
+    if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || (inputSource === null ? !materializer || typeof materializer.materialize !== 'function' : typeof inputSource !== 'string' || materializer !== undefined)
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
+    if (materializer && Object.keys(materializer).some(key => key !== 'materialize')) throw new Error('INVALID_INPUT_MATERIALIZER');
+    const inputMaterializer = materializer ? Object.freeze({ materialize: materializer.materialize.bind(materializer) }) : undefined;
     const probePersistence = persistence?.version;
     if (persistence && (!probePersistence || Object.keys(persistence).some(key => !['version', 'execution', 'acquisition'].includes(key)))) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
     if (persistence?.execution && (typeof persistence.execution.save !== 'function' || persistence.execution.launch !== undefined && typeof persistence.execution.launch !== 'function')) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
@@ -180,11 +180,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     const probeBackend = this.#probeBackend(imageId);
     const probeRunner = new Runner(probeBackend, systemClock);
-    await mkdir(this.#options.workspaceRoot, { recursive: true, mode: 0o700 });
-    const empty = await mkdtemp(join(this.#options.workspaceRoot, 'version-input-'));
-    let probe: RunnerResult;
-    try { probe = await probeRunner.run({ identity: task.identity, inputSource: empty, timeoutMs: 10_000, invocation: { argv: this.#recipe.versionCommand } }, cancellation, probeSink); }
-    finally { await rm(empty, { recursive: true, force: true }); }
+    const probe = await probeRunner.run({ identity: task.identity, inputSource: null, timeoutMs: 10_000, invocation: { argv: this.#recipe.versionCommand } }, cancellation, probeSink);
     let actual: string | null = null;
     if (probe.phase === 'exited' && probe.exitCode === 0 && probe.stop === 'confirmed' && probe.cleanup === 'removed'
       && probe.capture?.imageId === imageId && [probe.capture.stdout, probe.capture.stderr].every(file => file.complete && !file.truncated && !file.error)) {
@@ -208,7 +204,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
       await persistence?.acquisition?.complete();
-      backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding);
+      backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding, undefined, inputMaterializer);
       if (expectedEnvironment && canonicalJson(await backend.definition()) !== canonicalJson(expectedEnvironment)) throw new Error('CREDENTIAL_RESOURCE_DEFINITION_MISMATCH');
       runner = new Runner(backend, systemClock);
       result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation, persistence?.execution);

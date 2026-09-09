@@ -11,7 +11,7 @@ export type { AgentExecutionDriver, AgentExecutionHandle, AgentExecutionFacts, A
 export type { ExecutionResult, ExecutionFailureCode } from './components/executor.js';
 export { Runner } from './runner/runner.js';
 export { TASK_PATHS } from './runner/types.js';
-export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, ExecutionBackend, ExecutionResource, Observation, RawCapture, CapturedFile } from './runner/types.js';
+export type { RunnerInputMaterializer, RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, ExecutionBackend, ExecutionResource, Observation, RawCapture, CapturedFile } from './runner/types.js';
 export { HarnessRegistry } from './harness/registry.js';
 export type { HarnessAdapter, HarnessTask, HarnessPlan, HarnessEvent, HarnessUsage, HarnessEvidence, HarnessResult } from './harness/types.js';
 export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore, CredentialManagementLease, CredentialManagementStore, CredentialRecoveryStore, CredentialRecoveryResult } from './auth/types.js';

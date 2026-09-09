@@ -12,7 +12,7 @@
 
 恢复仍经原 claim/cleanup/resumePersisted 接口。活动宿主 operation 或 pending launch 缺少安全接管证据，拒绝认领且不修改记录。其他可恢复状态按反向顺序清理所有已保存的阶段资源，包括已经标记完成的阶段；只有全部确认后才允许同一 NodeTask 的新 Attempt。已接纳前序节点保留，阶段数量不消耗业务步骤预算。清理部分失败可重试，迟到 worker 不能覆盖新的 CAS revision。
 
-实际 Agent 的阶段接线和文件收据已接入；临时输入目录的崩溃清理、订阅凭据占用接管和真实官方模型恢复尚未验收。此接口不授予凭据读取、强制解锁或 Effect 重放能力。验证见[阶段记录](../validation/2026-09-10-workflow-phases.md)，取舍见[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+实际 Agent 的阶段接线和文件收据已接入；探针与 Driver 输入已归入 Runner 目录；Catalog 等其他宿主临时目录的崩溃清理、订阅占用接管和真实官方模型恢复尚未验收。此接口不授予凭据读取、强制解锁或 Effect 重放能力。验证见[阶段记录](../validation/2026-09-10-workflow-phases.md)，取舍见[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
 
 ## 实际 Agent 组合
 
@@ -21,3 +21,5 @@
 获取前 CAS 失败不会访问凭据；获取完成的 CAS 失败会放弃内存绑定，不分配执行资源。若宿主在获取操作内中断，记录保持不确定，自动认领拒绝。Codex/Claude 订阅 Driver 当前资源计划为 null，实际定义仍可比较，持久启动继续拒绝。恢复管理旧资源不访问凭据；只有进入新的正常 Attempt 才重新获取当前凭据。
 
 严格文件加载同时核对外层前序引用、归档清单和内层 Agent 收据的身份、组件、outcome、Harness、版本及实际镜像。内层输入可有独立快照 ID，但文件内容必须与前序清单完全一致；输出清单须与归档一致。File Catalog 使用源文件调用 Agent，因此内层 predecessor 必须为 null。收据不会导入新 AgentExecutor 的进程内映射，也不会重跑旧模型或重做业务接纳。见[实际组合验证](../validation/2026-09-10-agent-workflow.md)。
+
+探针不再创建外部空输入目录，Driver 输入直接在 Runner 已登记目录内物化；正常与恢复 release 统一收尾，见[输入物化](runner-owned-input.md)。其他宿主临时目录仍待处理。

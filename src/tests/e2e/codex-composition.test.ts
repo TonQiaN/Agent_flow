@@ -83,7 +83,7 @@ test('Codex composition: synthetic executable exercises version, binding, refres
       });
       const artifacts = new FileArtifactStore(join(root, 'artifacts'), files);
       const driver = new CodexAgentDriver(runtime, artifacts, { id: 'test', ...credential, service: 'openai', method: 'subscription', endpoint: 'official', capacity: 1 },
-        { inputRoot: join(root, 'driver-inputs'), timeoutMs: 10_000 });
+        { timeoutMs: 10_000 });
       const coordinator = new AgentExecutor(files, artifacts, driver);
       for (const multi of [false, true]) {
         const attempt = await coordinator.execute({ componentId: 'sum', identity: { runId: 'coordinated', nodeTaskId: 'sum', attemptId: multi ? 'multi' : 'single', attemptNumber: 1 },
@@ -100,7 +100,7 @@ test('Codex composition: synthetic executable exercises version, binding, refres
           await coordinator.releaseOutput(result.receipt.id);
         } finally { await attempt.retryCleanup(); await attempt.releaseExecution(); }
       }
-      assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+      await assert.rejects(readdir(join(root, 'driver-inputs')), { code: 'ENOENT' }); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
     } finally {
       if (aliases) execFileSync('docker', ['image', 'rm', executionTag, proxyTag], { stdio: 'pipe' });
       if (built) execFileSync('docker', ['image', 'rm', tag], { stdio: 'pipe' });

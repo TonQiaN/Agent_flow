@@ -12,7 +12,7 @@ export class Runner {
     try { input = copyJson(request) as unknown as RunnerRequest; }
     catch { throw new DefinitionError('INVALID_RUNNER_REQUEST'); }
     if (!isExecutionIdentity(input?.identity) || !Number.isSafeInteger(input.timeoutMs)
-      || input.timeoutMs < 1 || input.timeoutMs > 86_400_000 || typeof input.inputSource !== 'string'
+      || input.timeoutMs < 1 || input.timeoutMs > 86_400_000 || input.inputSource !== null && typeof input.inputSource !== 'string'
       || !input.invocation || !Array.isArray(input.invocation.argv) || input.invocation.argv.length === 0
       || input.invocation.argv.length > 128 || input.invocation.argv.some(arg => typeof arg !== 'string' || arg.includes('\0'))
       || !input.invocation.argv[0] || input.invocation.argv.join('').length > 32_768) throw new DefinitionError('INVALID_RUNNER_REQUEST');

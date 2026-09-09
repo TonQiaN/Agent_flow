@@ -77,7 +77,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       });
       const artifacts = new FileArtifactStore(join(root, 'artifacts'), files);
       const driver = new ClaudeAgentDriver(runtime, artifacts, { id: 'test', ...credential, service: 'anthropic', method: 'subscription', endpoint: 'official', capacity: 1 },
-        { inputRoot: join(root, 'driver-inputs'), timeoutMs: 10_000 });
+        { timeoutMs: 10_000 });
       const coordinator = new AgentExecutor(files, artifacts, driver);
       for (const multi of [false, true]) {
         const attempt = await coordinator.execute({ componentId: 'sum', identity: { runId: 'coordinated', nodeTaskId: 'sum', attemptId: multi ? 'multi' : 'single', attemptNumber: 1 },
@@ -112,7 +112,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       try { const wrong = await wrongVersion.run(base); assert.equal(wrong.result.stage, 'version'); assert.equal(wrong.result.authentication, null); await wrong.retryCleanup(); await wrong.release(); }
       finally { await held.release(); }
       assert.deepEqual(await readdir(join(root, 'attempts')), []); assert.deepEqual(await readdir(join(root, 'version-attempts')), []);
-      assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+      await assert.rejects(readdir(join(root, 'driver-inputs')), { code: 'ENOENT' }); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
       passed = true;
     } finally {
       if (built) execFileSync('docker', ['image', 'rm', tag], { stdio: 'pipe' });
