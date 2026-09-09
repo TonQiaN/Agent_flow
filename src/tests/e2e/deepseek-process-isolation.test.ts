@@ -53,12 +53,14 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
       environment: binding.environment, secretEnvironment: resource => binding.secretEnvironment(resource), async prepare(resource, state) { await binding.prepare(resource, state); await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, beforeRelease: resource => binding.beforeRelease(resource),
     }), systemClock);
+    removable = false;
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
       invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(true), { name: 'deepseek.json', content: JSON.stringify(patches) },
         { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), captureSession: true, launch: true, hostKey: true, port: 39091, prompt: '完成工具隔离测试。', privateImage: png, steps }) },
         { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
-    removable = result.stop === 'confirmed' && result.cleanup === 'removed';
-    assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(removable);
+    await writeFile(join(root, 'runner-result.json'), JSON.stringify(result, null, 2), { mode: 0o600 });
+    const stopped = result.stop === 'confirmed' && result.cleanup === 'removed';
+    assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(stopped);
     const auth = await binding.finish(result); assert.equal(auth.status, 'released'); assert.equal(auth.refresh, 'unchanged');
     assert.equal((await store.inspect(credential))!.revision, 1);
     await assert.rejects(readFile(join(dirname(result.capture!.outputsPath), 'state/deepseek-api-key.json')), { code: 'ENOENT' });
@@ -114,7 +116,11 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     assert.equal(await readFile(join(input, 'original.txt'), 'utf8'), '原始答案');
     assert.equal(await readFile(join(attempt, 'state/private-fixture.txt'), 'utf8'), 'private-fixture-content');
     assert.deepEqual(JSON.parse(await readFile(join(attempt, 'config/deepseek.json'), 'utf8')), patches);
-  } finally { if (removable) await rm(root, { recursive: true, force: true }); }
+    removable = true;
+  } finally {
+    if (removable) await rm(root, { recursive: true, force: true });
+    else process.stderr.write(`Retained DeepSeek process test evidence: ${root}\n`);
+  }
 });
 
 test('DeepSeek process seam: default read-only, environment, spill retrieval, background, timeout and tree cancellation', { skip: !image, timeout: 120000 }, async () => {

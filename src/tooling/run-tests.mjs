@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 
 function testsAt(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -11,6 +12,6 @@ function testsAt(directory) {
 }
 const tests = testsAt('src').sort();
 if (!tests.length) throw new Error('No tests discovered');
-const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', ...tests], { stdio: 'inherit' });
+const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', `--test-concurrency=${Math.min(4, availableParallelism())}`, ...tests], { stdio: 'inherit' });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;
