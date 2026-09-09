@@ -14,3 +14,6 @@ export type { CodexSubscriptionProfile } from './auth/codex-subscription.js';
 export { CodexSubscriptionRunner, CodexExecution } from './execution/codex-runner.js';
 export { CodexAgentDriver } from './execution/codex-agent-driver.js';
 export type { CodexRunRequest, CodexExecutionResult } from './execution/codex-runner.js';
+
+export { FileWorkflowCatalog } from './workflow/files.js';
+export type { FileFunctionContext, FileWorkflowFunction, FileWorkflowReceipt } from './workflow/files.js';

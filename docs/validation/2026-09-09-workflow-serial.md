@@ -36,3 +36,5 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_CODEX_IMAGE=<已核�
 参考 Blackbox 5610d1b 的 compiler、runtime、effects：复用引用/契约/路由检查、取消/步数和 Effect 分离的取舍，不搬迁旧运行时的文件系统/存储/egress 耦合。本次先修订 [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) 再实现，Issue #9 已登记切片预检。
 
 [Workflow 使用指南](../guides/workflow.md) · [首个 Harness 验证](2026-09-09-codex-startup.md)
+
+后续进展：文件函数与 Agent 交接已在同一 Workflow 工作项补齐，验证与当前限制见 [后续文件切片记录](2026-09-09-workflow-files.md)。上述 104 项是本串行切片当时的检查结果。

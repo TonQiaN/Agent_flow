@@ -1,6 +1,6 @@
 # Workflow 编译与串行执行
 
-当前库 API 可编译用户定义的串行流程，通过已登记的 JSON gate/transform 函数执行、查询与取消。它不依赖 Docker、Harness 或实际文件系统；真实 Agent/文件/脚本和模拟 Effect 的统一接入仍在后续切片完成。本指南不代表完整 Issue #9 或 Tutor 批卷已交付。
+当前库 API 可编译用户定义的串行流程，通过已登记的 JSON gate/transform 函数执行、查询与取消。编译器和运行控制不依赖 Docker、Harness 或实际文件系统；独立的文件适配已接入可信文件函数与 AgentExecutor，脚本和模拟 Effect 仍在后续切片完成。本指南不代表完整 Issue #9 或 Tutor 批卷已交付。
 
 ## 定义与编译
 
@@ -15,7 +15,7 @@
 
 编译计划的公开 definition 是副本；调用者修改原定义、公开副本或 catalog 的方法引用，不会重定向已有计划。只有编译器登记的计划能启动；把 definition JSON 包成同形对象不能伪造它。
 
-首个 `JsonFunctionWorkflowCatalog(contracts, components, functions)` 复用 Component 使用指南中的三个注册表，拒绝 agent/effect 或未知函数。其他执行端口必须由受信宿主显式安装并自行声明实际支持；当前接口能够表达 files 类别不等于已实现文件 Workflow。
+首个 `JsonFunctionWorkflowCatalog(contracts, components, functions)` 复用 Component 使用指南中的三个注册表，拒绝 agent/effect 或未知函数。其他执行端口必须由受信宿主显式安装并自行声明实际支持；文件节点通过 integrations 的 FileWorkflowCatalog 显式安装，详见 [文件 Workflow](workflow-files.md)。
 
 ## 返修与终点
 
@@ -47,7 +47,7 @@ const final = await run.completion;
 
 cancel 登记请求，执行端口通过 Cancellation 观察它。启动前和每次执行后都检查，取消后不启动后继。可信 TypeScript 函数只能合作式结束，不能强行中断同步计算；等待函数返回期间仍为 cancelling。端口失败时 stopped=false 或直接抛出未知异常，Run 记录 EXECUTION_STOP_UNCONFIRMED，不宣称取消完成。具体执行器负责保留其资源清理能力；本切片的 JSON 函数端口没有外部运行资源。
 
-执行失败、身份错误、非法 outcome 和实际输出契约失败都停止流程，不走业务路由。Workflow 在输入与接纳后重查契约；它不会仅凭端口的 accepted 字样推进。文件/Agent 适配仍须通过可信快照登记和实际收尾兑现相同边界。
+执行失败、身份错误、非法 outcome 和实际输出契约失败都停止流程，不走业务路由。Workflow 在输入与接纳后重查契约；它不会仅凭端口的 accepted 字样推进。文件/Agent 适配通过私有快照引用、交接摘要复核及清理后接纳兑现相同边界。
 
 ## 可执行示例
 

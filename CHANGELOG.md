@@ -6,6 +6,8 @@
 
 ### 新增
 
+- Workflow 接入可信文件 Gate/Transform 与 AgentExecutor：私有引用绑定 Run 和前序，独立可写输入在交接时复核摘要，执行资源清理失败阻止推进并保留可重试能力；新增跨 Agent/Gate/Fixer 的合成集成验证。
+
 - 增加独立 Workflow 编译器与串行 Run 控制，先接入 JSON gate/transform 函数；校验契约类别/ID 与出口路由，支持用户定义的返修上限、最大步数、查询和合作式取消，保留最后接纳结果与停止未证实的失败。
 
 - 增加与 Harness/认证解耦的 Agent 接纳层、Codex 执行驱动及进程内可信收据：绑定身份、输入输出快照与 outcome，拒绝伪造/跨 Run 前序和重复 Attempt，清理恢复不会升级原失败结果。
