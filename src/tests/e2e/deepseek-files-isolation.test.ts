@@ -27,12 +27,14 @@ test('DeepSeek native read/edit/write use isolated filesystem and preserve host 
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
       environment: {}, async prepare(_resource, state) { await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, async beforeRelease() {},
     }), systemClock);
+    removable = false; // Preserve bounded raw evidence if execution or assertions fail.
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'files', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
       invocation: { argv: ['node', '/task/config/server.cjs'], configFiles: [...files, { name: 'deepseek.json', content: JSON.stringify(patches) },
         { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成隔离文件工具测试。'), steps }) },
         { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
-    removable = result.stop === 'confirmed' && result.cleanup === 'removed';
-    assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(removable);
+    await writeFile(join(root, 'runner-result.json'), JSON.stringify(result, null, 2), { mode: 0o600 });
+    const stopped = result.stop === 'confirmed' && result.cleanup === 'removed';
+    assert.equal(result.phase, 'exited', `Retained Runner evidence: ${root}`); assert.equal(result.exitCode, 0); assert.ok(stopped);
     const observed = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
     assert.equal(observed.code, 0, observed.stderr); assert.equal(observed.signal, null);
     assert.equal(Object.keys(observed.results).length, steps.length);
@@ -48,7 +50,11 @@ test('DeepSeek native read/edit/write use isolated filesystem and preserve host 
     assert.equal(await readFile(join(input, 'original.txt'), 'utf8'), '原始答案');
     assert.equal(await readFile(join(attempt, 'state/private-fixture.txt'), 'utf8'), 'private-fixture-content');
     assert.deepEqual(JSON.parse(await readFile(join(attempt, 'config/deepseek.json'), 'utf8')), patches);
-  } finally { if (removable) await rm(root, { recursive: true, force: true }); }
+    removable = true;
+  } finally {
+    if (removable) await rm(root, { recursive: true, force: true });
+    else process.stderr.write(`Retained DeepSeek test evidence: ${root}\n`);
+  }
 });
 
 test('DeepSeek filesystem seam: versions, read-only, byte limits, raw environment isolation and confirmed cancellation', { skip: !image, timeout: 120000 }, async () => {
@@ -58,11 +64,17 @@ test('DeepSeek filesystem seam: versions, read-only, byte limits, raw environmen
     const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk', 'tool-space'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
       content: await readFile(new URL(`../../apps/deepseek-tools/${name}.mjs`, import.meta.url), 'utf8') })));
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }), systemClock);
+    removable = false; // Preserve bounded raw evidence if execution or assertions fail.
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'seam', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
       invocation: { argv: ['/usr/bin/env', 'DEEPSEEK_API_KEY=fixture-parent-secret', 'NARB_DISABLE_NATIVE_CACHE=1', 'node', '/task/config/seam.mjs'], configFiles: [...files,
         { name: 'seam.mjs', content: await readFile(new URL('../fixtures/deepseek-fs-seam.mjs', import.meta.url), 'utf8') }] } });
-    removable = result.stop === 'confirmed' && result.cleanup === 'removed';
-    assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0, await readFile(result.capture!.stderr.path, 'utf8')); assert.ok(removable);
+    await writeFile(join(root, 'runner-result.json'), JSON.stringify(result, null, 2), { mode: 0o600 });
+    const stopped = result.stop === 'confirmed' && result.cleanup === 'removed';
+    assert.equal(result.phase, 'exited', `Retained Runner evidence: ${root}`); assert.equal(result.exitCode, 0, await readFile(result.capture!.stderr.path, 'utf8')); assert.ok(stopped);
     assert.equal(await readFile(result.capture!.stdout.path, 'utf8'), 'isolated_fs_seam_verified\n');
-  } finally { if (removable) await rm(root, { recursive: true, force: true }); }
+    removable = true;
+  } finally {
+    if (removable) await rm(root, { recursive: true, force: true });
+    else process.stderr.write(`Retained DeepSeek test evidence: ${root}\n`);
+  }
 });
