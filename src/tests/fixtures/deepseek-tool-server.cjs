@@ -41,7 +41,7 @@ server.listen(0, '127.0.0.1', () => {
   let stdout = '', stderr = '';
   child.stdout.on('data', part => { stdout += part; }); child.stderr.on('data', part => { stderr += part; });
   const timer = setTimeout(() => child.kill('SIGTERM'), 40000);
-  child.on('close', (code, signal) => {
+  child.on('close', async (code, signal) => {
     clearTimeout(timer); server.close();
     const sessions = [];
     function collect(path) { if (!fs.existsSync(path)) return; for (const entry of fs.readdirSync(path, { withFileTypes: true })) {
@@ -49,6 +49,11 @@ server.listen(0, '127.0.0.1', () => {
       if (entry.isDirectory()) collect(file); else if (entry.isFile() && entry.name.endsWith('.jsonl')) sessions.push(fs.readFileSync(file, 'utf8'));
     } }
     collect(`${plan.environment.DSH_HOME}/sessions`);
-    console.log(JSON.stringify({ code, signal, turns, catalog, networkHits, contextMessages, results: Object.fromEntries(results), stdout, stderr, sessions }));
+    let captureError;
+    if (plan.captureSession) {
+      try { await (await import('/task/config/deepseek-policy/session-capture.mjs')).captureDeepseekSession(); }
+      catch (error) { captureError = error.message; }
+    }
+    console.log(JSON.stringify({ code, signal, turns, catalog, networkHits, contextMessages, captureError, results: Object.fromEntries(results), stdout, stderr, sessions }));
   });
 });

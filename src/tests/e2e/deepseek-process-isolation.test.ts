@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { Runner } from '@agentflow/engine';
 import { DockerBackend, systemClock } from '@agentflow/integrations';
 import { deepseekConfiguration, deepseekHeadlessArguments } from '../../packages/integrations/harness/deepseek-configuration.js';
+import { interpretDeepseekSession, DEEPSEEK_SESSION_RECORD } from '../../packages/integrations/harness/deepseek-session.js';
 const image = process.env['AGENTFLOW_DEEPSEEK_IMAGE'];
 async function assets() {
   const manifest = JSON.parse(await readFile(new URL('../../apps/deepseek-tools/package.json', import.meta.url), 'utf8'));
@@ -44,12 +45,19 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
       environment: {}, async prepare(_resource, state) { await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, async beforeRelease() {},
     }), systemClock);
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
-      invocation: { argv: ['node', '/task/config/server.cjs'], configFiles: [...await assets(), { name: 'deepseek.json', content: JSON.stringify(patches) },
-        { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), steps }) },
+      invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(), { name: 'deepseek.json', content: JSON.stringify(patches) },
+        { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), captureSession: true, steps }) },
         { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
     removable = result.stop === 'confirmed' && result.cleanup === 'removed';
     assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(removable);
     const observed = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
+    assert.equal(observed.captureError, undefined);
+    const rawSession = await readFile(result.capture!.files[DEEPSEEK_SESSION_RECORD.id]!.path);
+    const interpretation = interpretDeepseekSession({ task: { identity: result.identity, prompt: '完成工具隔离测试。', config: { model: 'deepseek-v4-flash', reasoning: 'off', search: false, subagents: false } }, runner: result, version: config.version, session: rawSession, redact: text => text });
+    assert.equal(interpretation.status, 'completed', JSON.stringify(interpretation.diagnostics));
+    assert.equal(interpretation.usage.inputTokens, (steps.length + 1) * 10);
+    assert.equal(interpretation.usage.outputTokens, (steps.length + 1) * 2);
+    assert.equal(rawSession.toString(), observed.sessions[0]);
     assert.equal(observed.code, 0, observed.stderr); assert.equal(observed.signal, null);
     assert.equal(Object.keys(observed.results).length, steps.length, JSON.stringify(observed));
     assert.match(observed.results.bash_write, /\/task\/input/);
@@ -88,5 +96,19 @@ test('DeepSeek process seam: default read-only, environment, spill retrieval, ba
     removable = result.stop === 'confirmed' && result.cleanup === 'removed';
     assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0, await readFile(result.capture!.stderr.path, 'utf8')); assert.ok(removable);
     assert.equal(await readFile(result.capture!.stdout.path, 'utf8'), 'isolated_process_seam_verified\n');
+  } finally { if (removable) await rm(root, { recursive: true, force: true }); }
+});
+
+test('DeepSeek private session capture preserves bytes and refuses ambiguous, linked or oversized logs', { skip: !image, timeout: 120000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-deepseek-capture-')); let removable = true;
+  try {
+    const input = join(root, 'input'); await mkdir(input);
+    const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1' }), systemClock);
+    const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'capture', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 60000,
+      invocation: { argv: ['node', '/task/config/capture.mjs'], configFiles: [...await assets(),
+        { name: 'capture.mjs', content: await readFile(new URL('../fixtures/deepseek-session-capture.mjs', import.meta.url), 'utf8') }] } });
+    removable = result.stop === 'confirmed' && result.cleanup === 'removed';
+    assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0, await readFile(result.capture!.stderr.path, 'utf8')); assert.ok(removable);
+    assert.equal(await readFile(result.capture!.stdout.path, 'utf8'), 'native_session_capture_verified\n');
   } finally { if (removable) await rm(root, { recursive: true, force: true }); }
 });

@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [DeepSeek 私有会话采集与原生完成证据](2026-09-09-deepseek-session.md) |
 | 2026-09-09 | [DeepSeek 统一工具进程隔离](2026-09-09-deepseek-process-isolation.md) |
 | 2026-09-09 | [DeepSeek 原生文件服务隔离](2026-09-09-deepseek-file-isolation.md) |
 | 2026-09-09 | [DeepSeek 配置与原生能力预检](2026-09-09-deepseek-compatibility.md) |
