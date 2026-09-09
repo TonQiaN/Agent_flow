@@ -24,7 +24,7 @@ export interface WorkflowCursor {
 }
 /** Inspectable durable facts, not an executable plan or permission to resume a Run. */
 export interface WorkflowCheckpoint {
-  readonly schema: 'agentflow-workflow-checkpoint/v3';
+  readonly schema: 'agentflow-workflow-checkpoint/v4';
   readonly execution: WorkflowExecutionSnapshot;
   readonly snapshot: WorkflowSnapshot;
   readonly cursor: WorkflowCursor;
@@ -37,6 +37,7 @@ export interface WorkflowAttemptCheckpoint {
   readonly resultStep: number | null;
   readonly resource: RunnerResourceCheckpoint | null;
   readonly launch: RunnerLaunchState | null;
+  readonly interrupted: boolean;
 }
 
 /** One writer per live Run; failed writes poison the lane rather than skipping a revision. */
@@ -57,8 +58,16 @@ export class CheckpointWriter {
       writer.#resourceDefinitions.set(node, snapshot(await binding.executor.resourceDefinition(snapshot(binding.component))));
     return writer;
   }
+  static async resume(compiled: CompiledWorkflow, checkpoint: WorkflowCheckpoint, store: RunRecordStore, revision: number): Promise<CheckpointWriter> {
+    const writer = await CheckpointWriter.prepare(compiled, checkpoint.snapshot.runId, store);
+    if (canonicalJson(copyJson(writer.execution)) !== canonicalJson(copyJson(checkpoint.execution))) throw new DefinitionError('WORKFLOW_EXECUTION_MISMATCH');
+    writer.#revision = revision;
+    writer.#values.push(...snapshot(checkpoint.values)); writer.#attempts.push(...snapshot(checkpoint.attempts));
+    const last = writer.#attempts.at(-1); if (last?.resultStep === null) last.interrupted = true;
+    return writer;
+  }
   beginAttempt(node: string, identity: ExecutionIdentity): void {
-    this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null, launch: null });
+    this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null, launch: null, interrupted: false });
   }
   finishAttempt(resultStep: number): void { this.#attempts.at(-1)!.resultStep = resultStep; }
   resourceSink(node: string, identity: ExecutionIdentity, commit: () => Promise<void>): { sink: RunnerResourceSink; close(): void } | undefined {
@@ -97,7 +106,7 @@ export class CheckpointWriter {
   /** Publish with the corresponding input/accepted step, without an intervening await. */
   acceptValue(value: WorkflowCheckpointValue): void { this.#values.push(snapshot(value)); }
   write(view: WorkflowSnapshot, cursor: WorkflowCursor): Promise<void> {
-    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v3', execution: this.execution,
+    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v4', execution: this.execution,
       snapshot: view, cursor, values: this.#values, attempts: this.#attempts }) as unknown as JsonValue;
     this.#tail = this.#tail.then(async () => {
       const record = this.#revision === undefined ? await this.store.create(this.runId, content)

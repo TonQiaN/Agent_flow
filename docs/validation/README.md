@@ -78,3 +78,5 @@
 [Runner 启动操作记录](2026-09-10-runner-launch-journal.md)：正常 Workflow 的前后 CAS、异步启动观测和真实中断边界，尚未开放自动恢复。
 
 [Workflow 恢复认领与旧资源清理](2026-09-10-workflow-recovery-claim.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
+
+- [Workflow 新 Attempt 恢复](2026-09-10-workflow-resume.md)：保留中断历史，共享正常执行路径，真实连续 SIGKILL。

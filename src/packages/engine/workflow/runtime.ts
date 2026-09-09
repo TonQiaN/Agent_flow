@@ -4,6 +4,10 @@ import { DefinitionError } from '../errors.js';
 import type { RunRecordStore } from '../persistence/types.js';
 import { advanceWorkflowRoute } from './route.js';
 import { CheckpointWriter, type WorkflowCheckpointValue } from './checkpoint.js';
+import { consumeRecoveryHandoff } from './recovery-handoff.js';
+import type { WorkflowRecoveryHandle } from './recovery.js';
+import { workflowAttemptIdentity } from './attempt-history.js';
+import { WorkflowRestoreError } from './restore-value.js';
 import { getPlan, snapshot } from './compiler.js';
 import type { CompiledWorkflow, WorkflowIssue, WorkflowNodeResult, WorkflowSnapshot, WorkflowStep, WorkflowLimitEvent } from './types.js';
 
@@ -12,9 +16,11 @@ interface Run {
   view: MutableRun; steps: WorkflowStep[]; limits: WorkflowLimitEvent[];
   node: string | null; value: JsonValue; traversals: Map<string, number>;
   persistent: boolean; ready: boolean; writer: CheckpointWriter | null;
+  nextAttempt: number;
 }
 export interface WorkflowRunHandle { readonly completion: Promise<WorkflowSnapshot>; query(): WorkflowSnapshot; cancel(): boolean }
 export interface WorkflowPersistentRunHandle { readonly completion: Promise<WorkflowSnapshot>; query(): WorkflowSnapshot; cancel(): Promise<boolean> }
+export interface WorkflowResumedRunHandle extends WorkflowPersistentRunHandle { dispose(): Promise<void> }
 const finished = (run: Run): boolean => ['succeeded', 'failed', 'cancelled', 'exhausted'].includes(run.view.status);
 const same = (a: ExecutionIdentity, b: ExecutionIdentity): boolean => a.runId === b.runId && a.nodeTaskId === b.nodeTaskId && a.attemptId === b.attemptId && a.attemptNumber === b.attemptNumber;
 const issuesValid = (issues: readonly WorkflowIssue[]): boolean => Array.isArray(issues) && issues.length <= 1000 && issues.every(issue => !!issue
@@ -45,7 +51,7 @@ export class WorkflowRuntime {
     if (this.#runs.has(runId)) throw new DefinitionError('DUPLICATE_WORKFLOW_RUN');
     let value: JsonValue; try { value = snapshot(input); } catch { throw new DefinitionError('INVALID_WORKFLOW_INPUT'); }
     const steps: WorkflowStep[] = [], limits: WorkflowLimitEvent[] = [];
-    const run: Run = { steps, limits, node: plan.definition.start, value, traversals: new Map(), persistent, ready: false, writer: null,
+    const run: Run = { steps, limits, node: plan.definition.start, value, traversals: new Map(), persistent, ready: false, writer: null, nextAttempt: 1,
       view: { runId, workflowId: plan.definition.id, status: 'queued', currentNode: plan.definition.start,
         currentIdentity: null, cancelRequested: false, outcome: null, reason: null, issues: [], steps, limits, lastAccepted: null } };
     this.#runs.set(runId, run); return run;
@@ -55,7 +61,7 @@ export class WorkflowRuntime {
     const completion = Promise.resolve().then(() => this.#execute(compiled, run));
     return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancel(runId) });
   }
-  /** Writes checkpoints during normal execution. This does not enable restart/resume. */
+  /** Start a new durable Run; use resumePersisted with a claimed recovery handle to continue one. */
   async startPersisted(compiled: CompiledWorkflow, runId: string, input: JsonValue, store: RunRecordStore): Promise<WorkflowPersistentRunHandle> {
     const run = this.#create(compiled, runId, input, true), plan = getPlan(compiled);
     try {
@@ -65,6 +71,36 @@ export class WorkflowRuntime {
     } catch (error) { this.#runs.delete(runId); throw error; }
     const completion = Promise.resolve().then(() => this.#execute(compiled, run));
     return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancelPersisted(runId) });
+  }
+  /** Consume actual recovery ownership and reuse the normal execution loop with a new Attempt. */
+  async resumePersisted(recovery: WorkflowRecoveryHandle): Promise<WorkflowResumedRunHandle> {
+    const data = consumeRecoveryHandoff(recovery), { compiled, checkpoint, store } = data, runId = checkpoint.snapshot.runId;
+    let installed = false;
+    try {
+      if (this.#runs.has(runId)) throw new DefinitionError('DUPLICATE_WORKFLOW_RUN');
+      const view = snapshot(checkpoint.snapshot), last = checkpoint.attempts.at(-1);
+      const nextAttempt = last?.resultStep === null ? last.identity.attemptNumber + 1 : 1;
+      if (!Number.isSafeInteger(nextAttempt)) throw new DefinitionError('WORKFLOW_ATTEMPT_LIMIT');
+      const run: Run = { view, steps: view.steps as WorkflowStep[], limits: view.limits as WorkflowLimitEvent[], node: checkpoint.cursor.node,
+        value: snapshot(checkpoint.cursor.value), traversals: new Map(Object.entries(checkpoint.cursor.traversals)),
+        persistent: true, ready: false, writer: null, nextAttempt };
+      run.view.currentIdentity = null;
+      this.#runs.set(runId, run); installed = true;
+      run.writer = await CheckpointWriter.resume(compiled, checkpoint, store, data.revision);
+      await this.#checkpoint(run); run.ready = true;
+      const completion = Promise.resolve().then(() => this.#execute(compiled, run));
+      let disposing: Promise<void> | null = null;
+      return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancelPersisted(runId),
+        dispose: () => {
+          if (disposing) return disposing;
+          disposing = completion.catch(() => {}).then(() => data.dispose()).finally(() => { disposing = null; });
+          return disposing;
+        } });
+    } catch (error) {
+      if (installed) this.#runs.delete(runId);
+      try { await data.dispose(); } catch { throw new WorkflowRestoreError('WORKFLOW_RESUME_DISPOSE_FAILED', data.dispose); }
+      throw error;
+    }
   }
   async #checkpoint(run: Run): Promise<void> {
     if (run.writer) await run.writer.write(run.view, { node: run.node, value: run.value, traversals: Object.fromEntries(run.traversals) });
@@ -89,7 +125,7 @@ export class WorkflowRuntime {
         if (run.view.cancelRequested) return end('cancelled', 'CANCEL_REQUESTED');
         if (run.steps.length >= plan.definition.maxSteps) return end('exhausted', 'MAX_STEPS_EXCEEDED');
         const node = run.node!, binding = plan.bindings.get(node)!;
-        const identity: ExecutionIdentity = { runId: run.view.runId, nodeTaskId: `task-${run.steps.length + 1}`, attemptId: 'attempt-1', attemptNumber: 1 };
+        const identity = workflowAttemptIdentity(run.view.runId, run.steps.length + 1, run.nextAttempt);
         run.view.status = 'running'; run.view.currentNode = node; run.view.currentIdentity = identity;
         run.writer?.beginAttempt(node, identity);
         await this.#checkpoint(run);
@@ -133,6 +169,7 @@ export class WorkflowRuntime {
         if (event) run.limits.push(event);
         if ('end' in to) { run.view.outcome = to.end; return end(exhausted ? 'exhausted' : 'succeeded', exhausted ? 'ROUTE_LIMIT_EXCEEDED' : null); }
         run.node = to.node; run.view.currentNode = to.node; run.view.currentIdentity = null;
+        run.nextAttempt = 1;
         await this.#checkpoint(run);
       }
     } catch { return end('failed', 'WORKFLOW_INTERNAL_ERROR'); }

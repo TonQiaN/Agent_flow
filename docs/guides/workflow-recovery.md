@@ -1,4 +1,4 @@
-# Workflow 恢复认领与旧资源清理
+# Workflow 恢复执行
 
 当前内置支持相同定义、契约和实际镜像的断网 Script Workflow。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
 
@@ -14,7 +14,7 @@ try {
 }
 ```
 
-`claimWorkflowRecovery()` 先通过原严格加载器核对历史、实际安装定义、contract 和归档/收据，建立本次独立文件引用，再以读取的 revision 执行 CAS。成功后，同一 Run 行的内容成为 `agentflow-workflow-recovery/v1`：保留原 v3 `checkpoint`，增加本次 `claimRevision` 和 `resourceRemoved`。它不会修改原 Attempt 的业务结果、执行新节点或清除取消意图。
+`claimWorkflowRecovery()` 先通过原严格加载器核对历史、实际安装定义、contract 和归档/收据，建立本次独立文件引用，再以读取的 revision 执行 CAS。成功后，同一 Run 行的内容成为 `agentflow-workflow-recovery/v1`：保留原 v4 `checkpoint`，增加本次 `claimRevision` 和 `resourceRemoved`。它不会修改原 Attempt 的业务结果、执行新节点或清除取消意图。
 
 只接受 queued/running 且没有取消意图的记录。准备、创建或启动仍为 pending 时拒绝；活动绑定缺少共同资源恢复能力或属于 Effect 时拒绝。原记录没有 Runner 资源时，资源移除条件视为无需处理；这不代表已经重启了节点。旧宿主后续的资源、操作或结果 CAS 无法覆盖新的 revision。
 
@@ -22,8 +22,34 @@ try {
 
 恢复者自身崩溃后，可以再次调用认领接口，对当前 revision 建立新的 claim。已提交的资源移除确认保留，未提交则重新经共同接口核对。两个恢复者竞争同一 revision 时仅一个能提交；后续接管会使旧句柄的迟到写入失败。已经发出的清理操作只针对不可复用的旧资源身份，不赋予旧句柄新建 Attempt 的权限。
 
-`query()` 返回最后提交的独立副本，并非持续有效的租约。`dispose()` 等待本句柄正在进行的清理后释放本次加载的临时文件引用，不删除 Run、归档或恢复记录；清理失败时也不冒充资源已释放。尚无新 Attempt 调度接口，不能从 `resourceRemoved=true` 推导整个流程已恢复完成。
+`query()` 返回最后提交的独立副本，并非持续有效的租约。`dispose()` 等待本句柄正在进行的清理后释放本次加载的临时文件引用，不删除 Run、归档或恢复记录；清理失败时也不冒充资源已释放。交接前由此句柄负责临时引用；交接给 resumePersisted 后，释放责任转到恢复运行句柄，原 recovery.dispose() 不会提前撤销输入。resourceRemoved=true 只代表旧资源收尾完成。
 
-只想检查时，使用 [loadWorkflowCheckpoint](workflow-checkpoint-loading.md)：它同时接受普通 v3 检查点和上述恢复封套，返回独立的 `checkpoint` 及 `recovery` 元数据，不认领、不写库、不查询或停止容器。
+只想检查时，使用 [loadWorkflowCheckpoint](workflow-checkpoint-loading.md)：它同时接受普通 v4 检查点和上述恢复封套，返回独立的 `checkpoint` 及 `recovery` 元数据，不认领、不写库、不查询或停止容器。
 
-已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。完整 A 不重跑、B 以新 Attempt 完成，以及未知 pending 操作、认证/Effect 的恢复还未验收。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作、认证/Effect 等其他绑定仍未整体验收。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+
+## 继续正常执行
+
+```ts
+import { WorkflowRuntime } from '@agentflow/engine';
+
+const recovery = await claimWorkflowRecovery(compiled, runId, store);
+let resumed;
+try {
+  await recovery.cleanup();
+  resumed = await new WorkflowRuntime().resumePersisted(recovery);
+  const result = await resumed.completion;
+  // 在 dispose 之前检查或物化结果；新输出仍按 Catalog 的常规接口释放。
+} finally {
+  await resumed?.dispose();
+  await recovery.dispose();
+}
+```
+
+resumePersisted 只接受实际认领句柄，并一次性移交 compiled、RunStore、最新 revision 和恢复文件引用。复制句柄、query JSON、重复消费拒绝；资源清理未完成或仍在进行时也不能交接。首次 CAS 成功后进入原 Workflow 检查、调用、接纳、路由循环，冲突不能调用新节点。同一 Runtime 已有该 Run 时拒绝，不覆盖其运行句柄。
+
+v4 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资源和 launch，resultStep 仍为 null；新 Attempt 在同一 NodeTask 上递增编号。只有记录业务结果才推进 steps，用户路由再次进入节点才创建新 NodeTask；恢复不额外消耗 maxSteps 或路由次数。刚写入 interrupted、尚未创建新 Attempt 又崩溃，也保留下一未使用编号。
+
+恢复运行的 cancel 仍等待取消意图持久化，completion 用于确认执行收尾。resumed.dispose() 等待 completion 结束后释放继承的临时输入/前序输出引用，可重复调用；耐久归档和 Run 不被删除。新产生的输出按普通运行规则由调用者释放。交接失败时自动回滚继承引用；若收尾失败，保留 WorkflowRestoreError.dispose 继续清理。
+
+只支持当前可核对的实际执行绑定；v1/v2/v3 是未发布的试验格式，拒绝自动迁移。完整证据和剩余缺口见[新 Attempt 验证](../validation/2026-09-10-workflow-resume.md)。

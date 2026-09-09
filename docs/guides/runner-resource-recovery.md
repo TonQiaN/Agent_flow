@@ -1,6 +1,6 @@
 # Runner 资源保存与恢复
 
-Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持断网 Docker；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权和新 Attempt 调度仍未完成。
+Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持断网 Docker；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权与同 NodeTask 新 Attempt 已接入[Workflow 恢复](workflow-recovery.md)，其他绑定及未知操作仍待验收。
 
 ```ts
 const result = await runner.run(request, cancellation, {

@@ -39,22 +39,22 @@
 
 [私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。
 
-[Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；已接入下述正常运行检查点，重启恢复仍待接通。
+[Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；已接入下述正常运行检查点，断网脚本恢复见下方。
 
-[耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；检查点文件恢复见下方，重启执行仍待接通。
+[耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；检查点文件恢复见下方，断网脚本恢复见下方。
 
 [Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；断网脚本绑定见下方，其他执行绑定及节点恢复仍待接入。
 
-[脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；正常运行检查点已接入，重启恢复仍待接通。
+[脚本执行绑定快照](guides/workflow-execution-snapshot.md)已接通实际命令与断网 Docker 镜像冻结；正常运行检查点已接入，断网脚本恢复见下方。
 
-[Workflow 检查点](guides/workflow-checkpoints.md)已接入共享正常执行、耐久文件值与异步取消确认；尚未开放重启执行。
+[Workflow 检查点](guides/workflow-checkpoints.md)已接入共享正常执行、耐久文件值与异步取消确认；断网脚本恢复见下方。
 
-[检查点加载与文件恢复](guides/workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
+[检查点加载与文件恢复](guides/workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；断网脚本恢复见下方。
 
-[Runner 资源保存与恢复](guides/runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
+[Runner 资源保存与恢复](guides/runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复见下方。
 
-[Workflow Attempt 资源检查点](validation/2026-09-10-workflow-attempt-resources.md)：资源接入正常 Workflow CAS，启动前核对以及真实中断后的共同 Runner 清理；新 Attempt 执行仍待完成。
+[Workflow Attempt 资源检查点](validation/2026-09-10-workflow-attempt-resources.md)：资源接入正常 Workflow CAS，启动前核对以及真实中断后的共同 Runner 清理；同一 NodeTask 的新 Attempt 已通过一次/连续两次 SIGKILL 恢复，见[验证](validation/2026-09-10-workflow-resume.md)。
 
 [Runner 启动操作记录](validation/2026-09-10-runner-launch-journal.md)：正常 Workflow 的前后 CAS、异步启动观测和真实中断边界，尚未开放自动恢复。
 
-[Workflow 恢复认领与旧资源清理](guides/workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
+[Workflow 恢复认领与旧资源清理](guides/workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；同一 NodeTask 的新 Attempt 已通过一次/连续两次 SIGKILL 恢复，见[验证](validation/2026-09-10-workflow-resume.md)。

@@ -114,3 +114,32 @@ test('Docker outage after claim keeps recovery unconfirmed; a new process can la
     assert.deepEqual(result.started, []);
   } finally { await f.close(); }
 });
+
+for (const repeats of [1, 2]) test(`real resumed Workflow finishes after ${repeats} killed hosts without rerunning accepted A`, { skip: !enabled, timeout: 45000 }, async () => {
+  const f = await setup('resume-running'), resources = [f.resource];
+  try {
+    f.worker.process.kill('SIGKILL'); await f.worker.exited;
+    if (repeats === 2) {
+      const middle = f.spawn('claim-resume-pause'), ready = await message(middle); resources.push(ready.resource.id);
+      assert.equal(ready.identity.nodeTaskId, 'task-2'); assert.equal(ready.identity.attemptNumber, 2);
+      middle.process.kill('SIGKILL'); await middle.exited;
+    }
+    // Only the independent archive and durable resource ownership markers survive.
+    for (const name of ['source', 'temporary', 'work']) await rm(join(f.root, name), { recursive: true, force: true });
+    const resumed = await output(f.spawn('claim-resume'));
+    assert.equal(resumed.error, undefined); assert.equal(resumed.result.status, 'succeeded'); assert.equal(resumed.text, 'seedAB');
+    assert.deepEqual(resumed.created, ['b']); assert.deepEqual(resumed.started, ['b']); assert.deepEqual(resumed.restored, ['b']);
+    assert.deepEqual(resumed.identities, [{ runId: 'run', nodeTaskId: 'task-2', attemptId: `attempt-${repeats + 1}`, attemptNumber: repeats + 1 }]);
+    const attempts = resumed.checkpoint.attempts;
+    assert.equal(attempts.length, repeats + 2); assert.equal(attempts[0].resultStep, 0);
+    for (const attempt of attempts.slice(1, -1)) { assert.equal(attempt.interrupted, true); assert.equal(attempt.resultStep, null); assert.equal(attempt.node, 'b'); }
+    assert.equal(attempts.at(-1).resultStep, 1); assert.equal(new Set(attempts.map((a: any) => a.resource.resource.id)).size, attempts.length);
+    for (const resource of resources) assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${resource}$`, '--format', '{{.ID}}']), '');
+    const before = await f.store.read('run'), loaded = await output(f.spawn('load'));
+    assert.equal(loaded.error, undefined); assert.deepEqual(loaded.texts, ['seed', 'seedA', 'seedAB']);
+    assert.deepEqual(await f.store.read('run'), before);
+  } finally {
+    for (const resource of resources.slice(1)) await docker(['rm', '-f', resource]).catch(() => {});
+    await f.close();
+  }
+});

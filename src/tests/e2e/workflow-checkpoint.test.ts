@@ -39,7 +39,7 @@ for (const interrupt of [false, true]) test(`persisted real script Workflow reta
     const reading = child(root, 'read'); processes.push(reading); const [code] = await reading.exited;
     assert.equal(code, 0, reading.output().stderr);
     const { record, texts } = JSON.parse(reading.output().stdout), checkpoint = record.content as WorkflowCheckpoint;
-    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v3'); assert.equal(checkpoint.execution.version, 1);
+    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v4'); assert.equal(checkpoint.execution.version, 1);
     assert.deepEqual(texts, interrupt ? ['seed', 'seedA'] : ['seed', 'seedA', 'seedAB']);
     assert.equal(checkpoint.snapshot.steps.length, interrupt ? 1 : 2);
     assert.equal(checkpoint.snapshot.status, interrupt ? 'running' : 'succeeded');

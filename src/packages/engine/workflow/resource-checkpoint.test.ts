@@ -38,7 +38,7 @@ test('normal Workflow saves actual per-Attempt resource before continuation and 
   });
   await (await new WorkflowRuntime().startPersisted(flow, 'run', 1, store)).completion;
   const last = (await store.read())!.content as any;
-  assert.equal(last.schema, 'agentflow-workflow-checkpoint/v3'); assert.deepEqual(last.attempts.map((a: any) => a.resultStep), [0, 1]);
+  assert.equal(last.schema, 'agentflow-workflow-checkpoint/v4'); assert.deepEqual(last.attempts.map((a: any) => a.resultStep), [0, 1]);
   for (const record of store.records) { const loaded = await loadWorkflowCheckpoint(flow, 'run', { read: async () => record }); await loaded.dispose(); }
 });
 test('resource CAS rejection blocks continuation and successor and leaves the last complete Attempt record', async () => {

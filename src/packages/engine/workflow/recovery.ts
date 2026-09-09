@@ -9,6 +9,7 @@ import { loadWorkflowCheckpoint } from './load-checkpoint.js';
 import { WorkflowRestoreError } from './restore-value.js';
 import type { CompiledWorkflow } from './types.js';
 import type { WorkflowRecoveryRecord, WorkflowRecoverySnapshot } from './recovery-record.js';
+import { registerRecoveryHandoff } from './recovery-handoff.js';
 export type { WorkflowRecoveryRecord, WorkflowRecoverySnapshot } from './recovery-record.js';
 
 export interface WorkflowRecoveryHandle {
@@ -28,7 +29,7 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
   try {
     const checkpoint = loaded.checkpoint, view = checkpoint.snapshot;
     if (!['queued', 'running'].includes(view.status) || view.cancelRequested) throw new DefinitionError('WORKFLOW_NOT_RECOVERABLE');
-    const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null ? attempt : null;
+    const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted ? attempt : null;
     const binding = active ? getPlan(compiled).bindings.get(active.node)! : null;
     if (active?.launch?.endsWith('_pending')) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
     if (binding && (!binding.executor.resourceDefinition || !binding.executor.restoreResource || binding.component.kind === 'effect')) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
@@ -37,7 +38,7 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
     const claimRevision = revision + 1;
     if (!Number.isSafeInteger(claimRevision)) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
     let removed = prior?.resourceRemoved ?? !active?.resource;
-    let disposed = false, closing = false, lost = false, resource: RestoredRunnerResource | undefined;
+    let disposed = false, closing = false, lost = false, transferred = false, resource: RestoredRunnerResource | undefined;
     let pending: Promise<WorkflowRecoverySnapshot> | null = null, disposing: Promise<void> | null = null;
     const content = (resourceRemoved: boolean): WorkflowRecoveryRecord => ({ schema: 'agentflow-workflow-recovery/v1', checkpoint, claimRevision, resourceRemoved });
     const query = (): WorkflowRecoverySnapshot => snapshot({ ...content(removed), revision });
@@ -75,6 +76,7 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
       return pending;
     };
     const dispose = (): Promise<void> => {
+      if (transferred) return Promise.resolve();
       if (disposing) return disposing;
       closing = true;
       disposing = (async () => {
@@ -84,7 +86,13 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
       })().finally(() => { disposing = null; });
       return disposing;
     };
-    return Object.freeze({ query, cleanup, dispose });
+    const handle = Object.freeze({ query, cleanup, dispose });
+    registerRecoveryHandoff(handle, () => {
+      if (closing || disposed || lost || transferred || pending || !removed) throw new DefinitionError('WORKFLOW_RECOVERY_NOT_READY');
+      transferred = true; closing = true;
+      return { compiled, store, checkpoint: snapshot(checkpoint), revision, dispose: loaded.dispose };
+    });
+    return handle;
   } catch (error) {
     try { await loaded.dispose(); } catch { throw new WorkflowRestoreError('WORKFLOW_RECOVERY_DISPOSE_FAILED', loaded.dispose); }
     throw error;
