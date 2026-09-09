@@ -30,3 +30,5 @@ Runner 通过既有 recordFiles 读取该记录。实际集成发现旧规则限
 ## 尚未完成
 
 当前只有内部解析函数和采集资产，测试显式组合调用；没有完整 Adapter、可信启动包装器、API key 注入或实际 DeepSeek 模型验收。多 outcome 明确拒绝，需要后续受控结构化交接；不从最终聊天文字猜测。read_image 的真实模型交接和后续 Harness 矩阵、真实 Tutor 批卷/报告/PDF 验收仍未完成。Harness 完成证据也不能替代引擎的输出 contract 验证。
+
+后续进展：纯 Adapter 与结构化多出口现已接通，补充了辅助用量未知的边界，见 [Adapter 验证](2026-09-09-deepseek-adapter.md)。以上结果保留本切片当时的范围。

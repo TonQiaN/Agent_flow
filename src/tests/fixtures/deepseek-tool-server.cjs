@@ -3,14 +3,17 @@ const http = require('node:http'), fs = require('node:fs'), { spawn } = require(
 const plan = JSON.parse(fs.readFileSync('/task/config/plan.json', 'utf8'));
 let activeChild;
 let turns = 0, catalog = [], networkHits = 0, authenticatedRequests = 0, invalidAuthentication = 0, contextMessages = [];
-const results = new Map(), imageUrls = new Set();
+const results = new Map(), imageUrls = new Set(), requestKinds = new Map(), requestPaths = new Map();
 const server = http.createServer((req, res) => {
   if (req.url === '/tool-network-probe') { networkHits++; res.end('network-reached'); return; }
+  const route = `${req.method} ${req.url}`; requestPaths.set(route, (requestPaths.get(route) ?? 0) + 1);
   if (req.headers.authorization === 'Bearer fixture-deepseek-secret') authenticatedRequests++; else invalidAuthentication++;
   let size = 0, parts = [];
   req.on('data', part => { size += part.length; if (size > 4 * 1024 * 1024) req.destroy(); else parts.push(part); });
   req.on('end', () => {
     let body; try { body = JSON.parse(Buffer.concat(parts).toString()); } catch { res.writeHead(400).end(); return; }
+    const requestKind = JSON.stringify({ path: req.url, model: body.model, tools: body.tools?.length ?? 0, stream: body.stream, keys: Object.keys(body).sort() });
+    requestKinds.set(requestKind, (requestKinds.get(requestKind) ?? 0) + 1);
     const main = body.tools?.length > 0;
     if (plan.failModel) { res.writeHead(401, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: 'Synthetic authentication failure', type: 'authentication_error' } })); return; }
     if (plan.cancelModel && main) { setTimeout(() => activeChild.kill('SIGTERM'), 20); return; }
@@ -65,6 +68,6 @@ server.listen(plan.port ?? 0, '127.0.0.1', () => {
       try { await (await import('/task/config/deepseek-policy/session-capture.mjs')).captureDeepseekSession(); }
       catch (error) { captureError = error.message; }
     }
-    console.log(JSON.stringify({ code, signal, turns, catalog, networkHits, contextMessages, captureError, authenticatedRequests, invalidAuthentication, imageUrls: [...imageUrls], results: Object.fromEntries(results), stdout, stderr, sessions }));
+    console.log(JSON.stringify({ requestPaths: Object.fromEntries(requestPaths), requestKinds: Object.fromEntries(requestKinds), code, signal, turns, catalog, networkHits, contextMessages, captureError, authenticatedRequests, invalidAuthentication, imageUrls: [...imageUrls], results: Object.fromEntries(results), stdout, stderr, sessions }));
   });
 });

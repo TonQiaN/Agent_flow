@@ -41,6 +41,8 @@ export interface HarnessEvidence {
   readonly runner: RunnerResult;
   readonly version: string;
   readonly stdout: Uint8Array;
+  /** Trusted host captures keyed by Runner capture.files id; never paths supplied by a model. */
+  readonly records?: Readonly<Record<string, Uint8Array>>;
   /** Provided by the authentication/logging boundary, not an Adapter secret reader. */
   readonly redact: (text: string) => string;
 }
