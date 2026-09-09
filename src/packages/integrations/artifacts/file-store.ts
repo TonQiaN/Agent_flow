@@ -1,7 +1,7 @@
 import { isAbsolute } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { ArtifactError, FileContractRegistry } from '@agentflow/engine';
-import type { ArtifactStore, FileManifest } from '@agentflow/engine';
+import type { ArtifactMaterializer, ArtifactStore, FileManifest } from '@agentflow/engine';
 import { captureSnapshot, materializeSnapshot } from './snapshot-io.js';
 import type { StoredSnapshot } from './snapshot-io.js';
 export { ArtifactError } from '@agentflow/engine';
@@ -17,6 +17,11 @@ export class FileArtifactStore implements ArtifactStore {
     this.#snapshots.set(snapshot.manifest.id, snapshot);
     return structuredClone(snapshot.manifest);
   }
+  async captureMaterialized(source: ArtifactMaterializer, contractId: string): Promise<FileManifest> {
+    const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId);
+    this.#snapshots.set(snapshot.manifest.id, snapshot);
+    return structuredClone(snapshot.manifest);
+  }
   async inspect(id: string): Promise<FileManifest> {
     const snapshot = this.#snapshots.get(id); if (!snapshot) throw new ArtifactError('UNKNOWN_SNAPSHOT');
     return structuredClone(snapshot.manifest);
@@ -27,6 +32,6 @@ export class FileArtifactStore implements ArtifactStore {
   }
   async release(id: string): Promise<void> {
     const snapshot = this.#snapshots.get(id); if (!snapshot) return;
-    await rm(snapshot.root, { recursive: true, force: true }); this.#snapshots.delete(id);
+    await rm(snapshot.cleanupRoot ?? snapshot.root, { recursive: true, force: true }); this.#snapshots.delete(id);
   }
 }

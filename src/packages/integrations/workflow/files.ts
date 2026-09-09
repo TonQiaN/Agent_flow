@@ -155,12 +155,18 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     const ref = this.available(value, runId, contractId); ref.uses++;
     let root: string | undefined;
     try {
-      await mkdir(this.workRoot, { recursive: true, mode: 0o700 });
-      const stat = await lstat(this.workRoot);
-      if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
-      root = await mkdtemp(join(this.workRoot, 'checkpoint-'));
-      const source = join(root, 'value'); await this.artifacts.materialize(ref.storageId, source);
-      const archived = await this.archive.capture(source, ref.manifest.contractId);
+      let archived;
+      if (this.archive.captureMaterialized) {
+        const materialize = this.artifacts.materialize.bind(this.artifacts), storageId = ref.storageId;
+        archived = await this.archive.captureMaterialized({ materialize: destination => materialize(storageId, destination) }, ref.manifest.contractId);
+      } else {
+        await mkdir(this.workRoot, { recursive: true, mode: 0o700 });
+        const stat = await lstat(this.workRoot);
+        if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
+        root = await mkdtemp(join(this.workRoot, 'checkpoint-'));
+        const source = join(root, 'value'); await this.artifacts.materialize(ref.storageId, source);
+        archived = await this.archive.capture(source, ref.manifest.contractId);
+      }
       if (!sameFiles(ref.manifest, archived.manifest)) throw new ArtifactError('WORKFLOW_ARCHIVE_MISMATCH');
       return snapshotJson({ schema: 'agentflow-workflow-files/v1', runId, value, manifest: ref.manifest,
         archive: archived.reference, receipt: ref.receipt });
@@ -229,13 +235,18 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         }
 
       }
-      await mkdir(this.workRoot, { recursive: true, mode: 0o700 }); const stat = await lstat(this.workRoot);
-      if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
-      root = await mkdtemp(join(this.workRoot, 'restore-')); const source = join(root, 'value');
-      await this.archive.materialize(saved['archive'] as unknown as ArtifactArchiveReference, source);
-      captured = await this.artifacts.capture(source, data.record.contract.id);
+      if (this.artifacts.captureMaterialized) {
+        const materialize = this.archive.materialize.bind(this.archive), reference = clone(saved['archive']) as unknown as ArtifactArchiveReference;
+        captured = await this.artifacts.captureMaterialized({ materialize: destination => materialize(reference, destination) }, data.record.contract.id);
+      } else {
+        await mkdir(this.workRoot, { recursive: true, mode: 0o700 }); const stat = await lstat(this.workRoot);
+        if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
+        root = await mkdtemp(join(this.workRoot, 'restore-')); const source = join(root, 'value');
+        await this.archive.materialize(saved['archive'] as unknown as ArtifactArchiveReference, source);
+        captured = await this.artifacts.capture(source, data.record.contract.id);
+      }
       if (!equal({ ...captured, id: saved['manifest']['id'] }, saved['manifest'])) return fail();
-      await rm(root, { recursive: true, force: true }); root = null;
+      if (root) { await rm(root, { recursive: true, force: true }); root = null; }
       const storageId = captured.id;
       entry = { storageId, runId: data.runId, manifest: clone(saved['manifest']) as unknown as FileManifest,
         receipt: clone(receipt) as unknown as FileWorkflowReceipt | null, release: () => this.artifacts.release(storageId), uses: 0, releasing: false, released: false };

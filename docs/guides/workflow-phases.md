@@ -24,4 +24,4 @@
 
 探针不再创建外部空输入目录，Driver 输入直接在 Runner 已登记目录内物化；正常与恢复 release 统一收尾，见[输入物化](runner-owned-input.md)。其他宿主临时目录仍待处理。
 
-Catalog 与 AgentExecutor 共享支持 inspect 的同一实际存储时，阶段开始前无需另建 node 输入目录或重复捕获快照；借用引用在停止未确认时保留至清理成功。不同存储保留原路径回退；检查点/恢复暂存和旧进程临时快照仍待处理，见[输入复用验证](../validation/2026-09-10-catalog-snapshot-input.md)。
+Catalog 与 AgentExecutor 共享支持 inspect 的同一实际存储时，阶段开始前无需另建 node 输入目录或重复捕获快照；借用引用在停止未确认时保留至清理成功。不同存储保留原路径回退；内置存储的检查点/恢复中间目录已由直接物化消除，未发布存储暂存和旧进程临时快照仍待处理，见[输入复用验证](../validation/2026-09-10-catalog-snapshot-input.md)。

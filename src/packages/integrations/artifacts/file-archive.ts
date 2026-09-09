@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { isIdentifier } from '@agentflow/domain';
 import { ArtifactError, FileContractRegistry, isArtifactPath, snapshotJson } from '@agentflow/engine';
-import type { ArtifactArchive, ArtifactArchiveReference, ArchivedArtifact, FileManifest } from '@agentflow/engine';
+import type { ArtifactMaterializer, ArtifactArchive, ArtifactArchiveReference, ArchivedArtifact, FileManifest } from '@agentflow/engine';
 import { captureSnapshot, materializeSnapshot } from './snapshot-io.js';
 
 const limit = 16 * 1024 * 1024;
@@ -71,16 +71,25 @@ export class FileArtifactArchive implements ArtifactArchive {
     await privatePath(this.root, true);
   }
   async capture(source: string, contractId: string): Promise<ArchivedArtifact> {
+    return this.#capture(source, contractId);
+  }
+  async captureMaterialized(source: ArtifactMaterializer, contractId: string): Promise<ArchivedArtifact> {
+    // Preserve the caller's installed method across root initialization.
+    return this.#capture({ materialize: source.materialize.bind(source) }, contractId);
+  }
+  async #capture(source: string | ArtifactMaterializer, contractId: string): Promise<ArchivedArtifact> {
     let snapshotRoot: string | undefined, stage: string | undefined;
     try {
       // Explicit leaf root: its parent must already exist and be owned by the host.
       try { await this.#root(true); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; await this.#root(); }
-      const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId); snapshotRoot = snapshot.root;
+      const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId); snapshotRoot = snapshot.cleanupRoot ?? snapshot.root;
       const text = JSON.stringify({ version: 1, manifest: snapshot.manifest });
       if (Buffer.byteLength(text) > limit) throw new ArtifactError('ARCHIVE_MANIFEST_TOO_LARGE');
       manifest(JSON.parse(text), snapshot.manifest.id);
       stage = await mkdtemp(join(this.root, '.publish-'));
-      await rename(snapshot.root, join(stage, 'data')); snapshotRoot = undefined;
+      await rename(snapshot.root, join(stage, 'data'));
+      if (snapshot.cleanupRoot) await rm(snapshot.cleanupRoot, { recursive: true, force: true });
+      snapshotRoot = undefined;
       for (const path of [...snapshot.manifest.directories].reverse()) await syncDirectory(join(stage, 'data', path));
       await syncDirectory(join(stage, 'data'));
       const metadata = await open(join(stage, 'manifest.json'), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);

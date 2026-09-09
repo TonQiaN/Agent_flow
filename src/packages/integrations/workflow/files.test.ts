@@ -7,6 +7,7 @@ import type { ComponentDefinition, JsonValue } from '@agentflow/domain';
 import { AgentExecutor, ContractRegistry, FileContractRegistry, compileWorkflow, WorkflowRuntime } from '@agentflow/engine';
 import type { AgentExecutionDriver, AgentExecutionFacts, ArtifactStore, HarnessTask, WorkflowDefinition } from '@agentflow/engine';
 import { FileArtifactStore } from '../artifacts/file-store.js';
+import { FileArtifactArchive } from '../artifacts/file-archive.js';
 import { FileWorkflowCatalog } from './files.js';
 
 const identity = { runId: 'run', nodeTaskId: 'task-1', attemptId: 'attempt-1', attemptNumber: 1 };
@@ -251,5 +252,21 @@ test('Agent Catalog reuses only its shared store and preserves file handoff for 
     await f.catalog.release(result.output, 'run'); await f.catalog.release(input, 'run');
     assert.deepEqual(await readdir(f.store.root), []);
     if (!shared) assert.deepEqual(await readdir(target.root), []);
+  }
+});
+
+
+test('checkpoint transfer skips Catalog staging with the new port and retains old archive fallback', async t => {
+  for (const direct of [true, false]) {
+    const f = await fixture(t), archive = new FileArtifactArchive(join(f.root, 'archive'), f.contracts);
+    const installed = direct ? archive : { capture: archive.capture.bind(archive), read: archive.read.bind(archive), materialize: archive.materialize.bind(archive) };
+    const work = join(f.root, 'checkpoint-work'), catalog = new FileWorkflowCatalog(f.contracts, f.store, work, installed);
+    const input = await catalog.prepareInput('run', f.source, 'files');
+    const saved = await catalog.checkpointValue(input, 'run', 'files') as any;
+    assert.deepEqual(saved.manifest.files, (await archive.read(saved.archive)).files);
+    if (direct) await assert.rejects(readdir(work), { code: 'ENOENT' }); else assert.deepEqual(await readdir(work), []);
+    await catalog.release(input, 'run'); assert.deepEqual(await readdir(f.store.root), []);
+    await archive.materialize(saved.archive, join(f.root, 'after-release'));
+    assert.equal(await readFile(join(f.root, 'after-release/answer.json'), 'utf8'), '{"revision":0}');
   }
 });

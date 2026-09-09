@@ -33,7 +33,7 @@ async function cleanup(root:string){const saved:any=(await record(root))?.conten
 for(const [stage,interruptions]of [['a:version',1],['b:execution',1],['b:execution',2]]as const)test(`actual Agent Workflow resumes after ${stage}/${interruptions}`,{skip:!enabled,timeout:100000},async()=>{
  const f=await setup();try{
  const first=await pause(f.root,'run',stage);assert.equal(first.credentialCalls,stage==='a:version'?0:2);
- assert.deepEqual(await readdir(join(f.root,'work')),[]);
+ await assert.rejects(readdir(join(f.root,'work')),{code:'ENOENT'});
  assert.equal((await readdir(join(f.root,'artifacts'))).length,stage==='a:version'?1:2);
  if(interruptions===2)assert.equal((await pause(f.root,'resume-pause',stage)).identity.attemptNumber,2);
  const prior:any=(await record(f.root)).content,ids=prior.attempts.flatMap((a:any)=>(a.phases??[]).flatMap((p:any)=>p.resource?[p.resource.resource.id]:[]));

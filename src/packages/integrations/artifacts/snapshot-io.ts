@@ -4,7 +4,7 @@ import type { Stats } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { ArtifactError, FileContractRegistry, isArtifactPath } from '@agentflow/engine';
-import type { FileManifest, FileEntry } from '@agentflow/engine';
+import type { ArtifactMaterializer, FileManifest, FileEntry } from '@agentflow/engine';
 const LIMITS = { entries: 10_000, fileBytes: 64 * 1024 * 1024, totalBytes: 256 * 1024 * 1024, jsonBytes: 1024 * 1024 };
 const same = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs && b.nlink === 1;
 const within = (parent: string, child: string): boolean => { const p = relative(parent, child); return p === '' || p !== '..' && !p.startsWith('..' + sep) && !isAbsolute(p); };
@@ -13,14 +13,14 @@ async function directory(path: string): Promise<void> {
   const stat = await lstat(path); if (!stat.isDirectory() || stat.isSymbolicLink()) throw new ArtifactError('INVALID_DIRECTORY');
 }
 
-async function copyFile(source: string, target: string, path: string, maxBytes: number): Promise<{ bytes: number; sha256: string; prefix: Buffer; jsonBytes: Buffer | null }> {
+async function copyFile(source: string, target: string | undefined, path: string, maxBytes: number): Promise<{ bytes: number; sha256: string; prefix: Buffer; jsonBytes: Buffer | null }> {
   const before = await lstat(source);
   if (!before.isFile() || before.nlink !== 1 || before.size > maxBytes) throw new ArtifactError('INVALID_FILE', path);
   const input = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   let output;
   try {
     const stat = await input.stat(); if (!stat.isFile() || !same(before, stat)) throw new ArtifactError('FILE_CHANGED', path);
-    output = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+    if (target !== undefined) output = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     const hash = createHash('sha256'); const buffer = Buffer.alloc(64 * 1024); let bytes = 0; let prefix = Buffer.alloc(0);
     const chunks: Buffer[] = []; const isJson = path.toLowerCase().endsWith('.json');
     if (isJson && stat.size > LIMITS.jsonBytes) throw new ArtifactError('JSON_TOO_LARGE', path);
@@ -31,13 +31,13 @@ async function copyFile(source: string, target: string, path: string, maxBytes: 
       if (!prefix.length) prefix = Buffer.from(chunk.subarray(0, 16));
       if (isJson) { if (bytes > LIMITS.jsonBytes) throw new ArtifactError('JSON_TOO_LARGE', path); chunks.push(Buffer.from(chunk)); }
       hash.update(chunk);
-      for (let offset = 0; offset < chunk.length;) {
+      for (let offset = 0; output && offset < chunk.length;) {
         const written = await output.write(chunk, offset, chunk.length - offset, null);
         if (!written.bytesWritten) throw new ArtifactError('COPY_FAILED', path); offset += written.bytesWritten;
       }
     }
     if (bytes !== stat.size || !same(stat, await input.stat()) || !same(stat, await lstat(source))) throw new ArtifactError('FILE_CHANGED', path);
-    await output.sync();
+    await (output ?? input).sync();
     return { bytes, sha256: hash.digest('hex'), prefix, jsonBytes: isJson ? Buffer.concat(chunks) : null };
   } finally { await input.close(); await output?.close(); }
 }
@@ -53,19 +53,34 @@ function media(path: string, prefix: Buffer): string {
 }
 
 
-export interface StoredSnapshot { root: string; manifest: FileManifest }
+export interface StoredSnapshot { root: string; manifest: FileManifest; cleanupRoot?: string }
 
-export async function captureSnapshot(root: string, contracts: FileContractRegistry, source: string, contractId: string): Promise<StoredSnapshot> {
+export async function captureSnapshot(root: string, contracts: FileContractRegistry, source: string | ArtifactMaterializer, contractId: string): Promise<StoredSnapshot> {
     const contract = contracts.definition(contractId);
+    // Capture the installed capability before the first asynchronous operation.
+    const materialize = typeof source === 'string' ? null : source.materialize.bind(source);
     let stage: string | undefined;
     try {
-      await directory(source); const sourceRoot = await realpath(source);
+      let sourceRoot = '';
+      if (typeof source === 'string') { await directory(source); sourceRoot = await realpath(source); }
       await mkdir(root, { recursive: true, mode: 0o700 }); await directory(root);
       const stat = await lstat(root);
       if (stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_STORE_PERMISSIONS');
       const storeRoot = await realpath(root);
-      if (within(sourceRoot, storeRoot) || within(storeRoot, sourceRoot)) throw new ArtifactError('OVERLAPPING_ARTIFACT_ROOTS');
+      if (!materialize && (within(sourceRoot, storeRoot) || within(storeRoot, sourceRoot))) throw new ArtifactError('OVERLAPPING_ARTIFACT_ROOTS');
       stage = await mkdtemp(join(storeRoot, 'snapshot-'));
+      const dataRoot = materialize ? join(stage, 'data') : stage;
+      if (materialize) {
+        await materialize(dataRoot); await directory(dataRoot);
+        sourceRoot = await realpath(dataRoot);
+        if (sourceRoot !== dataRoot) throw new ArtifactError('INVALID_MATERIALIZED_ROOT');
+      }
+      const privateEntry = async (path: string, directory: boolean): Promise<void> => {
+        if (!materialize) return;
+        const stat = await lstat(path);
+        if (stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== (directory ? 0o700 : 0o600)) throw new ArtifactError('INVALID_MATERIALIZED_PERMISSIONS');
+      };
+      await privateEntry(dataRoot, true);
       const entries: FileEntry[] = []; const files: FileManifest['files'][number][] = []; const directories: string[] = [];
       let totalBytes = 0;
       const walk = async (base: string): Promise<void> => {
@@ -75,12 +90,13 @@ export async function captureSnapshot(root: string, contracts: FileContractRegis
           const path = base ? `${base}/${entry.name}` : entry.name;
           if (!isArtifactPath(path)) throw new ArtifactError('INVALID_ARTIFACT_PATH');
           if (entries.length >= LIMITS.entries) throw new ArtifactError('TOO_MANY_ENTRIES', path);
-          const from = join(sourceRoot, path), to = join(stage!, path); const stat = await lstat(from);
+          const from = join(sourceRoot, path), to = join(dataRoot, path); const stat = await lstat(from);
           if (stat.isDirectory() && !stat.isSymbolicLink()) {
-            entries.push({ path, kind: 'directory' }); directories.push(path); await mkdir(to, { mode: 0o700 }); await walk(path);
+            entries.push({ path, kind: 'directory' }); directories.push(path); await privateEntry(from, true); if (!materialize) await mkdir(to, { mode: 0o700 }); await walk(path);
           } else {
             if (files.length >= Math.min(contract.maxFiles, LIMITS.entries)) throw new ArtifactError('MAX_FILES', path);
-            const copied = await copyFile(from, to, path, Math.min(LIMITS.fileBytes, contract.maxTotalBytes - totalBytes, LIMITS.totalBytes - totalBytes));
+            await privateEntry(from, false);
+            const copied = await copyFile(from, materialize ? undefined : to, path, Math.min(LIMITS.fileBytes, contract.maxTotalBytes - totalBytes, LIMITS.totalBytes - totalBytes));
             totalBytes += copied.bytes;
             const mediaType = media(path, copied.prefix);
             let json;
@@ -99,9 +115,9 @@ export async function captureSnapshot(root: string, contracts: FileContractRegis
       const owners = new Map(check.assignments.map(entry => [entry.path, entry.rule]));
       const keptDirectories = new Set(check.directories);
       // Only unclaimed empty directories are omitted. rmdir fails if unexpected content exists.
-      for (const path of directories.filter(path => !keptDirectories.has(path)).sort((a, b) => b.length - a.length)) await rmdir(join(stage!, path));
+      for (const path of directories.filter(path => !keptDirectories.has(path)).sort((a, b) => b.length - a.length)) await rmdir(join(dataRoot, path));
       const manifest: FileManifest = { id: randomUUID(), contractId, directories: [...keptDirectories].sort(), files: files.map(file => ({ ...file, rule: owners.get(file.path)! })).sort((a, b) => a.path.localeCompare(b.path)) };
-      const snapshot = { root: stage, manifest }; stage = undefined;
+      const snapshot = { root: dataRoot, manifest, ...(materialize ? { cleanupRoot: stage } : {}) }; stage = undefined;
       return snapshot;
     } catch (error) {
       if (stage) await rm(stage, { recursive: true, force: true });

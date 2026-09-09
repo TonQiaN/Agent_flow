@@ -12,8 +12,8 @@ const contracts = new FileContractRegistry(new ContractRegistry());
 contracts.register('files', { rules: [{ id: 'value', kind: 'file', match: 'value.txt', minCount: 1, maxCount: 1, mediaTypes: ['text/plain'], maxBytes: 1000 }], maxFiles: 1, maxTotalBytes: 1000, unmatched: 'reject' });
 const archive = new FileArtifactArchive(join(root, 'archive'), contracts);
 if (mode === 'archive-fail') {
-  const capture = archive.capture.bind(archive); let calls = 0;
-  archive.capture = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
+  const capture = archive.captureMaterialized.bind(archive); let calls = 0;
+  archive.captureMaterialized = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
 }
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
 if ((!readingOperation || operation === 'claim-resume-pause') && (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-') || mode.startsWith('recovery-') || ['resume-running', 'network-resume'].includes(mode))) {
@@ -145,6 +145,7 @@ try {
       finally { await recovery?.dispose(); }
     } else if (['load', 'recover-resource'].includes(operation)) {
       const before = await store.read('run');
+      const workBefore = await readdir(join(root, 'work')).catch(e => { if (e.code === 'ENOENT') return null; throw e; });
       let loaded;
       try { loaded = await loadWorkflowCheckpoint(flow, 'run', store); }
       catch (error) {
@@ -153,6 +154,7 @@ try {
         console.log(JSON.stringify({ error: error.code, started }));
       }
       if (loaded) {
+        assert.deepEqual(await readdir(join(root, 'work')).catch(e => { if (e.code === 'ENOENT') return null; throw e; }), workBefore);
         const checkpoint = loaded.checkpoint, texts = [], recovered = [];
         if (operation === 'recover-resource') for (const attempt of checkpoint.attempts) if (attempt.resource && attempt.resultStep === null) {
           const handle = await new Runner(backends.get(attempt.node), systemClock).restore(attempt.resource);
@@ -175,7 +177,7 @@ try {
         }
         await Promise.all([loaded.dispose(), loaded.dispose()]); await loaded.dispose();
         for (const record of checkpoint.values) assert.notDeepEqual(files.check('files', record.value), []);
-        for (const name of ['temporary', 'work']) assert.deepEqual(await readdir(join(root, name)), []);
+        for (const name of ['temporary', 'work']) assert.deepEqual(await readdir(join(root, name)).catch(e => { if (e.code === 'ENOENT') return []; throw e; }), []);
         const again = await loadWorkflowCheckpoint(flow, 'run', store); await again.dispose();
         assert.deepEqual(await store.read('run'), before); assert.deepEqual(started, []);
         console.log(JSON.stringify({ checkpoint, revision: loaded.revision, recovery: loaded.recovery, texts, started, recovered }));

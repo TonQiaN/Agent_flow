@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, chmod, symlink, link, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, chmod, symlink, link, stat, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -122,4 +122,71 @@ test('contract failures do not publish archives and archive sources cannot overl
   await assert.rejects(f.archive.capture(f.source, 'files'), { code: 'FILE_CONTRACT_VIOLATION' });
   assert.deepEqual(await readdir(f.path), []);
   await assert.rejects(f.archive.capture(f.path, 'files'), { code: 'OVERLAPPING_ARTIFACT_ROOTS' });
+});
+
+test('direct materialization validates and publishes the same copied tree, with independent restore ownership', async t => {
+  const f = await fixture(t), temporary = new FileArtifactStore(join(f.root, 'temporary'), f.contracts);
+  const input = await temporary.capture(f.source, 'files'); let inode = 0;
+  const materializer = { async materialize(destination: string) {
+    assert.equal(join(destination, '../..'), await realpath(f.path));
+    await temporary.materialize(input.id, destination); inode = (await stat(join(destination, 'bundle/nested/answer.txt'))).ino;
+  } };
+  const pending = f.archive.captureMaterialized(materializer, 'files');
+  materializer.materialize = async () => { throw new Error('replaced capability'); };
+  const archived = await pending;
+  assert.equal((await stat(join(f.path, archived.reference.id, 'data/bundle/nested/answer.txt'))).ino, inode);
+  assert.deepEqual(await readdir(f.path), [archived.reference.id]);
+  const restoredStore = new FileArtifactStore(join(f.root, 'restored-store'), f.contracts);
+  const restored = await restoredStore.captureMaterialized({ materialize: path => f.archive.materialize(archived.reference, path) }, 'files');
+  assert.deepEqual(restored.files, input.files);
+  await restoredStore.materialize(restored.id, join(f.root, 'out')); await writeFile(join(f.root, 'out/bundle/nested/answer.txt'), 'changed');
+  await restoredStore.release(restored.id); assert.deepEqual(await readdir(restoredStore.root), []);
+  await temporary.release(input.id); assert.deepEqual(await readdir(temporary.root), []);
+  await f.archive.materialize(archived.reference, join(f.root, 'again'));
+  assert.equal(await readFile(join(f.root, 'again/bundle/nested/answer.txt'), 'utf8'), 'original');
+  assert.equal(await readFile(join(f.source, 'bundle/nested/answer.txt'), 'utf8'), 'original');
+});
+
+test('direct capture rejects partial writes, links, permissions and contract failures, cleaning only its envelope', async t => {
+  for (const target of ['store', 'archive']) for (const fault of ['partial', 'symlink', 'hardlink', 'permissions', 'contract']) {
+    const f = await fixture(t), store = new FileArtifactStore(join(f.root, 'target'), f.contracts), receiver = target === 'store' ? store : f.archive;
+    const path = receiver.root; await mkdir(path, { mode: 0o700 }); await writeFile(join(path, 'unrelated'), 'keep');
+    await assert.rejects(receiver.captureMaterialized({ async materialize(destination) {
+      if (fault === 'symlink') { await symlink(f.source, destination); return; }
+      await mkdir(join(destination, 'bundle'), { recursive: true, mode: 0o700 });
+      if (fault === 'hardlink') { await link(join(f.source, 'bundle/nested/answer.txt'), join(destination, 'bundle/answer.txt')); return; }
+      await writeFile(join(destination, 'bundle/answer.txt'), 'original', { mode: fault === 'permissions' ? 0o644 : 0o600 });
+      if (fault === 'partial') { await writeFile(join(destination, '../partial'), 'private'); throw new Error('injected'); }
+      if (fault === 'contract') await writeFile(join(destination, 'extra.txt'), 'extra', { mode: 0o600 });
+    } }, 'files'));
+    assert.deepEqual(await readdir(path), ['unrelated']);
+    assert.equal(await readFile(join(path, 'unrelated'), 'utf8'), 'keep');
+    assert.equal(await readFile(join(f.source, 'bundle/nested/answer.txt'), 'utf8'), 'original');
+  }
+});
+
+test('direct archive transfer rejects changed snapshot bytes and damaged durable bytes without orphan snapshots', async t => {
+  const f = await fixture(t), temporary = new FileArtifactStore(join(f.root, 'temporary'), f.contracts);
+  const input = await temporary.capture(f.source, 'files'), folder = (await readdir(temporary.root))[0]!;
+  await writeFile(join(temporary.root, folder, 'bundle/nested/answer.txt'), 'tampered');
+  await assert.rejects(f.archive.captureMaterialized({ materialize: path => temporary.materialize(input.id, path) }, 'files'), /ARTIFACT_INTEGRITY_MISMATCH/);
+  assert.deepEqual(await readdir(f.path), []);
+  const archived = await f.archive.capture(f.source, 'files');
+  await writeFile(join(f.path, archived.reference.id, 'data/bundle/nested/answer.txt'), 'tampered');
+  const restored = new FileArtifactStore(join(f.root, 'restored'), f.contracts);
+  await assert.rejects(restored.captureMaterialized({ materialize: path => f.archive.materialize(archived.reference, path) }, 'files'), /ARTIFACT_INTEGRITY_MISMATCH/);
+  assert.deepEqual(await readdir(restored.root), []); assert.equal((await readdir(f.path)).length, 1);
+});
+
+for (const mode of ['before-publish', 'after-publish']) test(`direct materialized archive SIGKILL ${mode} preserves publication boundary`, { timeout: 30000 }, async t => {
+  const f = await fixture(t), process = child([f.path, f.source, `direct-${mode}`]);
+  t.after(() => { process.process.kill(); });
+  const [message] = await process.message; assert.deepEqual(await process.exited, [null, 'SIGKILL']);
+  const fresh = new FileArtifactArchive(f.path, f.contracts);
+  if (mode === 'before-publish') await assert.rejects(fresh.read(message.reference));
+  else {
+    await fresh.materialize(message.reference, join(f.root, 'fresh'));
+    assert.equal(await readFile(join(f.root, 'fresh/bundle/nested/answer.txt'), 'utf8'), 'original');
+  }
+  assert.equal(await readFile(join(f.source, 'bundle/nested/answer.txt'), 'utf8'), 'original');
 });

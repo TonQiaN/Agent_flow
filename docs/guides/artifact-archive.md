@@ -32,6 +32,23 @@ read(reference) 校验引用、清单摘要、版本、身份、大小、路径�
 
 清单最多 16 MiB；复用现有文件捕获上限：10,000 个条目、单文件 64 MiB、总文件 256 MiB，以及用户更严格的 contract 限制。恢复不跟随软链接、不复用宿主输入 inode，也不会把旧目录重新挂给下一次执行。
 
+## 直接接收已物化副本
+
+内置临时存储和归档都支持可选 `captureMaterialized(source, contractId)`。source 是宿主明确安装的 `ArtifactMaterializer`，其 `materialize(destination)` 须在不存在的目标生成独立文件树，返回后停止写入。它不是从 Workflow JSON 或持久记录反序列化的函数；方法在首次异步等待前固定。
+
+```ts
+const saved = await archive.captureMaterialized({
+  materialize: destination => temporary.materialize(input.id, destination),
+}, 'input-files');
+const restored = await temporary.captureMaterialized({
+  materialize: destination => archive.materialize(saved.reference, destination),
+}, 'input-files');
+```
+
+目标位于接收存储新建的私有暂存范围。存储直接读取并校验已复制文件，包含摘要、字节/JSON 上限、媒体、contract、读取稳定性和链接检查，不再复制一次；文件与目录须由当前用户持有且权限为 0600/0700。文件同步及归档的目录/清单同步、原子发布顺序保持不变。临时快照保留整个暂存范围的私有释放责任，release 会清理其中的相邻暂存；归档发布前释放空暂存范围。失败只清理本次范围，不删除源文件、无关邻居或已发布归档。
+
+Catalog 在目标支持该端口时省掉自己的 checkpoint/restore 临时目录。旧端口实现使用原路径回退；两种路径都核对归档/恢复清单与原逻辑记录。来源仍由实际存储的 materialize 逐文件核对摘要，同一存储根内的重叠物化继续拒绝。崩溃时未发布暂存和旧进程临时快照仍可能保留，本接口没有扫描回收能力。
+
 ## 尚未接入
 
 当前 Run 恢复协调、定义/输入一致性、Attempt 历史、接纳与后继创建的一致性、旧 Runner query/stop 和 Effect unknown 均未由此接口实现。现有 AgentExecutor 仍使用临时 ArtifactStore，后续由引擎在接纳提交前显式归档。未发布 staging 和未引用归档暂时保留；首期没有 delete/list/迁移/去重/自动 GC。

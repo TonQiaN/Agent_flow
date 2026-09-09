@@ -28,3 +28,5 @@ Catalog 的 restoreValue 只消费加载器签发的一次性进程内请求。�
 加载恢复封套时额外核对 claimRevision、资源移除标记与活动状态的关系，`loaded.recovery` 返回 `{ claimRevision, resourceRemoved }` 的独立副本；普通记录为 null。该检查保持存储 revision 不变，不取得新 claim，也不触碰旧容器。
 
 实际不可变 API key Agent 的文件收据也已接入严格加载：从已安装 Driver 取得 Harness/版本/镜像，核对内外身份、前序引用和完整输入/输出清单；没有 Agent receipt 的公开导入接口。详见[阶段指南](workflow-phases.md)。
+
+内置 FileArtifactStore 支持直接在存储暂存范围物化归档并完成 contract 校验，因此加载不再建立 Catalog restore 目录；同一清理句柄释放整个本次快照范围。旧存储没有此可选端口时保持原路径回退。再次保存也可直接交给归档，见[归档交接](artifact-archive.md#直接接收已物化副本)。

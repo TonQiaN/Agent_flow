@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { syncBuiltinESMExports } from 'node:module';
-const [root, source, mode, serialized] = process.argv.slice(2);
+const [root, source, requestedMode, serialized] = process.argv.slice(2);
+const direct = requestedMode.startsWith('direct-'), mode = direct ? requestedMode.slice(7) : requestedMode;
 if (mode === 'before-publish' || mode === 'after-publish') {
   const rename = fs.rename;
   fs.rename = async (from, to) => {
@@ -18,7 +19,7 @@ if (mode === 'before-publish' || mode === 'after-publish') {
   syncBuiltinESMExports();
 }
 const { ContractRegistry, FileContractRegistry } = await import('../../packages/engine/dist/index.js');
-const { FileArtifactArchive, SqliteRunRecordStore } = await import('../../packages/integrations/dist/index.js');
+const { FileArtifactArchive, FileArtifactStore, SqliteRunRecordStore } = await import('../../packages/integrations/dist/index.js');
 const contracts = new FileContractRegistry(new ContractRegistry());
 contracts.register('files', { rules: [{ id: 'bundle', kind: 'tree', match: 'bundle', minCount: 1, maxCount: 1, minFiles: 1, maxFiles: 5, maxBytes: 4096, mediaTypes: ['text/plain'] }], maxFiles: 5, maxTotalBytes: 4096, unmatched: 'reject' });
 const archive = new FileArtifactArchive(root, contracts);
@@ -30,6 +31,8 @@ if (mode === 'restore-run') {
     process.send({ text: await fs.readFile(join(serialized, 'bundle/nested/answer.txt'), 'utf8') });
   } finally { records.close(); }
 } else {
-  const saved = await archive.capture(source, 'files'); process.send(saved);
+  const temporary = new FileArtifactStore(join(root, '..', 'direct-source-store'), contracts);
+  const input = direct ? await temporary.capture(source, 'files') : null;
+  const saved = direct ? await archive.captureMaterialized({ materialize: destination => temporary.materialize(input.id, destination) }, 'files') : await archive.capture(source, 'files'); process.send(saved);
 }
 process.disconnect();
