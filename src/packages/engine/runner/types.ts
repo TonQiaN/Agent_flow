@@ -39,6 +39,10 @@ export interface RawCapture {
 export interface ExecutionBackend {
   /** Freeze and describe the actual installed execution environment before allocating resources. */
   definition?(): Promise<JsonValue>;
+  /** Snapshot actual allocated ownership before any external process can be created. */
+  snapshotResource?(resource: ExecutionResource, identity: ExecutionIdentity): Promise<JsonValue>;
+  /** Reinstall ownership only. Must not prepare, create or start an old execution. */
+  restoreResource?(snapshot: JsonValue, identity: ExecutionIdentity, expected: ExecutionResource): Promise<ExecutionResource>;
   allocate(): Promise<ExecutionResource>;
   prepare(resource: ExecutionResource, request: RunnerRequest): Promise<void>;
   create(resource: ExecutionResource, request: RunnerRequest): Promise<void>;
@@ -48,6 +52,22 @@ export interface ExecutionBackend {
   capture(resource: ExecutionResource): Promise<RawCapture>;
   remove(resource: ExecutionResource): Promise<void>;
   release(resource: ExecutionResource): Promise<void>;
+}
+export interface RunnerResourceCheckpoint {
+  readonly schema: 'agentflow-runner-resource/v1';
+  readonly identity: ExecutionIdentity;
+  readonly resource: ExecutionResource;
+  readonly execution: JsonValue;
+  readonly backend: JsonValue;
+}
+export interface RunnerResourceSink { save(checkpoint: RunnerResourceCheckpoint): Promise<void> }
+export interface RestoredRunnerResource {
+  readonly identity: ExecutionIdentity;
+  readonly resource: ExecutionResource;
+  query(): Promise<Observation>;
+  /** Confirm both stop and removal, including a late start of a created resource. */
+  stopAndRemove(): Promise<{ readonly confirmed: boolean }>;
+  release(): Promise<void>;
 }
 export interface RunnerResult {
   readonly identity: ExecutionIdentity;
