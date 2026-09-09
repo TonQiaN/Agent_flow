@@ -35,3 +35,5 @@ try {
 CAS 和数据库事务只保护状态更新，不能证明文件产物已经耐久保存、旧执行已停止或外部 Effect 未发生。后续必须先耐久保存并校验输入/产物，再提交接纳及后续调度事实；恢复使用共同 Runner query/stop 接口，再进入同一引擎执行/路由。不能用读取到一行记录作为整个 Run 可恢复的证明。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [存储验证](../validation/2026-09-09-run-record-store.md)
+
+[耐久文件归档](artifact-archive.md)已有独立实现，可先保存文件再提交引用；尚未自动接入引擎。

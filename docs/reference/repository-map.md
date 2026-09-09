@@ -62,3 +62,5 @@ Agent_flow/
 `engine/components/script-executor` 保存一次脚本执行及纯结果协议，`integrations/execution/script-record-reader` 执行停止后原始文件读取；`integrations/workflow` 复用文件契约和来源引用接纳脚本产物。
 
 `engine/components/effect-executor` 与 `engine/workflow/effects` 分开保存操作授权/幂等接纳和 Workflow 适配；`integrations/effects/simulated-service` 只提供内存模拟目标，不接触 Harness 凭据。
+
+耐久文件端口位于 `src/packages/engine/persistence/artifacts.ts`，本地实现位于 `src/packages/integrations/artifacts/file-archive.ts`；与临时 store 共用内部 `snapshot-io.ts`，归档没有临时释放生命周期。见[归档指南](../guides/artifact-archive.md)。

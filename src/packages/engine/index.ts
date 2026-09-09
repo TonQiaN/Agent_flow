@@ -33,3 +33,4 @@ export { copyJson as snapshotJson } from './json.js';
 
 export { RunStoreError } from './persistence/types.js';
 export type { RunRecord, RunRecordStore } from './persistence/types.js';
+export type { ArtifactArchive, ArtifactArchiveReference, ArchivedArtifact } from './persistence/artifacts.js';
