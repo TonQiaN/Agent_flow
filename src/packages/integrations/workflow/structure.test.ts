@@ -70,7 +70,7 @@ test('same contract ID across catalogs must represent the same definition when e
 
 test('legacy executors still compile but cannot provide incomplete persistent structure evidence', () => {
   const f = fixture(), executor: WorkflowNodeExecutor = { validate: c => f.catalog.validate(c), contract: id => f.catalog.contract(id),
-    check: (id, value) => f.catalog.check(id, value), execute: (...args) => f.catalog.execute(...args) };
+    check: (id, value) => f.catalog.check(id, value), execute: (component, input, identity, cancellation) => f.catalog.execute(component, input, identity, cancellation) };
   const plan = compileWorkflow(definition(), { resolve: id => ({ component: f.catalog.resolve(id).component, executor }) });
   assert.throws(() => snapshotWorkflowStructure(plan), /WORKFLOW_CONTRACT_DEFINITION_UNAVAILABLE/);
   for (const value of [

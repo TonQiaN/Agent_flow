@@ -72,3 +72,5 @@
 [严格检查点加载与文件引用恢复验证](2026-09-10-workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
 
 [Runner 资源保存与实际中断验证](2026-09-10-runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
+
+[Workflow Attempt 资源检查点](2026-09-10-workflow-attempt-resources.md)：资源接入正常 Workflow CAS，启动前核对以及真实中断后的共同 Runner 清理；新 Attempt 执行仍待完成。

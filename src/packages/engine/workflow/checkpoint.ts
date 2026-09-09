@@ -1,6 +1,9 @@
-import type { JsonValue } from '@agentflow/domain';
+import type { JsonValue, ExecutionIdentity } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import type { RunRecordStore } from '../persistence/types.js';
+import { canonicalJson, copyJson } from '../json.js';
+import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
+import type { RunnerResourceCheckpoint, RunnerResourceSink } from '../runner/types.js';
 import { getPlan, snapshot } from './compiler.js';
 import { snapshotWorkflowExecution } from './execution.js';
 import type { WorkflowExecutionSnapshot } from './execution.js';
@@ -20,11 +23,18 @@ export interface WorkflowCursor {
 }
 /** Inspectable durable facts, not an executable plan or permission to resume a Run. */
 export interface WorkflowCheckpoint {
-  readonly schema: 'agentflow-workflow-checkpoint/v1';
+  readonly schema: 'agentflow-workflow-checkpoint/v2';
   readonly execution: WorkflowExecutionSnapshot;
   readonly snapshot: WorkflowSnapshot;
   readonly cursor: WorkflowCursor;
   readonly values: readonly WorkflowCheckpointValue[];
+  readonly attempts: readonly WorkflowAttemptCheckpoint[];
+}
+export interface WorkflowAttemptCheckpoint {
+  readonly node: string;
+  readonly identity: ExecutionIdentity;
+  readonly resultStep: number | null;
+  readonly resource: RunnerResourceCheckpoint | null;
 }
 
 /** One writer per live Run; failed writes poison the lane rather than skipping a revision. */
@@ -32,13 +42,35 @@ export class CheckpointWriter {
   #revision: number | undefined;
   #tail: Promise<void> = Promise.resolve();
   readonly #values: WorkflowCheckpointValue[] = [];
+  readonly #attempts: { -readonly [K in keyof WorkflowAttemptCheckpoint]: WorkflowAttemptCheckpoint[K] }[] = [];
+  readonly #resourceDefinitions = new Map<string, JsonValue>();
   private constructor(private readonly compiled: CompiledWorkflow, private readonly runId: string,
     private readonly store: RunRecordStore, private readonly execution: WorkflowExecutionSnapshot) {}
   static async prepare(compiled: CompiledWorkflow, runId: string, store: RunRecordStore): Promise<CheckpointWriter> {
     for (const binding of getPlan(compiled).bindings.values()) {
       if ([binding.input, ...binding.outcomes.values()].some(c => c.kind === 'files') && !binding.executor.checkpointValue) throw new DefinitionError('WORKFLOW_VALUE_PERSISTENCE_UNAVAILABLE');
     }
-    return new CheckpointWriter(compiled, runId, store, await snapshotWorkflowExecution(compiled));
+    const writer = new CheckpointWriter(compiled, runId, store, await snapshotWorkflowExecution(compiled));
+    for (const [node, binding] of getPlan(compiled).bindings) if (binding.executor.resourceDefinition)
+      writer.#resourceDefinitions.set(node, snapshot(await binding.executor.resourceDefinition(snapshot(binding.component))));
+    return writer;
+  }
+  beginAttempt(node: string, identity: ExecutionIdentity): void {
+    this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null });
+  }
+  finishAttempt(resultStep: number): void { this.#attempts.at(-1)!.resultStep = resultStep; }
+  resourceSink(node: string, identity: ExecutionIdentity, commit: () => Promise<void>): { sink: RunnerResourceSink; close(): void } | undefined {
+    const definition = this.#resourceDefinitions.get(node); if (definition === undefined) return undefined;
+    const attempt = this.#attempts.at(-1)!; let closed = false;
+    return { close: () => { closed = true; }, sink: Object.freeze({ save: async (value: RunnerResourceCheckpoint) => {
+      if (closed || attempt !== this.#attempts.at(-1) || attempt.resultStep !== null || attempt.resource !== null) throw new DefinitionError('WORKFLOW_RESOURCE_PORT_CLOSED');
+      const record = validateRunnerResourceCheckpoint(value);
+      if (attempt.node !== node || canonicalJson(copyJson(record.identity)) !== canonicalJson(copyJson(identity))
+        || canonicalJson(record.execution) !== canonicalJson(definition)
+        || this.#attempts.some(a => a.resource?.resource.id === record.resource.id)) throw new DefinitionError('WORKFLOW_RESOURCE_MISMATCH');
+      attempt.resource = record;
+      await commit();
+    } }) };
   }
   async saveValue(node: string, contract: WorkflowContract, value: JsonValue): Promise<WorkflowCheckpointValue> {
     const binding = getPlan(this.compiled).bindings.get(node)!;
@@ -51,8 +83,8 @@ export class CheckpointWriter {
   /** Publish with the corresponding input/accepted step, without an intervening await. */
   acceptValue(value: WorkflowCheckpointValue): void { this.#values.push(snapshot(value)); }
   write(view: WorkflowSnapshot, cursor: WorkflowCursor): Promise<void> {
-    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v1', execution: this.execution,
-      snapshot: view, cursor, values: this.#values }) as unknown as JsonValue;
+    const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v2', execution: this.execution,
+      snapshot: view, cursor, values: this.#values, attempts: this.#attempts }) as unknown as JsonValue;
     this.#tail = this.#tail.then(async () => {
       const record = this.#revision === undefined ? await this.store.create(this.runId, content)
         : await this.store.compareAndSwap(this.runId, this.#revision, content);

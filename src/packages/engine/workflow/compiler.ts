@@ -45,6 +45,7 @@ export function compileWorkflow(value: WorkflowDefinition, catalog: WorkflowCata
         || Object.entries(component.outcomes).some(([outcome, ref]) => !isIdentifier(outcome) || !isIdentifier(ref))) throw new Error();
       // Capture methods once; replacing a catalog entry or executor method cannot retarget a compiled run.
       const executor: WorkflowNodeExecutor = Object.freeze({ validate: source.validate.bind(source), contract: source.contract.bind(source), check: source.check.bind(source), execute: source.execute.bind(source),
+        ...(source.resourceDefinition ? { resourceDefinition: source.resourceDefinition.bind(source) } : {}),
         ...(source.restoreValue ? { restoreValue: source.restoreValue.bind(source) } : {}),
         ...(source.checkpointValue ? { checkpointValue: source.checkpointValue.bind(source) } : {}),
         ...(source.executionDefinition ? { executionDefinition: source.executionDefinition.bind(source) } : {}) });

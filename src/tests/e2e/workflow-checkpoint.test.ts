@@ -39,7 +39,7 @@ for (const interrupt of [false, true]) test(`persisted real script Workflow reta
     const reading = child(root, 'read'); processes.push(reading); const [code] = await reading.exited;
     assert.equal(code, 0, reading.output().stderr);
     const { record, texts } = JSON.parse(reading.output().stdout), checkpoint = record.content as WorkflowCheckpoint;
-    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v1'); assert.equal(checkpoint.execution.version, 1);
+    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v2'); assert.equal(checkpoint.execution.version, 1);
     assert.deepEqual(texts, interrupt ? ['seed', 'seedA'] : ['seed', 'seedA', 'seedAB']);
     assert.equal(checkpoint.snapshot.steps.length, interrupt ? 1 : 2);
     assert.equal(checkpoint.snapshot.status, interrupt ? 'running' : 'succeeded');
@@ -153,4 +153,51 @@ test('real script output archive failure records failure without acceptance or s
     for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
     if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained checkpoint evidence: ${root}\n`);
   }
+});
+
+for (const beforeCreate of [true, false]) test(`Workflow Attempt resource from its own CAS supports fresh common Runner cleanup after SIGKILL; beforeCreate=${beforeCreate}`, { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-workflow-resource-')); let resource: string | undefined, removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, beforeCreate ? 'resource-pause' : 'interrupt'); processes.push(running);
+    const [message] = await Promise.race([once(running.process, 'message'), running.exited.then(() => { throw new Error(running.output().stderr || 'worker exited early'); })]);
+    assert.equal(message.event, beforeCreate ? 'resource-saved' : 'b-started'); resource = message.resource.id; assert.match(resource!, /^af-[a-f0-9-]+$/);
+    running.process.kill('SIGKILL'); assert.deepEqual(await running.exited, [null, 'SIGKILL']);
+    if (beforeCreate) assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${resource}$`, '--format', '{{.ID}}']), '');
+    else assert.equal(await docker(['inspect', '--format', '{{.State.Running}}', resource!]), 'true');
+    for (const name of ['source', 'temporary', 'work']) await rm(join(root, name), { recursive: true, force: true });
+    const loading = child(root, 'recover-resource', beforeCreate ? 'run' : 'interrupt'); processes.push(loading); const [code] = await loading.exited;
+    assert.equal(code, 0, loading.output().stderr); const result = JSON.parse(loading.output().stdout);
+    assert.equal(result.error, undefined); assert.deepEqual(result.started, []);
+    assert.deepEqual(result.texts, beforeCreate ? ['seed'] : ['seed', 'seedA']);
+    assert.equal(result.recovered.length, 1); assert.equal(result.recovered[0].node, beforeCreate ? 'a' : 'b');
+    assert.equal(result.recovered[0].observation.state, beforeCreate ? 'absent' : 'running'); assert.equal(result.recovered[0].confirmed, true);
+    assert.equal(result.checkpoint.attempts.at(-1).resource.resource.id, resource);
+    assert.equal(result.checkpoint.attempts.at(-1).resultStep, null);
+    assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${resource}$`, '--format', '{{.ID}}']), ''); removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) p.process.kill('SIGKILL');
+    if (resource) await docker(['rm', '-f', resource]).catch(() => {});
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained Workflow resource evidence: ${root}\n`);
+  }
+});
+test('Workflow resource CAS failure prevents actual container creation and all successor execution', { skip: !enabled, timeout: 20000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-workflow-resource-fail-')); let removable = false;
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, 'resource-fail'); const [code] = await running.exited;
+    assert.equal(code, 0, running.output().stderr); const result = JSON.parse(running.output().stdout);
+    assert.equal(result.status, 'failed'); assert.deepEqual(result.started, []); assert.deepEqual(result.created, []);
+    assert.equal(result.steps.length, 1); assert.equal(result.steps[0].result.status, 'failed');
+    assert.equal(result.steps[0].result.code, 'SCRIPT_EXECUTION_FAILED'); assert.equal(result.steps[0].result.stopped, true);
+    const store = await SqliteRunRecordStore.open(join(root, 'db'));
+    try {
+      const checkpoint = (await store.read('run'))!.content as any;
+      assert.equal(checkpoint.attempts.length, 1); assert.equal(checkpoint.attempts[0].resource, null);
+      assert.equal(checkpoint.attempts[0].resultStep, null); assert.equal(checkpoint.snapshot.status, 'running');
+      assert.deepEqual(checkpoint.snapshot.steps, []);
+    } finally { store.close(); }
+    removable = true;
+  } finally { if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained resource CAS evidence: ${root}\n`); }
 });
