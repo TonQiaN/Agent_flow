@@ -1,6 +1,6 @@
 # Claude Adapter（调用计划与协议）
 
-ClaudeAdapter 是独立的纯映射/解析模块，可通过 HarnessRegistry 显式安装。当前针对实际离线镜像中的 Claude Code 2.1.226；它不启动容器、读取凭据或决定文件交付是否合约。完整 Claude 订阅组合、工具权限和真实模型交付仍待后续验收。
+ClaudeAdapter 是独立的纯映射/解析模块，可通过 HarnessRegistry 显式安装。当前针对实际离线镜像中的 Claude Code 2.1.226；它不启动容器、读取凭据或决定文件交付是否合约。订阅执行组合已接通并通过合成测试，工具权限和真实模型交付仍待后续验收，见 [执行组合](claude-execution.md)。
 
 ```ts
 import { ClaudeAdapter } from '@agentflow/integrations';

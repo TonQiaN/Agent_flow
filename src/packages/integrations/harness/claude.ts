@@ -24,7 +24,7 @@ export class ClaudeAdapter implements HarnessAdapter {
       || !task.outcomes.every(isIdentifier) || new Set(task.outcomes).size !== task.outcomes.length)) throw new Error('INVALID_HARNESS_OUTCOMES');
     const home = `${TASK_PATHS.state}/claude`, settings = `${TASK_PATHS.config}/claude-managed.json`, tools = 'Bash,Read,Write,Edit,Glob,Grep';
     const policy = { forceLoginMethod: 'claudeai', permissions: { deny: [
-      ...['Read', 'Edit', 'Grep'].map(tool => `${tool}(${TASK_PATHS.state}/**)`), `Edit(${TASK_PATHS.config}/**)`, 'Agent', 'WebSearch', 'WebFetch',
+      ...['Read', 'Edit'].map(tool => `${tool}(/${TASK_PATHS.state}/**)`), `Edit(/${TASK_PATHS.config}/**)`, 'Agent', 'WebSearch', 'WebFetch',
     ] }, sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false, enableWeakerNestedSandbox: true,
       filesystem: { allowRead: [TASK_PATHS.input, TASK_PATHS.work, TASK_PATHS.outputs], allowWrite: [TASK_PATHS.input, TASK_PATHS.work, TASK_PATHS.outputs, '/tmp'],
         denyRead: [TASK_PATHS.state], denyWrite: [TASK_PATHS.state, TASK_PATHS.config] }, network: { allowedDomains: [], allowManagedDomainsOnly: true } } };

@@ -26,3 +26,9 @@ export { FileJsonWorkflowCatalog } from './workflow/file-json.js';
 export type { FileJsonContext, FileJsonTransform, FileJsonReceipt } from './workflow/file-json.js';
 
 export { ClaudeAdapter, CLAUDE_VERSION } from './harness/claude.js';
+
+export { ClaudeSubscriptionCodec, ClaudeCredentialRedactor, claudeSubscriptionProfile, CLAUDE_SUBSCRIPTION_HOSTS } from './auth/claude-subscription.js';
+export type { ClaudeSubscriptionProfile } from './auth/claude-subscription.js';
+export { ClaudeSubscriptionRunner, ClaudeExecution } from './execution/claude-runner.js';
+export type { ClaudeRunRequest, ClaudeExecutionResult } from './execution/claude-runner.js';
+export { ClaudeAgentDriver } from './execution/claude-agent-driver.js';

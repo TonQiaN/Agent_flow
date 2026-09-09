@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, writeFile, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { ClaudeAdapter, CLAUDE_VERSION } from '@agentflow/integrations';
+import { ClaudeAdapter, CLAUDE_VERSION, ClaudeSubscriptionCodec, FileCredentialStore, FileExecutionCredentialBinding, DockerBackend, systemClock } from '@agentflow/integrations';
+import { Runner } from '@agentflow/engine';
 import type { HarnessTask, RunnerResult } from '@agentflow/engine';
 
 const image = process.env['AGENTFLOW_CLAUDE_IMAGE'];
@@ -38,5 +39,36 @@ test('Claude: actual pinned CLI parses the generated plan offline and reports mi
       assert.ok(!result.diagnostics.includes('MISSING_HARNESS_TERMINAL')); assert.ok(!result.diagnostics.includes('MALFORMED_HARNESS_EVENT'));
     } finally {
       spawnSync('docker', ['rm', '-f', name], { stdio: 'ignore', timeout: 10_000 }); await rm(root, { recursive: true, force: true });
+    }
+  });
+
+test('Claude: actual CLI recognizes a synthetic subscription file through the private binding with networking disabled',
+  { skip: !image, timeout: 30_000 }, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'af-claude-format-'));
+    const credential = { credentialRef: 'fixture', service: 'anthropic', method: 'subscription' };
+    const content = JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-original', refreshToken: 'fixture-refresh-original', expiresAt: 1800000000000,
+      scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } });
+    let binding: FileExecutionCredentialBinding | undefined, runner: Runner | undefined, result: RunnerResult | undefined;
+    try {
+      const store = new FileCredentialStore(join(root, 'store'), [new ClaudeSubscriptionCodec()]); await store.configure(credential, { content });
+      const identity = { runId: 'format', nodeTaskId: 'check', attemptId: 'first', attemptNumber: 1 };
+      const plan = new ClaudeAdapter().plan({ identity, prompt: 'unused', config: { model: 'sonnet', subagents: false, search: false } });
+      binding = await FileExecutionCredentialBinding.acquire(store, { identity, credential, stateFile: 'claude/.credentials.json', environment: { CLAUDE_CONFIG_DIR: '/task/state/claude' } });
+      const backend = new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none' }, binding); runner = new Runner(backend, systemClock);
+      const input = join(root, 'input'); await mkdir(input);
+      result = await runner.run({ identity, inputSource: input, timeoutMs: 10_000, invocation: {
+        argv: ['/usr/bin/env', 'CLAUDE_CODE_MANAGED_SETTINGS_PATH=/task/config/claude-managed.json', 'claude', 'auth', 'status', '--json'], configFiles: plan.configFiles } });
+      assert.equal(result.exitCode, 0); assert.equal(result.cleanup, 'removed');
+      const status = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
+      assert.equal(status.loggedIn, true); assert.equal(status.authMethod, 'claude.ai'); assert.equal(status.forcedLoginMethod, 'claudeai'); assert.equal(status.subscriptionType, 'max');
+      // This status is a local format check: deliberately fake tokens work, so it proves no remote validity.
+      assert.equal(status.email, null); assert.equal(status.orgId, null); assert.ok(!JSON.stringify(status).includes('fixture-'));
+      assert.equal((await binding.finish(result)).refresh, 'unchanged'); await runner.release(result.resource!);
+      assert.deepEqual(await readdir(join(root, 'attempts')), []);
+      const lease = await store.acquire(credential); assert.equal(await lease.readSecret(), content); await lease.release();
+    } finally {
+      if (binding && result) { const final = await binding.finish(result); if (final.status !== 'released') throw new Error('CREDENTIAL_CLEANUP_RETAINED'); if (result.resource) await runner!.release(result.resource); }
+      else if (binding) await binding.abandon();
+      await rm(root, { recursive: true, force: true });
     }
   });

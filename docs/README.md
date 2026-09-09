@@ -21,4 +21,4 @@
 
 规划与当前行为明确区分。功能落地后再更新操作示例和验证事实，不因决定已接受就写成已实现。
 
-[Claude Adapter](guides/claude-adapter.md) 已实现 2.1.226 的独立调用计划、协议解析和真实无凭据离线启动验证；其完整订阅执行、工具隔离和真实任务仍未验收。DeepSeek 尚未接入。
+[Claude Adapter](guides/claude-adapter.md) 已实现 2.1.226 的独立调用计划、协议解析和真实无凭据离线启动验证；其订阅组合已通过合成刷新与文件交接、真实 CLI 断网格式识别；工具隔离和真实任务仍未验收，见 [组合入口](guides/claude-execution.md)。DeepSeek 尚未接入。

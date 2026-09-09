@@ -30,3 +30,5 @@
 当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow、文件到 JSON 转换及 Tutor 合成 Agent/Gate/Fixer/模拟 Effect 闭环；真实批卷、报告和 PDF 验收仍未完成。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
 
 - [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
+
+- [Claude 订阅执行、刷新与真实格式识别](2026-09-09-claude-execution.md)
