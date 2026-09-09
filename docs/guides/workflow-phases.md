@@ -23,3 +23,5 @@
 严格文件加载同时核对外层前序引用、归档清单和内层 Agent 收据的身份、组件、outcome、Harness、版本及实际镜像。内层输入可有独立快照 ID，但文件内容必须与前序清单完全一致；输出清单须与归档一致。File Catalog 使用源文件调用 Agent，因此内层 predecessor 必须为 null。收据不会导入新 AgentExecutor 的进程内映射，也不会重跑旧模型或重做业务接纳。见[实际组合验证](../validation/2026-09-10-agent-workflow.md)。
 
 探针不再创建外部空输入目录，Driver 输入直接在 Runner 已登记目录内物化；正常与恢复 release 统一收尾，见[输入物化](runner-owned-input.md)。其他宿主临时目录仍待处理。
+
+Catalog 与 AgentExecutor 共享支持 inspect 的同一实际存储时，阶段开始前无需另建 node 输入目录或重复捕获快照；借用引用在停止未确认时保留至清理成功。不同存储保留原路径回退；检查点/恢复暂存和旧进程临时快照仍待处理，见[输入复用验证](../validation/2026-09-10-catalog-snapshot-input.md)。

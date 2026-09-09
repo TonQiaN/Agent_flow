@@ -71,7 +71,7 @@ test('file Workflow crosses Agent/Gate/Fixer with private provenance, writable c
     assert.deepEqual(record.receipt.predecessor, previous); assert.deepEqual(record.receipt.input, f.catalog.inspect(previous, 'run').manifest);
     assert.deepEqual(record.receipt.identity, step.result.identity);
     if (record.receipt.agent) {
-      assert.equal(record.receipt.agent.predecessor, null); assert.notEqual(record.receipt.agent.input.id, record.receipt.input.id);
+      assert.equal(record.receipt.agent.predecessor, null); assert.equal(record.receipt.agent.input.id, record.receipt.input.id);
       assert.deepEqual(record.receipt.agent.input.files, record.receipt.input.files);
     }
     (record.manifest.files[0] as { sha256: string }).sha256 = 'forged';
@@ -151,9 +151,9 @@ test('Agent cleanup failure blocks acceptance and retains a retry without upgrad
   const input = await f.catalog.prepareInput('run', f.source, 'files');
   const run = new WorkflowRuntime().start(compileWorkflow(one('agent'), f.catalog), 'run', input), result = await run.completion;
   assert.equal(result.status, 'failed'); assert.equal(result.reason, 'FILE_NODE_CLEANUP_FAILED'); assert.equal(result.lastAccepted, null);
-  assert.ok(!JSON.stringify(result).includes('PRIVATE_CLEANUP')); assert.equal((await readdir(join(f.root, 'nodes'))).length, 1);
+  assert.ok(!JSON.stringify(result).includes('PRIVATE_CLEANUP')); await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' });
   await assert.rejects(f.catalog.cleanup(identity)); d.failRelease(false); await f.catalog.cleanup(identity);
-  assert.deepEqual(await readdir(join(f.root, 'nodes')), []); assert.equal((await readdir(join(f.root, 'store'))).length, 1);
+  await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' }); assert.equal((await readdir(join(f.root, 'store'))).length, 1);
   assert.equal(run.query().status, 'failed'); await f.catalog.release(input, 'run');
 });
 
@@ -165,9 +165,11 @@ test('unconfirmed Agent stop retains input and does not claim cancellation; reco
   const run = new WorkflowRuntime().start(compileWorkflow(one('agent'), f.catalog), 'run', input); cancel = () => { run.cancel(); };
   const result = await run.completion; assert.equal(result.cancelRequested, true);
   assert.equal(result.status, 'failed'); assert.equal(result.reason, 'EXECUTION_STOP_UNCONFIRMED'); assert.deepEqual(result.currentIdentity, identity);
-  const root = join(f.root, 'nodes', (await readdir(join(f.root, 'nodes')))[0]!);
-  assert.ok((await stat(join(root, 'input/answer.json'))).isFile()); assert.equal(d.releases(), 0);
-  await f.catalog.cleanup(identity); assert.equal(d.releases(), 1); assert.equal(run.query().reason, 'EXECUTION_STOP_UNCONFIRMED');
+  await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' });
+  await assert.rejects(f.catalog.release(input, 'run'), /WORKFLOW_FILES_IN_USE/);
+  await f.catalog.materialize(input, 'run', join(f.root, 'retained'));
+  assert.equal(await readFile(join(f.root, 'retained/answer.json'), 'utf8'), '{"revision":0}'); assert.equal(d.releases(), 0);
+  await f.catalog.cleanup(identity); assert.equal(d.releases(), 1); assert.equal(run.query().reason, 'EXECUTION_STOP_UNCONFIRMED'); await f.catalog.release(input, 'run');
 });
 
 test('invalid Agent configuration fails registration without capture or execution, and duplicate attempts stay reserved', async t => {
@@ -203,7 +205,7 @@ test('an insecure existing work root is refused before private input is material
   assert.deepEqual(await readdir(join(f.root, 'nodes')), []); await f.catalog.cleanup(identity);
 });
 
-test('driver start exceptions without stop evidence retain the workspace and cannot be cleaned optimistically', async t => {
+test('driver start exceptions without stop evidence retain the borrowed input and cannot be cleaned optimistically', async t => {
   const f = await fixture(t);
   const bad: AgentExecutionDriver = { harness: 'fixture', validate() {}, async run() { throw new Error('PRIVATE_START_ERROR'); } };
   f.catalog.registerAgent(component('agent', 'agent'), new AgentExecutor(f.contracts, f.store, bad), { prompt: 'task', config: {} });
@@ -211,7 +213,8 @@ test('driver start exceptions without stop evidence retain the workspace and can
   const result = await new WorkflowRuntime().start(compileWorkflow(one('agent'), f.catalog), 'run', input).completion;
   assert.equal(result.reason, 'EXECUTION_STOP_UNCONFIRMED'); assert.ok(!JSON.stringify(result).includes('PRIVATE_START_ERROR'));
   await assert.rejects(f.catalog.cleanup(identity), /EXECUTION_STOP_UNCONFIRMED/);
-  assert.equal((await readdir(join(f.root, 'nodes'))).length, 1);
+  await assert.rejects(f.catalog.release(input, 'run'), /WORKFLOW_FILES_IN_USE/);
+  await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' });
 });
 
 test('direct execution snapshots caller component and identity across asynchronous file work', async t => {
@@ -229,4 +232,24 @@ test('direct execution snapshots caller component and identity across asynchrono
   assert.deepEqual(f.catalog.inspect(result.output, 'run').receipt!.identity, identity);
   await f.catalog.release(result.output, 'run'); await f.catalog.release(input, 'run');
   assert.deepEqual(await readdir(join(f.root, 'nodes')), []); assert.deepEqual(await readdir(join(f.root, 'store')), []);
+});
+
+test('Agent Catalog reuses only its shared store and preserves file handoff for different stores', async t => {
+  for (const shared of [true, false]) {
+    const f = await fixture(t), target = shared ? f.store : new FileArtifactStore(join(f.root, 'agent-store'), f.contracts);
+    let captures = 0; const capture = target.capture.bind(target); target.capture = async (...args) => { captures++; return capture(...args); };
+    const d = driver(f.root, target), agent = new AgentExecutor(f.contracts, target, d.impl), c = component('agent', 'agent');
+    f.catalog.registerAgent(c, agent, { prompt: 'mark', config: {} });
+    const input = await f.catalog.prepareInput('run', f.source, 'files'); captures = 0;
+    const result = await f.catalog.execute(c, input, identity, { requested: () => false });
+    assert.equal(result.status, 'accepted'); assert.equal(captures, shared ? 1 : 2);
+    if (result.status !== 'accepted') throw new Error();
+    if (shared) await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' });
+    else assert.deepEqual(await readdir(join(f.root, 'nodes')), []);
+    await f.catalog.materialize(input, 'run', join(f.root, 'input-still-owned'));
+    assert.equal(await readFile(join(f.root, 'input-still-owned/answer.json'), 'utf8'), '{"revision":0}');
+    await f.catalog.release(result.output, 'run'); await f.catalog.release(input, 'run');
+    assert.deepEqual(await readdir(f.store.root), []);
+    if (!shared) assert.deepEqual(await readdir(target.root), []);
+  }
 });

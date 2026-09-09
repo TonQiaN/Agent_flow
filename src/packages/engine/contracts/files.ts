@@ -37,6 +37,8 @@ export interface FileManifest {
 /** Execution coordination owns termination checks; the storage adapter owns source/destination IO. */
 export interface ArtifactStore {
   capture(source: string, contractId: string): Promise<FileManifest>;
+  /** Describe an existing process-local snapshot. Materialization still verifies its bytes. */
+  inspect?(id: string): Promise<FileManifest>;
   materialize(id: string, destination: string): Promise<void>;
   release(id: string): Promise<void>;
 }

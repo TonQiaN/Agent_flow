@@ -72,3 +72,5 @@
 [实际 Agent Workflow](validation/2026-09-10-agent-workflow.md)已接通不可变 API key 的阶段记录与文件收据，以 DeepSeek 合成协议验证 A 保留、B 多次中断恢复；订阅和宿主临时目录崩溃收尾仍待完成。
 
 [Runner 输入物化](guides/runner-owned-input.md)已消除版本探针和 Agent Driver 的外部输入临时目录；Catalog 等其他临时目录的崩溃收尾仍待完成。
+
+[Catalog 输入复用](validation/2026-09-10-catalog-snapshot-input.md)已消除同存储 Agent 的 node 输入目录和重复输入快照；其他临时目录及订阅恢复仍待完成。

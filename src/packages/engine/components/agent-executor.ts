@@ -39,7 +39,8 @@ export interface AgentExecutionRequest {
   readonly config: JsonValue;
   readonly outcomes: Readonly<Record<string, string>>;
   readonly input: { readonly contractId: string; readonly source: string }
-    | { readonly contractId: string; readonly receiptId: string };
+    | { readonly contractId: string; readonly receiptId: string }
+    | { readonly contractId: string; readonly snapshotId: string };
 }
 export interface ExecutionReceipt {
   readonly id: string;
@@ -92,6 +93,9 @@ export class AgentExecutor {
     if (!isIdentifier(driver.harness)) throw new DefinitionError('INVALID_AGENT_DRIVER');
   }
 
+  /** Reuse is safe only for the identical installed store with a descriptor capability. */
+  canReuseSnapshot(store: ArtifactStore): boolean { return store === this.artifacts && typeof store.inspect === 'function'; }
+
   receipt(id: string): ExecutionReceipt {
     const receipt = this.#receipts.get(id); if (!receipt) throw new DefinitionError('UNKNOWN_EXECUTION_RECEIPT');
     return clone(receipt);
@@ -138,8 +142,8 @@ export class AgentExecutor {
     const outcomes = Object.entries(captured.outcomes);
     if (!outcomes.length || outcomes.length > 32 || outcomes.some(([key, value]) => !isIdentifier(key) || !isIdentifier(value))) throw new DefinitionError('INVALID_AGENT_OUTCOMES');
     const input = captured.input;
-    if (!input || !isIdentifier(input.contractId) || Object.keys(input).sort().join(',') !== ('source' in input ? 'contractId,source' : 'contractId,receiptId')
-      || ('source' in input ? typeof input.source !== 'string' || !input.source || input.source.includes('\0') : !isIdentifier(input.receiptId))) throw new DefinitionError('INVALID_AGENT_INPUT');
+    if (!input || !isIdentifier(input.contractId) || Object.keys(input).sort().join(',') !== ('source' in input ? 'contractId,source' : 'receiptId' in input ? 'contractId,receiptId' : 'contractId,snapshotId')
+      || ('source' in input ? typeof input.source !== 'string' || !input.source || input.source.includes('\0') : !isIdentifier('receiptId' in input ? input.receiptId : input.snapshotId))) throw new DefinitionError('INVALID_AGENT_INPUT');
     for (const id of [input.contractId, ...outcomes.map(([, id]) => id)]) this.contracts.definition(id);
     const identity: ExecutionIdentity = Object.freeze({ runId: captured.identity.runId, nodeTaskId: captured.identity.nodeTaskId,
       attemptId: captured.identity.attemptId, attemptNumber: captured.identity.attemptNumber });
@@ -164,8 +168,14 @@ export class AgentExecutor {
     try { if (cancellation.requested()) return failed('CANCELLED'); } catch { return failed('CANCELLATION_CHECK_FAILED'); }
     let inputSnapshot: FileManifest;
     try {
-      inputSnapshot = predecessor ? clone(predecessor.output) : clone(await this.artifacts.capture((input as { source: string }).source, input.contractId));
-      if (!predecessor) ownedInput = inputSnapshot.id;
+      if ('snapshotId' in input) {
+        if (!this.artifacts.inspect) throw new DefinitionError('SNAPSHOT_INPUT_UNAVAILABLE');
+        inputSnapshot = clone(await this.artifacts.inspect(input.snapshotId));
+        if (inputSnapshot.id !== input.snapshotId) return failed('INPUT_SNAPSHOT_MISMATCH');
+      } else {
+        inputSnapshot = predecessor ? clone(predecessor.output) : clone(await this.artifacts.capture((input as { source: string }).source, input.contractId));
+        if (!predecessor) ownedInput = inputSnapshot.id;
+      }
       if (inputSnapshot.contractId !== input.contractId) return failed('INPUT_CONTRACT_MISMATCH');
     } catch (error) { return failed('INPUT_CAPTURE_FAILED', error, input.contractId); }
     try { if (cancellation.requested()) return failed('CANCELLED'); } catch { return failed('CANCELLATION_CHECK_FAILED'); }

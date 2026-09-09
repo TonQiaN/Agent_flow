@@ -142,3 +142,27 @@ test('an old custom Agent driver can execute but cannot claim an absent persiste
   const f = fixture(); await assert.rejects(f.executor.definitionSnapshot(request), /EXECUTION_DEFINITION_UNAVAILABLE/);
   assert.deepEqual(f.captures, []); assert.equal((await f.executor.execute(request)).result.status, 'accepted');
 });
+
+test('existing snapshot inputs avoid capture and remain owned by their caller', async () => {
+  const f = fixture(), input = await f.artifacts.capture('/host/input', 'files');
+  f.artifacts.inspect = async id => { assert.equal(id, input.id); return structuredClone(input); };
+  assert.equal(f.executor.canReuseSnapshot(f.artifacts), true);
+  assert.equal(f.executor.canReuseSnapshot({ ...f.artifacts }), false);
+  const attempt = await f.executor.execute({ ...request, input: { contractId: 'files', snapshotId: input.id } });
+  assert.equal(attempt.result.status, 'accepted'); assert.equal(f.captures.length, 2);
+  if (attempt.result.status !== 'accepted') throw new Error();
+  assert.equal(attempt.result.receipt.input.id, input.id); assert.equal(attempt.result.receipt.predecessor, null);
+  await attempt.releaseExecution(); assert.deepEqual(f.released, []);
+  await f.executor.releaseOutput(attempt.result.receipt.id); assert.deepEqual(f.released, ['snapshot-2']);
+});
+test('snapshot lookup absence, identity mismatch and contract mismatch cannot start an Agent', async () => {
+  for (const problem of ['unsupported', 'unknown', 'identity', 'contract']) {
+    const f = fixture();
+    if (problem !== 'unsupported') f.artifacts.inspect = async () => {
+      if (problem === 'unknown') throw new ArtifactError('UNKNOWN_SNAPSHOT');
+      return { id: problem === 'identity' ? 'other' : 'saved', contractId: problem === 'contract' ? 'reject-files' : 'files', files: [], directories: [] };
+    };
+    const result = (await f.executor.execute({ ...request, input: { contractId: 'files', snapshotId: 'saved' } })).result;
+    assert.equal(result.status, 'failed'); assert.equal(f.runs.length, 0); assert.equal(f.captures.length, 0); assert.deepEqual(f.released, []);
+  }
+});

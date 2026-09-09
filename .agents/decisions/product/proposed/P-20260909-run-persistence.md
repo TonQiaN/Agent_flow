@@ -46,7 +46,9 @@ Agent 版本探针作为认证获取前独立的 Runner 调用，资源证据不
 
 探针和 Driver 的输入物化应优先复用已登记的 Runner 工作目录，避免新建无法随资源恢复定位的外部 scratch。Runner 的 null 输入在 Docker 下表示空输入或显式安装的宿主物化能力；能力不进入请求 JSON/资源记录，不从检查点反序列化，也不改变固定容器路径。资源保存及 prepare pending 提交后，物化先在该资源目录内生成副本，再经原输入复制校验得到可写 input；部分物化、原子改名暂存和失败残留都归共同资源释放所有。文件路径输入与物化能力不能同时指定；方法在运行前固定，旧资源恢复不需要原物化能力。Driver 因此只接收 timeoutMs，移除无职责的 inputRoot；版本探针直接使用已拥有的空 input。实际物化、资源确认与恢复清理须验证来源/相邻目录不受影响，不通过扫描前缀推断所有权。Catalog 与 ArtifactStore 在 Runner 外的其他临时目录、分配但尚未写入记录的窗口仍需独立处理。
 
-Agent 文件收据只可随严格加载器的一次性文件恢复能力验证，不提供进程内 Agent receipt 导入。先沿 Workflow 前序文件引用核对归档/清单，再核对完整执行身份、组件、outcome、实际 Driver 给出的 Harness/版本/固定镜像及 Agent 输入/输出清单；File Catalog 以源文件调用 Agent，因此内层 predecessor 必须为空，外层前序关系仍完整保存。来源收据不替代输出 contract 检查，不把旧输出重新走接纳流程。阶段资源已停止的证据也不证明探针、Driver 或 Catalog 的宿主临时目录已经清理；这些目录的崩溃收尾另行落实并如实保留验收缺口。
+同一实际 ArtifactStore 由 Catalog 与 AgentExecutor 共同安装时，可通过存储可选的 inspect 能力借用已存在的进程内快照，跳过 Catalog 的 node 输入物化和 Agent 的重复输入捕获。描述只能由实际存储私有登记返回副本，执行重新核对快照 ID 与契约，Driver 物化仍校验文件摘要；不接受外部清单导入，也不从 JSON 路径推断快照。恢复后使用当前存储的物理 ID，历史逻辑清单与收据内容关系不变。不同存储或无此能力仍走独立物化/捕获路径。借用输入不归 Agent releaseExecution 删除，Catalog 在调用期间保留引用；若停止尚未确认，保留到共同清理成功，禁止调用方提前释放。此优化消除同存储 Agent 执行的冗余目录和输入快照，不声称解决 checkpoint/restore 暂存、旧进程初始/已接纳临时快照或资源分配未登记窗口。
+
+Agent 文件收据只可随严格加载器的一次性文件恢复能力验证，不提供进程内 Agent receipt 导入。先沿 Workflow 前序文件引用核对归档/清单，再核对完整执行身份、组件、outcome、实际 Driver 给出的 Harness/版本/固定镜像及 Agent 输入/输出清单；File Catalog 以源文件或实际存储快照调用 Agent，因此内层 predecessor 必须为空，外层前序关系仍完整保存。来源收据不替代输出 contract 检查，不把旧输出重新走接纳流程。阶段资源已停止的证据也不证明探针、Driver 或 Catalog 的宿主临时目录已经清理；这些目录的崩溃收尾另行落实并如实保留验收缺口。
 
 恢复并发必须通过事务状态和执行所有权约束协调；在资源未核对/停止前不启动第二份，不以 PID 消失或超时作为执行停止证明。旧 Blackbox 整 Run 锁不直接固定为将来的 Worker 独占模型，NodeTask 级调度留给 #14。Effect 缺少可靠回执时保持 unknown，按其核对能力处理，不能直接重发。
 

@@ -94,3 +94,5 @@
 [实际 Agent Workflow 阶段与文件收据](2026-09-10-agent-workflow.md)。
 
 [Runner 目录内输入物化验证](2026-09-10-owned-runner-input.md)。
+
+[Catalog 借用输入快照验证](2026-09-10-catalog-snapshot-input.md)。

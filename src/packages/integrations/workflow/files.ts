@@ -50,6 +50,7 @@ interface Resources {
   pendingOutput: (() => Promise<void>) | null;
   cleaning: boolean;
   active: boolean;
+  releaseInput: (() => void) | null;
 }
 const clone = <T>(value: T): T => structuredClone(value);
 const key = (identity: ExecutionIdentity): string => JSON.stringify([identity.runId, identity.nodeTaskId, identity.attemptId]);
@@ -57,7 +58,7 @@ const sameIdentity = (a: ExecutionIdentity, b: ExecutionIdentity): boolean => ke
 const content = (m: FileManifest): string => JSON.stringify([m.contractId, [...m.directories].sort(),
   m.files.map(f => [f.path, f.bytes, f.sha256, f.mediaType, f.rule]).sort((a, b) => String(a[0]).localeCompare(String(b[0])))]);
 const sameFiles = (a: FileManifest, b: FileManifest): boolean => content(a) === content(b);
-const safeBeforeStart = new Set(['CANCELLED', 'CANCELLATION_CHECK_FAILED', 'INPUT_CAPTURE_FAILED', 'INPUT_CONTRACT_MISMATCH']);
+const safeBeforeStart = new Set(['CANCELLED', 'CANCELLATION_CHECK_FAILED', 'INPUT_CAPTURE_FAILED', 'INPUT_CONTRACT_MISMATCH', 'INPUT_SNAPSHOT_MISMATCH']);
 
 /** Local file IO and provenance adapter. Workflow compilation/scheduling remain portable. */
 export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecutor {
@@ -303,6 +304,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     await resources.attempt?.releaseExecution();
     await resources.script?.releaseExecution();
     if (resources.root) { await rm(resources.root, { recursive: true, force: true }); resources.root = null; }
+    resources.releaseInput?.(); resources.releaseInput = null;
   }
   /** Retry cleanup by the retained failed identity; never upgrade its Workflow result. */
   async cleanup(identity: ExecutionIdentity): Promise<void> {
@@ -323,8 +325,9 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     if (!isExecutionIdentity(identity) || this.#attempts.has(key(identity))) throw new DefinitionError('INVALID_FILE_WORKFLOW_ATTEMPT');
     this.#attempts.add(key(identity));
     const ownIdentity = clone(identity), predecessor = clone(input), b = this.#bindings.get(component.id)!;
-    const resources: Resources = { identity: ownIdentity, root: null, attempt: null, script: null, stopped: true, pendingOutput: null, cleaning: false, active: true };
+    const resources: Resources = { identity: ownIdentity, root: null, attempt: null, script: null, stopped: true, pendingOutput: null, cleaning: false, active: true, releaseInput: null };
     this.#resources.set(key(identity), resources);
+    const reused = b.kind === 'agent' && b.executor.canReuseSnapshot(this.artifacts);
     let ref: Reference | null = null, phase = 'INPUT_MATERIALIZATION_FAILED', checkedContractId = component.inputContract;
     const failed = (code: string, error?: unknown, contractId = component.inputContract): Extract<WorkflowNodeResult, { status: 'failed' }> => ({ identity: clone(ownIdentity), componentId: component.id,
       status: 'failed', code, stopped: this.stopped(resources), issues: error instanceof ArtifactError
@@ -332,13 +335,16 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     try {
       ref = this.available(predecessor, identity.runId, component.inputContract); ref.uses++;
       if (cancellation.requested()) return failed('CANCELLED');
-      await mkdir(this.workRoot, { recursive: true, mode: 0o700 });
-      const rootStat = await lstat(this.workRoot);
-      if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || rootStat.uid !== process.getuid?.() || (rootStat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
-      resources.root = await mkdtemp(join(this.workRoot, 'node-'));
-      const inputPath = join(resources.root, 'input'), workPath = join(resources.root, 'work'), outputsPath = join(resources.root, 'outputs');
-      await this.artifacts.materialize(ref.storageId, inputPath);
-      await mkdir(workPath, { mode: 0o700 }); await mkdir(outputsPath, { mode: 0o700 });
+      let inputPath = '', workPath = '', outputsPath = '';
+      if (!reused) {
+        await mkdir(this.workRoot, { recursive: true, mode: 0o700 });
+        const rootStat = await lstat(this.workRoot);
+        if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || rootStat.uid !== process.getuid?.() || (rootStat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
+        resources.root = await mkdtemp(join(this.workRoot, 'node-'));
+        inputPath = join(resources.root, 'input'); workPath = join(resources.root, 'work'); outputsPath = join(resources.root, 'outputs');
+        await this.artifacts.materialize(ref.storageId, inputPath);
+        await mkdir(workPath, { mode: 0o700 }); await mkdir(outputsPath, { mode: 0o700 });
+      }
       if (cancellation.requested()) return failed('CANCELLED');
       let outcome: string, output: FileManifest, agent: ExecutionReceipt | null = null, script: ScriptEvidence | null = null;
       phase = 'FILE_NODE_EXECUTION_FAILED';
@@ -361,7 +367,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       } else {
         resources.stopped = false;
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
-          config: clone(b.config), outcomes: clone(component.outcomes), input: { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
+          config: clone(b.config), outcomes: clone(component.outcomes), input: reused ? { snapshotId: ref.storageId, contractId: component.inputContract } : { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
         if (result.status === 'failed') return { ...failed(result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;
@@ -376,6 +382,12 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       resources.pendingOutput = null; this.#resources.delete(key(identity));
       return { identity: clone(ownIdentity), componentId: component.id, status: 'accepted', outcome, output: value };
     } catch (error) { return failed(phase, error, checkedContractId); }
-    finally { resources.active = false; if (ref) ref.uses--; }
+    finally {
+      resources.active = false;
+      if (ref) {
+        if (reused && !this.stopped(resources)) { const borrowed = ref; resources.releaseInput = () => { borrowed.uses--; }; }
+        else ref.uses--;
+      }
+    }
   }
 }
