@@ -1,3 +1,4 @@
+import type { InvocationResourcePlan, InvocationPhaseSink } from './phases.js';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { WorkflowContractDefinition } from './structure.js';
 import type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './restore-value.js';
@@ -32,6 +33,8 @@ export interface WorkflowNodeExecutor {
   contractDefinition?(id: string): WorkflowContractDefinition;
   /** Installed binding evidence, resolved before any Run executes. Missing evidence prevents persistence. */
   executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
+  resourcePlan?(component: ComponentDefinition): Promise<InvocationResourcePlan | null>;
+  restorePhaseResource?(component: ComponentDefinition, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
   /** Actual backend whose resource can be saved by this invocation; absent for resource-free code. */
   resourceDefinition?(component: ComponentDefinition): Promise<JsonValue>;
   /** Common Runner ownership restoration after the coordinator acquires its durable claim. */
@@ -41,7 +44,7 @@ export interface WorkflowNodeExecutor {
   /** Accepts only a one-use request issued after a checkpoint has been validated. */
   restoreValue?(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
-  execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink): Promise<WorkflowNodeResult>;
+  execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink, phases?: InvocationPhaseSink): Promise<WorkflowNodeResult>;
 }
 export interface WorkflowCatalog {
   resolve(componentId: string): { readonly component: ComponentDefinition; readonly executor: WorkflowNodeExecutor };

@@ -63,3 +63,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [Runner 资源保存与恢复](runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
 
 [Workflow 恢复认领与旧资源清理](workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
+
+[Workflow 通用阶段](workflow-phases.md)：有序资源和宿主操作、共同 CAS 与中断恢复边界。

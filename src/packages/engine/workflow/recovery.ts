@@ -1,3 +1,4 @@
+import { phaseUnconfirmed } from './phases.js';
 import type { JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { canonicalJson, copyJson } from '../json.js';
@@ -31,14 +32,17 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
     if (!['queued', 'running'].includes(view.status) || view.cancelRequested) throw new DefinitionError('WORKFLOW_NOT_RECOVERABLE');
     const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted ? attempt : null;
     const binding = active ? getPlan(compiled).bindings.get(active.node)! : null;
-    if (active?.launch?.endsWith('_pending')) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
-    if (binding && (!binding.executor.resourceDefinition || !binding.executor.restoreResource || binding.component.kind === 'effect')) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
-    if (!active?.resource && prior && !prior.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
+    if (active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases)) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
+    if (binding && (binding.component.kind === 'effect' || (active?.phases !== undefined ? !binding.executor.restorePhaseResource : !binding.executor.resourceDefinition || !binding.executor.restoreResource))) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
+    const owned = active?.phases !== undefined ? active.phases.filter(p => p.resource !== null).map(p => ({ phase: p.id, record: p.resource! })).reverse()
+      : active?.resource ? [{ phase: null, record: active.resource }] : [];
+    if (!owned.length && prior && !prior.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
     let revision = loaded.revision;
     const claimRevision = revision + 1;
     if (!Number.isSafeInteger(claimRevision)) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
-    let removed = prior?.resourceRemoved ?? !active?.resource;
-    let disposed = false, closing = false, lost = false, transferred = false, resource: RestoredRunnerResource | undefined;
+    let removed = prior?.resourceRemoved ?? !owned.length;
+    let disposed = false, closing = false, lost = false, transferred = false;
+    const resources = new Map<string, RestoredRunnerResource>();
     let pending: Promise<WorkflowRecoverySnapshot> | null = null, disposing: Promise<void> | null = null;
     const content = (resourceRemoved: boolean): WorkflowRecoveryRecord => ({ schema: 'agentflow-workflow-recovery/v1', checkpoint, claimRevision, resourceRemoved });
     const query = (): WorkflowRecoverySnapshot => snapshot({ ...content(removed), revision });
@@ -59,16 +63,20 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
         // Revalidate current CAS authority before touching the immutable old resource identity.
         await commit(removed);
         if (!removed) {
-          if (!resource) {
-            try { resource = await binding!.executor.restoreResource!(snapshot(binding!.component), snapshot(active!.resource!)); }
-            catch (error) { throw new DefinitionError(error instanceof DefinitionError ? error.code : 'WORKFLOW_RESOURCE_RESTORE_FAILED'); }
+          for (const item of owned) {
+            let resource = resources.get(item.record.resource.id);
+            if (!resource) {
+              try { resource = item.phase === null ? await binding!.executor.restoreResource!(snapshot(binding!.component), snapshot(item.record))
+                : await binding!.executor.restorePhaseResource!(snapshot(binding!.component), item.phase, snapshot(item.record)); resources.set(item.record.resource.id, resource); }
+              catch (error) { throw new DefinitionError(error instanceof DefinitionError ? error.code : 'WORKFLOW_RESOURCE_RESTORE_FAILED'); }
+            }
+            if (!equal(resource.identity, active!.identity) || !equal(resource.resource, item.record.resource)) throw new DefinitionError('WORKFLOW_RECOVERED_RESOURCE_MISMATCH');
+            try { await resource.query(); } catch { throw new DefinitionError('WORKFLOW_RECOVERY_QUERY_UNCONFIRMED'); }
+            let confirmed: boolean;
+            try { confirmed = (await resource.stopAndRemove()).confirmed; } catch { confirmed = false; }
+            if (confirmed !== true) throw new DefinitionError('WORKFLOW_RECOVERY_STOP_UNCONFIRMED');
+            try { await resource.release(); } catch { throw new DefinitionError('WORKFLOW_RECOVERY_RELEASE_FAILED'); }
           }
-          if (!equal(resource.identity, active!.identity) || !equal(resource.resource, active!.resource!.resource)) throw new DefinitionError('WORKFLOW_RECOVERED_RESOURCE_MISMATCH');
-          try { await resource.query(); } catch { throw new DefinitionError('WORKFLOW_RECOVERY_QUERY_UNCONFIRMED'); }
-          let confirmed: boolean;
-          try { confirmed = (await resource.stopAndRemove()).confirmed; } catch { confirmed = false; }
-          if (confirmed !== true) throw new DefinitionError('WORKFLOW_RECOVERY_STOP_UNCONFIRMED');
-          try { await resource.release(); } catch { throw new DefinitionError('WORKFLOW_RECOVERY_RELEASE_FAILED'); }
           await commit(true);
         }
         return query();
