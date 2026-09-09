@@ -1,6 +1,6 @@
-# Harness 与凭据接口（首个组合实施中）
+# Harness 与凭据接口
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；已通过真实合成数字任务，通用文件 contract 已接入示例，进程内可信收据已接通，真实刷新与完整 Workflow 仍待验收。
+当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变快照绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、产品登录/交互录入及安全备份恢复尚未验收或实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
 
 ## Harness
 
@@ -12,7 +12,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 
 `interpret({task, runner, version, stdout, records?, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
 
-事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。[通用文件 contract](file-contracts.md) 已提供，完整 Workflow 接纳尚未接通。
+事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。[通用文件 contract](file-contracts.md) 已提供，已接入串行 Workflow 的 AgentExecutor；[合成批卷](../validation/2026-09-09-tutor-grading-fixture.md)验证了 Gate 与用户定义返修。
 
 ## 凭据存储
 
@@ -31,7 +31,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 
 `FileExecutionCredentialBinding.acquire(store, {identity, credential, stateFile, environment})` 取得一份执行租约。identity 是本次 Run/NodeTask/Attempt，credential 是存储身份；stateFile 是宿主选定的相对位置（例如 codex/auth.json），environment 只能声明 /task/state 下的路径（例如 CODEX_HOME=/task/state/codex）。秘密和源目录不放入 Invocation 或 DockerOptions。
 
-将 binding 作为 `new DockerBackend(options, binding)` 的第二个参数。后端只调用 PrivateStateBinding 的初始化和释放前检查，不读取秘密或判断 provider。绑定为一个资源创建私有目录/0600 文件，不能给两个执行复用。Profile 和 Harness 计划的兼容性仍须由后续组合层验证。
+将 binding 作为 `new DockerBackend(options, binding)` 的第二个参数。后端只调用 PrivateStateBinding 的初始化和释放前检查，不读取秘密或判断 provider。绑定为一个资源创建私有目录/0600 文件，不能给两个执行复用。各组合层负责 Profile 和 Harness 计划的兼容性验证。
 
 调用顺序为：取得绑定 → Runner.run → binding.finish(runnerResult) → 检查 Harness 与输出 → Runner.release。finish 仅接受来自宿主同一次执行的结果：确认停止且资源已清理才读取副本、用原 revision 条件回存、删除副本并释放租约。非零退出、取消和超时也可能已经刷新，不能跳过收尾。未到准备阶段的异常可调用 abandon；初始化开始后 abandon 拒绝。
 
