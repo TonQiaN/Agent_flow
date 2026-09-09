@@ -45,3 +45,6 @@ export type { DeepSeekRunRequest, DeepSeekExecutionResult, DeepSeekRuntimeAssets
 export { DeepSeekAgentDriver } from './execution/deepseek-agent-driver.js';
 
 export { EnvironmentExecutionCredentialBinding } from './auth/environment-binding.js';
+
+export { SubscriptionLoginCoordinator } from './auth/subscription-login.js';
+export type { SubscriptionLoginDriver, SubscriptionLoginAttempt, SubscriptionLoginResult } from './auth/subscription-login.js';

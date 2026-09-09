@@ -62,3 +62,5 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 [凭据环境绑定](../validation/2026-09-09-credential-environment.md)为 API key 提供独立通道：Adapter 声明变量名，认证取得短租约快照，Docker 仅按名称注入；不开放普通 Invocation.env，也不创建任务密钥文件。订阅仍使用文件绑定及条件刷新。
 
 [本地认证 CLI](auth-management.md) 已提供 DeepSeek 的隐藏终端录入、单一受控文件导入、检查和本地删除；不读取环境中的偶然凭据，配置成功仅表示本地已保存。
+
+[订阅登录协调接口](subscription-login.md)提供首次配置前的管理占用和受信登录驱动端口，保留错误/未知停止的清理责任；Codex/Claude 原生登录驱动与实际登录尚未接通。

@@ -41,3 +41,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Claude 调用计划与协议](claude-adapter.md)
 
 - [Claude 订阅执行组合](claude-execution.md)
+
+- [订阅登录协调接口](subscription-login.md)

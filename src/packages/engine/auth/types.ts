@@ -24,3 +24,13 @@ export interface CredentialStore {
   acquire(identity: CredentialIdentity, waitMs?: number): Promise<CredentialLease>;
   delete(identity: CredentialIdentity, waitMs?: number): Promise<{ readonly deleted: boolean; readonly remoteRevoked: false }>;
 }
+
+/** Host management can reserve an identity before its first credential exists. */
+export interface CredentialManagementLease {
+  readonly metadata: CredentialMetadata | null;
+  configure(content: string): Promise<CredentialMetadata>;
+  release(): Promise<void>;
+}
+export interface CredentialManagementStore extends CredentialStore {
+  acquireManagement(identity: CredentialIdentity, waitMs?: number): Promise<CredentialManagementLease>;
+}

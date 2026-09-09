@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [订阅登录管理与协调](2026-09-09-subscription-login-coordination.md) |
 | 2026-09-09 | [本地认证管理与真实终端验证](2026-09-09-auth-management.md) |
 | 2026-09-09 | [凭据环境注入与 DeepSeek 无密钥文件执行](2026-09-09-credential-environment.md) |
 | 2026-09-09 | [基础四项验收缺口核对](2026-09-09-foundation-acceptance-audit.md) |
