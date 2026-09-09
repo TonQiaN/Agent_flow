@@ -33,3 +33,5 @@ FileExecutionCredentialBinding.acquireSnapshot 复用当前执行副本的安全
 ## 剩余验收
 
 需继续接通宿主 DeepSeek Runner/AgentDriver、同一镜像版本探测、可信运行资产供应、受控代理、原始会话读取/脱敏与统一执行收尾。当前本地服务驱动的组合不是产品联网入口；真实模型、学生卷/答案、完整批改报告及 PDF 尚未验收。
+
+后续进展：宿主 Runner/AgentDriver、运行资产与受控代理组合已接通并通过协议替身验证，见 [执行组合验证](2026-09-09-deepseek-execution.md)。以上保留本切片当时的范围。

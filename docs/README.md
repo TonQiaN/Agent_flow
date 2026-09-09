@@ -23,8 +23,8 @@
 
 [Claude Adapter](guides/claude-adapter.md) 已实现 2.1.226 的独立调用计划、协议解析和真实无凭据离线启动验证；其订阅组合已通过合成刷新与文件交接、真实 CLI 断网格式识别；实际工具隔离已有断网合成服务驱动真实 CLI 的回归，真实任务仍未验收，见 [组合入口](guides/claude-execution.md)。DeepSeek 当前进展见下方记录。
 
-[DeepSeek 配置预检](validation/2026-09-09-deepseek-compatibility.md) 已验证工具开关和原生会话；默认文件策略无法满足固定目录，执行组合仍在开发。
+[DeepSeek 配置预检](validation/2026-09-09-deepseek-compatibility.md) 已验证工具开关和原生会话；默认文件策略无法满足固定目录，下述自有工具隔离层处理了这一限制。
 
-[DeepSeek 原生文件隔离](validation/2026-09-09-deepseek-file-isolation.md) 已允许固定输入副本/输出写入并保护私有文件；[Bash 与搜索隔离](validation/2026-09-09-deepseek-process-isolation.md) 也已通过真实 CLI 的合成测试，完整执行组合仍待接通。
+[DeepSeek 原生文件隔离](validation/2026-09-09-deepseek-file-isolation.md) 已允许固定输入副本/输出写入并保护私有文件；[Bash 与搜索隔离](validation/2026-09-09-deepseek-process-isolation.md) 也已通过真实 CLI 的合成测试。
 
-[DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，[API key 与不可变快照绑定](validation/2026-09-09-deepseek-api-key.md) 已通过宿主存储驱动的原生 CLI 验证，完整联网 Harness 组合仍在开发。
+[DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，[API key 与不可变快照绑定](validation/2026-09-09-deepseek-api-key.md) 已通过宿主存储驱动的原生 CLI 验证，[宿主执行组合](validation/2026-09-09-deepseek-execution.md) 已接通并通过协议替身验收，真实官方模型调用仍未验收。

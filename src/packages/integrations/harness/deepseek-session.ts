@@ -3,7 +3,7 @@ import { TASK_PATHS } from '@agentflow/engine';
 import type { HarnessEvidence, HarnessEvent, HarnessResult, HarnessUsage } from '@agentflow/engine';
 import { deepseekTask, DEEPSEEK_VERSION } from './deepseek-configuration.js';
 
-export const DEEPSEEK_SESSION_RECORD = { id: 'deepseek_session', path: 'deepseek-session.jsonl', maxBytes: 16 * 1024 * 1024 } as const;
+export const DEEPSEEK_SESSION_RECORD = Object.freeze({ id: 'deepseek_session', path: 'deepseek-session.jsonl', maxBytes: 16 * 1024 * 1024 } as const);
 type Evidence = Omit<HarnessEvidence, 'stdout'> & { readonly session: Uint8Array };
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const integer = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) >= 0 && !Object.is(v, -0);

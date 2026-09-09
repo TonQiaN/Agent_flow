@@ -10,10 +10,12 @@ engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt
 
 用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
 
-engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex 和 claude 各自映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。Claude 目前仅完成计划/parser 与真实无凭据离线启动，完整订阅执行尚未接入。详见 [接口指南](../guides/harness-auth.md)。
+engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex、claude、deepseek 各自映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。Claude 订阅与 DeepSeek API key 组合已接通，真实官方模型调用尚未验收。详见 [接口指南](../guides/harness-auth.md)。
 
 integrations/egress 负责独立 CONNECT 传输策略，integrations/docker/egress 负责每次执行的代理和网络资源。二者不读取认证存储或解释业务；宿主环境选择目标列表，后续 Profile 绑定再提供实际服务配置。见 [受控联网](../guides/controlled-egress.md)。
 
 integrations/execution/codex-runner 组合首个服务 Profile、纯 Adapter、私有绑定和 Docker。版本探测使用同一不可变镜像；返回可清理句柄，Runner/Harness/凭据状态分别保留。首个真实单/多出口组合已通过明确授权的数字任务验收，真实 OAuth 刷新仍未触发。
 
 Workflow 编译器只通过 catalog 解析定义、实现和契约；运行控制只调用单节点端口，不依赖 Harness 或 IO。定义及计划、输入和运行查询取副本；每条业务出口与执行失败分开。详见 [串行 Workflow](../guides/workflow.md)。
+
+integrations/execution/credential-runner 和 credential-agent-driver 复用版本预检、执行/凭据收尾和 Agent 文件交接。独立配方选择订阅长租约或静态 key 快照，以及 stdout/具名会话证据；provider 不进入 engine/Docker 条件分支。DeepSeek 容器资产由 apps/deepseek-tools 的固定命令打包，再由受信宿主显式交给执行入口，库不反向加载应用源码。见 [DeepSeek 执行说明](../guides/deepseek-adapter.md)。

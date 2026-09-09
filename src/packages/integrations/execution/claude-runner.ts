@@ -2,15 +2,16 @@ import type { CredentialStore } from '@agentflow/engine';
 import { ClaudeAdapter, CLAUDE_VERSION } from '../harness/claude.js';
 import { CLAUDE_SUBSCRIPTION_HOSTS, ClaudeCredentialRedactor, claudeSubscriptionProfile } from '../auth/claude-subscription.js';
 import type { ClaudeSubscriptionProfile } from '../auth/claude-subscription.js';
-import { SubscriptionHarnessRunner } from './subscription-runner.js';
-import type { SubscriptionRunRequest, SubscriptionExecutionResult } from './subscription-runner.js';
-export { SubscriptionExecution as ClaudeExecution } from './subscription-runner.js';
-export type ClaudeRunRequest = SubscriptionRunRequest<ClaudeSubscriptionProfile>;
-export type ClaudeExecutionResult = SubscriptionExecutionResult;
+import { CredentialHarnessRunner } from './credential-runner.js';
+import type { CredentialRunRequest, CredentialExecutionResult } from './credential-runner.js';
+export { CredentialExecution as ClaudeExecution } from './credential-runner.js';
+export type ClaudeRunRequest = CredentialRunRequest<ClaudeSubscriptionProfile>;
+export type ClaudeExecutionResult = CredentialExecutionResult;
 
-export class ClaudeSubscriptionRunner extends SubscriptionHarnessRunner<ClaudeSubscriptionProfile> {
+export class ClaudeSubscriptionRunner extends CredentialHarnessRunner<ClaudeSubscriptionProfile> {
   constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }) {
     super(store, options, {
+      binding: 'exclusive',
       systemConfigMounts: [{ name: 'claude-managed.json', target: '/etc/claude-code/managed-settings.json' }],
       version: CLAUDE_VERSION, hosts: CLAUDE_SUBSCRIPTION_HOSTS, stateFile: 'claude/.credentials.json', versionCommand: ['claude', '--version'],
       adapter: () => new ClaudeAdapter(), profile: claudeSubscriptionProfile, redactor: () => new ClaudeCredentialRedactor(),
