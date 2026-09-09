@@ -57,4 +57,4 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 
 [Agent 接纳与可信收据](agent-acceptance.md) 通过通用驱动接口连接上述能力，统一检查终态、收尾和文件契约，并提供同 Run 的前序收据引用。
 
-[DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；宿主认证与执行组合尚未提供。
+[DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；静态 API key Profile、存储和不可变绑定已接通，完整联网执行组合仍待完成。

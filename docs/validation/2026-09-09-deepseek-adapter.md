@@ -29,3 +29,5 @@ Adapter 复用严格配置、固定启动和任务工具隔离，向宿主声明
 ## 未完成
 
 宿主尚需 API key Codec/Profile、授权网络与执行收尾/脱敏组合。工具、Adapter 与受信测试服务的成功不等于完整 Harness 认证矩阵通过。真实 Tutor 学生卷、答案下载、批改、报告和 PDF 仍是后续验收要求。
+
+后续进展：静态 API key Codec/Profile、脱敏和非独占快照绑定已接通，见 [凭据交接验证](2026-09-09-deepseek-api-key.md)。以上保留本切片当时的范围。

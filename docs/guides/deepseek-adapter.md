@@ -1,6 +1,6 @@
 # DeepSeek Adapter
 
-`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储和受控联网执行组合尚未接通；当前由本地合成服务驱动真实 CLI 验证，不能直接当作完整执行入口。
+`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储和不可变绑定已具备，完整受控联网执行组合尚未接通；当前由本地合成服务驱动真实 CLI 验证，不能直接当作完整执行入口。
 
 ## 调用计划
 
@@ -8,7 +8,7 @@
 
 plan 固定工作目录 /task/work、只读 /task/config/deepseek.json 和容器启动程序；通过 requirements 声明 private-state、readonly-config、controlled-egress、deepseek-runtime-assets 与 deepseek-session-record。宿主须满足全部声明，提供匹配当前实现的受信容器资产，并按 DEEPSEEK_SESSION_RECORD 采集私有会话。工具服务、启动/采集程序位于 src/apps/deepseek-tools；Adapter 只声明资产位置，不读取应用文件或启动进程。所需 SDK 是镜像内精确版本的可选 peer，宿主库不加载它们。
 
-authentication 声明 service=deepseek、method=api-key 和固定私有交接位置 /task/state/deepseek-api-key.json。Adapter 不接收、寻找或读取密钥。声明本身不等于已提供宿主认证实现。
+authentication 声明 service=deepseek、method=api-key 和固定私有交接位置 /task/state/deepseek-api-key.json。Adapter 不接收、寻找或读取密钥。静态凭据边界见下节；声明本身不等于完整执行入口。
 
 ## 完成与出口
 
@@ -21,3 +21,13 @@ authentication 声明 service=deepseek、method=api-key 和固定私有交接位
 主模型用量只累计原生 assistant/message，避免流式计数重复。自动标题模型插件关闭；出现压缩模型工作或重试等不能完整计费的记录时，统一用量为 null，不把主步骤数冒充完整账单。其他缺失字段同样保持未知。
 
 验证和范围见 [Adapter 与结构化出口验证](../validation/2026-09-09-deepseek-adapter.md)。
+
+## 静态凭据与执行快照
+
+DeepSeekApiKeyCodec 与 FileCredentialStore 接收显式内容或受控文件中的内部交接记录，固定 schema=agentflow-deepseek-key/v1 和 api_key 两字段；错误不回显内容。密钥为 8–8192 个无空白可打印 ASCII，记录不超过 16 KiB，不自动修剪或继承环境。使用 deepseekApiKeyProfile 校验元数据：service=deepseek、method=api-key、endpoint=official、credentialRef、id、capacity=null。认证层不施加会话独占；null 不表示远端额度无限。DEEPSEEK_API_KEY_HOSTS 固定为 api.deepseek.com。
+
+宿主通过 FileExecutionCredentialBinding.acquireSnapshot 取得短租约内读取的不可变快照，再提供固定 stateFile=deepseek-api-key.json 和空路径环境。源锁立即释放，prepare 为本次资源写入独立 0600 副本；引擎 Invocation 不含源秘密或源路径。DeepSeekCredentialRedactor 由受信观察器记住本次 key，再提供普通事件脱敏。该绑定不会回写源 key，管理 configure 的轮换或删除不被旧执行覆盖。
+
+finish 仍核对 Runner 身份、资源、停止和清理。静态 key 的 refresh=unchanged 表示副本字节检查通过；变化或缺失为 failed，不能当作成功认证收尾。停止或清理未知时保留副本和 beforeRelease 门槛；源锁已释放，管理侧不必等待整个模型任务。原始日志仍为私有证据，已知值脱敏不等于任意 PII 过滤。
+
+宿主完整 Runner 和受控联网入口尚未提供。实际组合验证见 [API key 与快照绑定](../validation/2026-09-09-deepseek-api-key.md)。

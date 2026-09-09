@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promis
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Runner } from '@agentflow/engine';
-import { DockerBackend, systemClock, DeepSeekAdapter } from '@agentflow/integrations';
+import { DockerBackend, systemClock, DeepSeekAdapter, FileCredentialStore, FileExecutionCredentialBinding, DeepSeekApiKeyCodec, DeepSeekCredentialRedactor, deepseekApiKeyProfile } from '@agentflow/integrations';
 import { deepseekConfiguration, deepseekHeadlessArguments } from '../../packages/integrations/harness/deepseek-configuration.js';
 import { interpretDeepseekSession, DEEPSEEK_SESSION_RECORD } from '../../packages/integrations/harness/deepseek-session.js';
 const image = process.env['AGENTFLOW_DEEPSEEK_IMAGE'];
@@ -42,17 +42,26 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     const input = join(root, 'input'); await mkdir(input); await writeFile(join(input, 'original.txt'), '原始答案'); await writeFile(join(input, 'pixel.png'), Buffer.from(png, 'base64'));
     const adapter = new DeepSeekAdapter(), task = { identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, prompt: '完成工具隔离测试。', config: { model: 'deepseek-v4-flash-vision-exp', reasoning: 'off', search: false, subagents: false }, outcomes: ['accepted', 'rejected'] };
     const config = adapter.plan(task);
+    const profile = deepseekApiKeyProfile({ id: 'native-fixture', service: 'deepseek', method: 'api-key', credentialRef: 'native-fixture', endpoint: 'official', capacity: null });
+    const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
+    const store = new FileCredentialStore(join(root, 'credentials'), [new DeepSeekApiKeyCodec()]);
+    await store.configure(credential, { content: JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-deepseek-secret' }) });
+    const redactor = new DeepSeekCredentialRedactor();
+    const binding = await FileExecutionCredentialBinding.acquireSnapshot(store, { identity: task.identity, credential, stateFile: 'deepseek-api-key.json', environment: {} }, 0, content => redactor.remember(content));
     const patches = JSON.parse(config.configFiles[0]!.content);
     patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
-      environment: {}, async prepare(_resource, state) { await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, async beforeRelease() {},
+      environment: binding.environment, async prepare(resource, state) { await binding.prepare(resource, state); await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, beforeRelease: resource => binding.beforeRelease(resource),
     }), systemClock);
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
       invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(true), { name: 'deepseek.json', content: JSON.stringify(patches) },
-        { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), captureSession: true, launch: true, port: 39091, prompt: '完成工具隔离测试。', privateImage: png, steps }) },
+        { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), captureSession: true, launch: true, hostKey: true, port: 39091, prompt: '完成工具隔离测试。', privateImage: png, steps }) },
         { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
     removable = result.stop === 'confirmed' && result.cleanup === 'removed';
     assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(removable);
+    const auth = await binding.finish(result); assert.equal(auth.status, 'released'); assert.equal(auth.refresh, 'unchanged');
+    assert.equal((await store.inspect(credential))!.revision, 1);
+    await assert.rejects(readFile(join(dirname(result.capture!.outputsPath), 'state/deepseek-api-key.json')), { code: 'ENOENT' });
     const observed = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
     assert.equal(observed.code, 0, observed.stderr);
     assert.deepEqual(Object.keys(observed.requestPaths).sort(), ['POST /chat/completions', 'POST /files']);
@@ -70,9 +79,10 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     assert.equal(observed.imageUrls.length, 1); assert.match(observed.imageUrls[0], /^data:image\/png;base64,/);
     assert.deepEqual(Buffer.from(observed.imageUrls[0].split(',')[1], 'base64'), Buffer.from(png, 'base64'));
     const rawSession = await readFile(result.capture!.files[DEEPSEEK_SESSION_RECORD.id]!.path);
-    const interpretation = adapter.interpret({ task, runner: result, version: config.version, records: { deepseek_session: rawSession }, stdout: await readFile(result.capture!.stdout.path), redact: text => text });
+    const interpretation = adapter.interpret({ task, runner: result, version: config.version, records: { deepseek_session: rawSession }, stdout: await readFile(result.capture!.stdout.path), redact: text => redactor.redact(text) });
     assert.equal(interpretation.status, 'completed', JSON.stringify(interpretation.diagnostics));
     assert.equal(interpretation.outcome, 'accepted');
+    assert.ok(!JSON.stringify({ auth, interpretation, binding, redactor }).includes('fixture-deepseek-secret'));
     assert.equal(interpretation.usage.inputTokens, (steps.length + 1) * 10);
     assert.equal(interpretation.usage.outputTokens, (steps.length + 1) * 2);
     assert.equal(rawSession.toString(), observed.sessions[0]);

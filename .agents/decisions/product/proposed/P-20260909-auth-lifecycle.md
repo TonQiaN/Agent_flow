@@ -36,6 +36,14 @@ Claude 2.1.226 使用独立 `.credentials.json`，只接纳 `claudeAiOauth` 内�
 
 两个订阅组合共享 integrations 内的执行收尾和文件交接机制，通过独立配方注入版本解析、Adapter、Profile、脱敏和固定调用材料；engine 和通用 Docker 后端不增加 provider 条件分支。Claude 请求目标限定 api.anthropic.com、platform.claude.com；受控代理与实际工具隔离必须分别验证，合成 CLI 通过不能视为真实 Claude 模型或 OAuth 成功。
 
+### DeepSeek 静态 API key
+
+按 Blackbox 的非独占 API key 语义，DeepSeek Profile 的 capacity=null 表示认证层不要求独占，不代表远端额度或请求速率无限。调度限流仍由队列能力负责，不能把订阅刷新锁照搬成 API key 全程串行锁。Profile 只接受 deepseek/api-key、official endpoint、credentialRef 和显式身份，官方目标固定 api.deepseek.com。
+
+宿主使用既有私有存储保存单一版本的内部交接记录（schema=agentflow-deepseek-key/v1，api_key）；严格限制字段、长度和无空白的可打印 ASCII，不自动修剪、继承环境、搜索桌面登录或导入其他服务内容。格式有效仍不证明远端有效。运行刷新不能改变 key，只有显式 configure 可轮换或替换；本地删除不撤销已取得的运行快照，也不宣称远端撤销。
+
+不可变执行绑定在短租约内取得内容和 generation/revision，释放源锁后为每次执行准备独立 0600 副本。复用原绑定的身份/资源核对、私有路径和停止后清理，但不回写源存储；工作副本变化或损坏报告失败，不能覆盖运行期间新配置的密钥。停止或容器清理未确认时保留私有副本与工作区清理门槛，源存储不因旧执行仍在运行而被全程锁住。脱敏只记住该快照的已知密钥及常见编码；任何验证/脱敏错误不得暴露值。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

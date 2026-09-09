@@ -45,7 +45,7 @@ server.listen(plan.port ?? 0, '127.0.0.1', () => {
     // A fallback root cannot override a normal Agent's session cwd.
     { id: 'sandbox-policy', config: { mode: 'workspace-write', workspaceRoot: '/task' } },
   ]));
-  if (plan.launch) fs.writeFileSync('/task/state/deepseek-api-key.json', JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-deepseek-secret' }), { mode: 0o600 });
+  if (plan.launch && !plan.hostKey) fs.writeFileSync('/task/state/deepseek-api-key.json', JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-deepseek-secret' }), { mode: 0o600 });
   const argv = plan.launch ? ['node', '/task/config/deepseek-policy/launch.mjs', '--', plan.prompt] : [...plan.argv];
   if (plan.cancelCapture) argv.splice(1, 0, '--import', '/task/config/cancel-capture.mjs');
   if (!plan.launch) argv.splice(argv.indexOf('--'), 0, '--patch', '/tmp/deepseek-test-model.json');
