@@ -22,7 +22,7 @@ test('Claude: actual pinned CLI parses the generated plan offline and reports mi
     try {
       for (const f of plan.configFiles) await writeFile(join(root, f.name), f.content, { mode: 0o644 });
       const argv = ['run', '--name', name, '--rm', '--network', 'none', '--read-only', '--tmpfs', '/tmp:rw,mode=1777', '--tmpfs', '/task:rw,mode=1777'];
-      for (const f of plan.configFiles) argv.push('--mount', `type=bind,src=${join(root, f.name)},dst=/task/config/${f.name},readonly`);
+      for (const f of plan.configFiles) argv.push('--mount', `type=bind,src=${join(root, f.name)},dst=/etc/claude-code/managed-settings.json,readonly`);
       for (const [key, value] of Object.entries(plan.environment)) argv.push('--env', `${key}=${value}`);
       argv.push('--entrypoint', '/bin/sh', imageId, '-c', 'mkdir -p /task/input /task/work /task/outputs /task/state/claude; cd /task/work; exec "$@"', 'probe', ...plan.argv);
       // This boots only: no credentials, no network and no successful model result.
@@ -54,10 +54,10 @@ test('Claude: actual CLI recognizes a synthetic subscription file through the pr
       const identity = { runId: 'format', nodeTaskId: 'check', attemptId: 'first', attemptNumber: 1 };
       const plan = new ClaudeAdapter().plan({ identity, prompt: 'unused', config: { model: 'sonnet', subagents: false, search: false } });
       binding = await FileExecutionCredentialBinding.acquire(store, { identity, credential, stateFile: 'claude/.credentials.json', environment: { CLAUDE_CONFIG_DIR: '/task/state/claude' } });
-      const backend = new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none' }, binding); runner = new Runner(backend, systemClock);
+      const backend = new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', systemConfigMounts: [{ name: 'claude-managed.json', target: '/etc/claude-code/managed-settings.json' }] }, binding); runner = new Runner(backend, systemClock);
       const input = join(root, 'input'); await mkdir(input);
       result = await runner.run({ identity, inputSource: input, timeoutMs: 10_000, invocation: {
-        argv: ['/usr/bin/env', 'CLAUDE_CODE_MANAGED_SETTINGS_PATH=/task/config/claude-managed.json', 'claude', 'auth', 'status', '--json'], configFiles: plan.configFiles } });
+        argv: ['claude', 'auth', 'status', '--json'], configFiles: plan.configFiles } });
       assert.equal(result.exitCode, 0); assert.equal(result.cleanup, 'removed');
       const status = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
       assert.equal(status.loggedIn, true); assert.equal(status.authMethod, 'claude.ai'); assert.equal(status.forcedLoginMethod, 'claudeai'); assert.equal(status.subscriptionType, 'max');

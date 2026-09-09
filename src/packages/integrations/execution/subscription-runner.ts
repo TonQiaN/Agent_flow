@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Runner } from '@agentflow/engine';
 import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult } from '@agentflow/engine';
+import type { SystemConfigMount } from '../docker/backend.js';
 import { DockerBackend } from '../docker/backend.js';
 import { docker } from '../docker/process.js';
 import { FileExecutionCredentialBinding } from '../auth/execution-binding.js';
@@ -13,6 +14,7 @@ export interface SubscriptionRedactor { remember(content: string): void; redact(
 /** Internal trusted host composition, not a workflow configuration or plugin-loading API. */
 export interface SubscriptionRecipe<P extends CredentialIdentity> {
   readonly version: string; readonly hosts: readonly string[]; readonly stateFile: string; readonly versionCommand: readonly string[];
+  readonly systemConfigMounts?: readonly SystemConfigMount[];
   adapter(): HarnessAdapter; profile(value: P): P; redactor(): SubscriptionRedactor;
   parseVersion(stdout: string): string | null;
   stateEnvironment(plan: HarnessPlan): Readonly<Record<string, string>>;
@@ -39,6 +41,7 @@ export class SubscriptionHarnessRunner<P extends CredentialIdentity> {
     if (!options || Object.keys(options).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
     // Validate host choices before any credential lease or owned execution exists.
     new DockerBackend({ image: options.image, workspaceRoot: options.workspaceRoot, sandbox: 'nested-userns-v1',
+      ...(recipe.systemConfigMounts ? { systemConfigMounts: recipe.systemConfigMounts } : {}),
       network: { kind: 'connect-proxy', proxyImage: options.proxyImage, allowedHosts: this.recipe.hosts } });
     this.#store = store; this.#options = Object.freeze({ ...options });
   }
@@ -78,6 +81,7 @@ export class SubscriptionHarnessRunner<P extends CredentialIdentity> {
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
       backend = new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image: imageId, sandbox: 'nested-userns-v1',
+        ...(this.recipe.systemConfigMounts ? { systemConfigMounts: this.recipe.systemConfigMounts } : {}),
         network: { kind: 'connect-proxy', proxyImage: this.#options.proxyImage, allowedHosts: this.recipe.hosts } }, binding);
       runner = new Runner(backend, systemClock);
       result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation);

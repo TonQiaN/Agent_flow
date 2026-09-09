@@ -32,3 +32,5 @@
 - [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
 
 - [Claude 订阅执行、刷新与真实格式识别](2026-09-09-claude-execution.md)
+
+- [Claude 管理配置修复与实际工具隔离](2026-09-09-claude-tool-isolation.md)

@@ -1,6 +1,6 @@
 # Claude Adapter（调用计划与协议）
 
-ClaudeAdapter 是独立的纯映射/解析模块，可通过 HarnessRegistry 显式安装。当前针对实际离线镜像中的 Claude Code 2.1.226；它不启动容器、读取凭据或决定文件交付是否合约。订阅执行组合已接通并通过合成测试，工具权限和真实模型交付仍待后续验收，见 [执行组合](claude-execution.md)。
+ClaudeAdapter 是独立的纯映射/解析模块，可通过 HarnessRegistry 显式安装。当前针对实际离线镜像中的 Claude Code 2.1.226；它不启动容器、读取凭据或决定文件交付是否合约。订阅执行组合已接通并通过合成测试，工具权限已有固定场景的真实 CLI 回归，真实模型交付仍待后续验收，见 [执行组合](claude-execution.md)。
 
 ```ts
 import { ClaudeAdapter } from '@agentflow/integrations';
@@ -18,7 +18,7 @@ const plan = adapter.plan({
 
 ## 目录与完成协议
 
-计划使用 print、safe-mode、关闭会话持久化、严格 MCP、固定工具列表、stream-json/verbose 和明确模型。safe-mode 保留认证与管理策略；不使用 bare，因为实际 CLI 帮助说明 bare 不读取订阅 OAuth。cwd 固定 /task/work，input/work/outputs 均为可写任务副本，Claude 状态声明在 /task/state/claude。生成的只读策略要求禁止工具读取 state、写入 state/config、工具联网以及 unsandboxed 回退。宿主后续集成必须真实验证这些要求。
+计划使用 print、safe-mode、关闭会话持久化、严格 MCP、固定工具列表、stream-json/verbose 和明确模型。safe-mode 保留认证与管理策略；不使用 bare，因为实际 CLI 帮助说明 bare 不读取订阅 OAuth。cwd 固定 /task/work，input/work/outputs 均为可写任务副本，Claude 状态声明在 /task/state/claude。生成的只读策略要求禁止工具读取 state、写入 state/config、工具联网以及 unsandboxed 回退。宿主组合把配置只读挂到实际系统位置；仅设置管理路径环境变量在该发布版本不起作用，见 [实际工具验证](../validation/2026-09-09-claude-tool-isolation.md)。
 
 interpret 接受实际 Runner 结果、完整 stdout 字节、同镜像验证的版本，以及认证/日志层提供的 redact 函数。正常结束要求同执行身份、Runner exited/0、停止 confirmed、清理 removed、完整采集，和同一 session 内 system/init → result/success、is_error=false。真实无凭据启动已观察到 subtype=success 且 is_error=true，因此只检查 success 会误判。
 

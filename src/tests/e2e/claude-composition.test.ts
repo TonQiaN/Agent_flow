@@ -13,10 +13,10 @@ const executable = `#!/usr/bin/env node
 const fs=require('fs');
 if(process.argv.includes('--version')){console.log('2.1.226 (Claude Code)');process.exit(0)}
 if(process.cwd()!=='/task/work'||process.env.CLAUDE_CONFIG_DIR!=='/task/state/claude'||process.env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB!=='1'||process.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY!=='1')process.exit(20);
-const policy=JSON.parse(fs.readFileSync(process.env.CLAUDE_CODE_MANAGED_SETTINGS_PATH,'utf8'));
+const policy=JSON.parse(fs.readFileSync('/etc/claude-code/managed-settings.json','utf8'));
 if(!policy.permissions.deny.includes('Read(//task/state/**)')||!policy.permissions.deny.includes('Edit(//task/config/**)'))process.exit(24);
 if(!policy.sandbox.enabled||!policy.sandbox.failIfUnavailable||policy.sandbox.allowUnsandboxedCommands||!policy.sandbox.filesystem.allowWrite.includes('/task/input'))process.exit(21);
-try{fs.writeFileSync(process.env.CLAUDE_CODE_MANAGED_SETTINGS_PATH,'changed');process.exit(22)}catch{}
+try{fs.writeFileSync('/etc/claude-code/managed-settings.json','changed');process.exit(22)}catch{}
 if(!process.env.HTTPS_PROXY)process.exit(23);
 const path=process.env.CLAUDE_CONFIG_DIR+'/.credentials.json',auth=JSON.parse(fs.readFileSync(path,'utf8'));
 const original=auth.claudeAiOauth.accessToken;auth.claudeAiOauth.accessToken='fixture-access-refreshed';fs.writeFileSync(path,JSON.stringify(auth));

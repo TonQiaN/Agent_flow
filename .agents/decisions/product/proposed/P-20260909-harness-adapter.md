@@ -67,3 +67,5 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 - 2026-09-09：在用户已授权的可写隔离输入与首个真实组合修复范围内，补充临时任务元数据映射；先核对 Blackbox，再参考实际版本官方权限实现，保留敏感目录 deny 与输出 contract 验证。
 
 2026-09-09 执行组合核对：Claude 的 Read/Edit 文件规则以双斜线锚定绝对路径（如 Read(//task/state/**)），不复制旧单斜线规则；sandbox.filesystem 使用普通绝对路径，两者语法不能混用。Grep/Glob 的文件拒绝由 Read 规则表达；实际版本的工具执行隔离仍须独立验收。
+
+2026-09-09 实际工具探针修正：固定 Claude2.1.226 发布程序在 Linux 读取 /etc/claude-code/managed-settings.json，并未采用计划里的管理路径环境变量；仅生成 /task/config 文件和设置环境变量不能证明策略生效。通过断网、本地合成模型响应驱动真实 CLI 的 Read 请求已复现凭据副本可读。后续组合需把同一只读配置显式挂到实际系统位置，移除无效环境声明，并验证真实内置工具和 Bash 行为；不能以自建 bwrap 探针替代 CLI 自己的工具执行。

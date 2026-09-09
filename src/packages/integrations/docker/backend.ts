@@ -15,6 +15,16 @@ import type { DockerEgressOptions } from './egress.js';
 import { stateEnvironment } from '../execution/state-binding.js';
 import type { PrivateStateBinding } from '../execution/state-binding.js';
 
+export interface SystemConfigMount { readonly name: string; readonly target: string }
+export function systemConfigMounts(value: readonly SystemConfigMount[] = []): readonly SystemConfigMount[] {
+  if (!Array.isArray(value) || value.length > 16 || value.some(m => !m || Object.keys(m).sort().join(',') !== 'name,target'
+    || typeof m.name !== 'string' || !safeRelative(m.name) || m.name.length > 256
+    || typeof m.target !== 'string' || m.target.length > 256 || !/^\/etc\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(m.target))
+    || new Set(value.map(m => m.target)).size !== value.length
+    || value.some(m => value.some(other => other.target.startsWith(`${m.target}/`)))) throw new Error('INVALID_SYSTEM_CONFIG_MOUNTS');
+  return Object.freeze(value.map(m => Object.freeze({ ...m })));
+}
+
 export interface DockerOptions {
   readonly workspaceRoot: string;
   readonly image: string;
@@ -27,6 +37,8 @@ export interface DockerOptions {
   readonly uid?: number;
   readonly gid?: number;
   readonly logBytes?: number;
+  /** Host-selected readonly mappings from this execution configFiles into system configuration directories. */
+  readonly systemConfigMounts?: readonly SystemConfigMount[];
 }
 interface OwnedResource {
   directory: string;
@@ -49,7 +61,7 @@ export class DockerBackend implements ExecutionBackend {
 
   constructor(options: DockerOptions, binding?: PrivateStateBinding) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
-      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024 };
+      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
     const allowed = ['workspaceRoot', 'image', ...Object.keys(defaults)];
     if (Object.keys(config).some(key => !allowed.includes(key)) || !isAbsolute(config.workspaceRoot)
@@ -61,7 +73,7 @@ export class DockerBackend implements ExecutionBackend {
       || !Number.isSafeInteger(config.uid) || config.uid < 1 || !Number.isSafeInteger(config.gid) || config.gid < 0
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
-    this.#options = Object.freeze({ ...config, network: config.network === 'none' ? 'none' : egressOptions(config.network) });
+    this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
     if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function')) throw new Error('INVALID_STATE_BINDING');
     this.#binding = binding;
     this.#stateEnv = stateEnvironment(binding?.environment ?? {});
@@ -100,6 +112,7 @@ export class DockerBackend implements ExecutionBackend {
       || Buffer.byteLength(file.content) > 64 * 1024)
       || new Set(configs.map(file => file.name)).size !== configs.length
       || configs.some(file => configs.some(other => other.name.startsWith(`${file.name}/`)))) throw new Error('INVALID_CONFIG_FILES');
+    if (this.#options.systemConfigMounts.some(m => !configs.some(f => f.name === m.name))) throw new Error('MISSING_SYSTEM_CONFIG_SOURCE');
     owned.request = request;
     for (const name of [...Object.keys(TASK_PATHS), 'raw']) await mkdir(join(owned.directory, name), { mode: 0o700 });
     await copyInput(request.inputSource, join(owned.directory, 'input'));
@@ -136,6 +149,7 @@ export class DockerBackend implements ExecutionBackend {
     if (options.sandbox === 'nested-userns-v1') args.push('--ipc', 'private', '--security-opt', 'systempaths=unconfined',
       '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
     for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
+    for (const mount of options.systemConfigMounts) args.push('--mount', `type=bind,src=${join(owned.directory, 'config', mount.name)},dst=${mount.target},readonly`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
     for (const [key, value] of Object.entries(this.#stateEnv)) args.push('--env', `${key}=${value}`);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));

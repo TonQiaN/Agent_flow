@@ -22,7 +22,7 @@ export class ClaudeAdapter implements HarnessAdapter {
       || c['reasoning'] !== undefined && !['low', 'medium', 'high', 'xhigh', 'max'].includes(String(c['reasoning']))) throw new Error('UNSUPPORTED_CLAUDE_CONFIGURATION');
     if (task.outcomes !== undefined && (!Array.isArray(task.outcomes) || task.outcomes.length < 2 || task.outcomes.length > 32
       || !task.outcomes.every(isIdentifier) || new Set(task.outcomes).size !== task.outcomes.length)) throw new Error('INVALID_HARNESS_OUTCOMES');
-    const home = `${TASK_PATHS.state}/claude`, settings = `${TASK_PATHS.config}/claude-managed.json`, tools = 'Bash,Read,Write,Edit,Glob,Grep';
+    const home = `${TASK_PATHS.state}/claude`, tools = 'Bash,Read,Write,Edit,Glob,Grep';
     const policy = { forceLoginMethod: 'claudeai', permissions: { deny: [
       ...['Read', 'Edit'].map(tool => `${tool}(/${TASK_PATHS.state}/**)`), `Edit(/${TASK_PATHS.config}/**)`, 'Agent', 'WebSearch', 'WebFetch',
     ] }, sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false, enableWeakerNestedSandbox: true,
@@ -34,7 +34,7 @@ export class ClaudeAdapter implements HarnessAdapter {
     if (task.outcomes) argv.push('--json-schema', JSON.stringify({ type: 'object', properties: { outcome: { type: 'string', enum: task.outcomes } }, required: ['outcome'], additionalProperties: false }));
     argv.push('--', task.prompt);
     return { harness: this.id, version: CLAUDE_VERSION, identity: task.identity, argv, cwd: TASK_PATHS.work,
-      environment: { CLAUDE_CONFIG_DIR: home, CLAUDE_CODE_MANAGED_SETTINGS_PATH: settings, CLAUDE_CODE_SKIP_PROMPT_HISTORY: '1', CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1' },
+      environment: { CLAUDE_CONFIG_DIR: home, CLAUDE_CODE_SKIP_PROMPT_HISTORY: '1', CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1' },
       configFiles: [{ name: 'claude-managed.json', content: JSON.stringify(policy) }], authentication: { service: 'anthropic', method: 'subscription', file: `${home}/.credentials.json` },
       requirements: ['private-state', 'readonly-config', 'subscription-refresh-lease', 'controlled-egress', 'claude-managed-policy'] };
   }
