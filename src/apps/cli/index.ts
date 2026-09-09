@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { ContractRegistry, ComponentRegistry, ComponentExecutor, FunctionRegistry } from '@agentflow/engine';
+import { auth } from './auth.js';
 import type { JsonObject } from '@agentflow/domain';
 
 async function main(): Promise<void> {
+  if (process.argv[2] === 'auth') { process.exitCode = await auth(process.argv.slice(3)); return; }
   if (process.argv.length !== 3 || process.argv[2] !== 'demo') {
-    process.stderr.write('Usage: agentflow demo\nRuns a deterministic JSON contract example; no agent or workflow execution yet.\n');
+    process.stderr.write('Usage: agentflow demo\nRuns a deterministic JSON contract example. Local key management: agentflow auth <configure|inspect|delete> deepseek --store <directory> --credential-ref <id> [--file <file>].\n');
     process.exitCode = 2;
     return;
   }

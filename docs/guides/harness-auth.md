@@ -1,6 +1,6 @@
 # Harness 与凭据接口
 
-当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、产品登录/交互录入及安全备份恢复尚未验收或实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
+当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；Claude/DeepSeek 的真实官方调用、真实刷新、订阅登录及安全备份恢复尚未实现，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
 
 ## Harness
 
@@ -25,7 +25,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 - `lease.release()`：幂等释放。释放后读写失败。执行绑定先证明旧执行已停止且清理成功；停止未知时不会释放给另一任务。
 - `delete(identity)`：与运行共用同一个锁，只删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
 
-不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；登录入口、备份恢复、持久 Profile 管理及真实账号联合验收继续在 #11/#12 完成。
+不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；订阅登录入口、备份恢复、持久 Profile 管理及真实账号联合验收继续在 #11/#12 完成。
 
 ## 执行凭据绑定
 
@@ -60,3 +60,5 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 [DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；静态 API key Profile、存储、不可变绑定与受控联网执行入口已接通；真实官方调用仍未验收。
 
 [凭据环境绑定](../validation/2026-09-09-credential-environment.md)为 API key 提供独立通道：Adapter 声明变量名，认证取得短租约快照，Docker 仅按名称注入；不开放普通 Invocation.env，也不创建任务密钥文件。订阅仍使用文件绑定及条件刷新。
+
+[本地认证 CLI](auth-management.md) 已提供 DeepSeek 的隐藏终端录入、单一受控文件导入、检查和本地删除；不读取环境中的偶然凭据，配置成功仅表示本地已保存。
