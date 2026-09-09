@@ -16,7 +16,7 @@ if (mode === 'archive-fail') {
   archive.capture = async (...args) => { if (++calls === 2) throw new Error('injected archive failure'); return capture(...args); };
 }
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
-if ((!readingOperation || operation === 'claim-resume-pause') && (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-') || mode.startsWith('recovery-') || mode === 'resume-running')) {
+if ((!readingOperation || operation === 'claim-resume-pause') && (['resource-fail', 'resource-pause'].includes(mode) || mode.startsWith('journal-') || mode.startsWith('recovery-') || ['resume-running', 'network-resume'].includes(mode))) {
   const cas = store.compareAndSwap.bind(store);
   store.compareAndSwap = async (runId, revision, content) => {
     const attempt = content.attempts?.at(-1), resource = attempt?.resource;
@@ -28,7 +28,7 @@ if ((!readingOperation || operation === 'claim-resume-pause') && (['resource-fai
     }
     if (resource && mode === 'resource-fail') throw new Error('resource CAS failure');
     const record = await cas(runId, revision, content);
-    const recoveryPause = (mode === 'resume-running' && attempt?.node === 'b' && attempt.launch === 'start_completed' && attempt.resultStep === null && !attempt.interrupted)
+    const recoveryPause = (['resume-running', 'network-resume'].includes(mode) && attempt?.node === 'b' && attempt.launch === 'start_completed' && attempt.resultStep === null && !attempt.interrupted)
       || (mode === 'recovery-running' && attempt?.node === 'b' && attempt.launch === 'start_completed')
       || (mode === 'recovery-allocated' && attempt?.node === 'a' && attempt.launch === 'allocated')
       || (mode === 'recovery-pending' && attempt?.node === 'a' && attempt.launch === 'create_pending');
@@ -93,10 +93,11 @@ try {
           }
         }
       }
-      const backend = new Backend({ workspaceRoot: join(root, 'attempts'), image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3' });
+      const backend = new Backend({ workspaceRoot: join(root, 'attempts'), image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3',
+        ...(mode === 'network-resume' ? { network: { kind: 'connect-proxy', proxyImage: 'node:22-bookworm-slim', allowedHosts: ['example.com'] } } : {}) });
       backends.set(node, backend);
       const executor = new ScriptExecutor(backend, systemClock, { read: async file => readFile(file.path, 'utf8') });
-      const pause = mode === 'resume-running' && node === 'b' ? 'sleep 3; ' : (node === 'b' && ['interrupt', 'recovery-running'].includes(mode) || mode.startsWith('journal-')) ? 'sleep 60; ' : '';
+      const pause = ['resume-running', 'network-resume'].includes(mode) && node === 'b' ? 'sleep 3; ' : (node === 'b' && ['interrupt', 'recovery-running'].includes(mode) || mode.startsWith('journal-')) ? 'sleep 60; ' : '';
       files.registerScript({ id: node, kind: 'transform', inputContract: 'files', outcomes: { ok: 'files' }, implementation: node }, executor,
         { argv: ['/bin/sh', '-c', `set -eu; ${pause}cat /task/input/value.txt > /task/outputs/value.txt; printf ${node.toUpperCase()} >> /task/outputs/value.txt; printf changed > /task/input/value.txt; printf '%s' '{"schema":"agentflow-script-result/v1","outcome":"ok"}'`], timeoutMs: 70000 });
     }

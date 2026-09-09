@@ -1,6 +1,6 @@
 # Workflow 检查点写入
 
-`WorkflowRuntime.startPersisted(compiled, runId, input, store)` 在现有串行执行路径上保存正常运行事实。当前内置组合支持断网 Docker 脚本；它提供检查点写入和异步取消确认，断网脚本的重启执行使用[恢复接口](workflow-recovery.md)。
+`WorkflowRuntime.startPersisted(compiled, runId, input, store)` 在现有串行执行路径上保存正常运行事实。当前内置组合支持无私有认证的 Docker 脚本（断网或 CONNECT）；它提供检查点写入和异步取消确认，断网脚本的重启执行使用[恢复接口](workflow-recovery.md)。
 
 ## 组装
 

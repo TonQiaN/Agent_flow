@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { Runner } from '@agentflow/engine';
 import { DockerBackend, SqliteRunRecordStore, systemClock } from '@agentflow/integrations';
-const [root, operation, stage] = process.argv.slice(2);
+const [root, operation, stage, network] = process.argv.slice(2);
 const store = await SqliteRunRecordStore.open(join(root, 'db'));
 const identity = { runId: 'run', nodeTaskId: 'task', attemptId: 'attempt', attemptNumber: 1 };
-const options = { workspaceRoot: `${join(root, 'attempts')}/`, image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3' };
+const options = { workspaceRoot: `${join(root, 'attempts')}/`, image: process.env.AGENTFLOW_TEST_IMAGE ?? 'alpine:3',
+  ...(network ? { network: { kind: 'connect-proxy', proxyImage: 'node:22-bookworm-slim', allowedHosts: ['example.com'] } } : {}) };
 const pause = async (at, resource) => { if (stage === at) { process.send({ event: 'paused', resource, stage }); await new Promise(() => { setInterval(() => {}, 1000); }); } };
 try {
   if (operation === 'run') {

@@ -1,6 +1,6 @@
 # Workflow 恢复执行
 
-当前内置支持相同定义、契约和实际镜像的断网 Script Workflow。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
+当前内置支持相同定义、契约和实际镜像的无私有认证绑定的 Script Workflow（断网或 CONNECT）。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
 
 ```ts
 import { claimWorkflowRecovery } from '@agentflow/engine';
@@ -53,3 +53,5 @@ v4 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资�
 恢复运行的 cancel 仍等待取消意图持久化，completion 用于确认执行收尾。resumed.dispose() 等待 completion 结束后释放继承的临时输入/前序输出引用，可重复调用；耐久归档和 Run 不被删除。新产生的输出按普通运行规则由调用者释放。交接失败时自动回滚继承引用；若收尾失败，保留 WorkflowRestoreError.dispose 继续清理。
 
 只支持当前可核对的实际执行绑定；v1/v2/v3 是未发布的试验格式，拒绝自动迁移。完整证据和剩余缺口见[新 Attempt 验证](../validation/2026-09-10-workflow-resume.md)。
+
+无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；Agent 的认证占用、版本探针和私有资源恢复尚未完成。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。

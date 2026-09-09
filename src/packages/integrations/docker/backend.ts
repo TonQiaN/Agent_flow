@@ -11,8 +11,8 @@ import { docker, attach } from './process.js';
 import type { AttachedProcess, DockerInteraction } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
-import { DockerEgress, egressOptions } from './egress.js';
-import type { DockerEgressOptions } from './egress.js';
+import { DockerEgress, egressOptions, prepareEgress } from './egress.js';
+import type { DockerEgressOptions, PreparedEgress } from './egress.js';
 import { stateEnvironment, credentialEnvironment } from '../execution/state-binding.js';
 import type { PrivateStateBinding } from '../execution/state-binding.js';
 import { resourceRecord, writeResourceMarker, verifyResourceDirectory } from './resource-record.js';
@@ -62,6 +62,7 @@ export class DockerBackend implements ExecutionBackend {
   #definition: JsonValue | undefined;
   #definitionPromise: Promise<JsonValue> | undefined;
   #pinnedImage: string | undefined;
+  #egressPrepared: PreparedEgress | undefined;
   readonly #resources = new Map<string, OwnedResource>();
   readonly #released = new Set<string>();
   readonly #restoring = new Map<string, string>();
@@ -100,7 +101,7 @@ export class DockerBackend implements ExecutionBackend {
 
   /** Nonsecret configured options only; this does not make a private/network resource restorable. */
   configurationSnapshot(): JsonValue {
-    return JSON.parse(JSON.stringify({ options: { ...this.#options, image: this.#pinnedImage ?? this.#options.image },
+    return JSON.parse(JSON.stringify({ options: { ...this.#options, image: this.#pinnedImage ?? this.#options.image, network: this.#egressPrepared?.options ?? this.#options.network },
       paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
   }
 
@@ -109,12 +110,14 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#definition !== undefined) return structuredClone(this.#definition);
     if (this.#definitionPromise) return structuredClone(await this.#definitionPromise);
     if (this.#allocationStarted || this.#resources.size || this.#released.size) throw new Error('EXECUTION_DEFINITION_AFTER_ALLOCATION');
-    if (this.#binding || this.#interaction || this.#options.network !== 'none') throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
+    if (this.#binding || this.#interaction) throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
     this.#definitionPromise = (async () => {
-      const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
+      const [imageId, egress] = await Promise.all([docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]),
+        this.#options.network === 'none' ? Promise.resolve(undefined) : prepareEgress(this.#options.network)]);
       if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
-      this.#pinnedImage = imageId;
-      this.#definition = { schema: 'agentflow-docker-execution/v1', ...this.configurationSnapshot() as Record<string, JsonValue> };
+      this.#pinnedImage = imageId; this.#egressPrepared = egress;
+      this.#definition = { schema: egress ? 'agentflow-docker-execution/v2' : 'agentflow-docker-execution/v1',
+        ...this.configurationSnapshot() as Record<string, JsonValue>, ...(egress ? { egress: structuredClone(egress.definition) } : {}) };
       return structuredClone(this.#definition!);
     })();
     try { return structuredClone(await this.#definitionPromise); }
@@ -150,7 +153,9 @@ export class DockerBackend implements ExecutionBackend {
     try {
       await verifyResourceDirectory(record);
       // No filesystem allocation and no container operation. Only later common query/stop observes it.
-      this.#resources.set(record.resourceId, { directory: record.directory, name: record.resourceId, imageId: this.#pinnedImage!, removed: false, checkpoint: record, restored: true });
+      this.#resources.set(record.resourceId, { directory: record.directory, name: record.resourceId, imageId: this.#pinnedImage!, removed: false, checkpoint: record, restored: true,
+        ...(this.#options.network === 'none' ? {} : { egress: new DockerEgress(record.resourceId, record.directory, this.#options.network,
+          { identity, prepared: this.#egressPrepared!, restored: true }) }) });
       return Object.freeze({ id: record.resourceId });
     } finally { this.#restoring.delete(record.resourceId); }
   }
@@ -200,7 +205,7 @@ export class DockerBackend implements ExecutionBackend {
     owned.imageId = imageId;
     const options = this.#options;
     if (options.network !== 'none') {
-      owned.egress = new DockerEgress(resource.id, owned.directory, options.network);
+      owned.egress = new DockerEgress(resource.id, owned.directory, options.network, { identity: request.identity, ...(this.#egressPrepared ? { prepared: this.#egressPrepared } : {}) });
       await owned.egress.setup(options.uid, options.gid);
     }
     const args = ['create', '--name', owned.name, '--label', `agentflow.resource=${resource.id}`,
@@ -261,10 +266,11 @@ export class DockerBackend implements ExecutionBackend {
   async observe(resource: ExecutionResource): Promise<Observation> {
     const owned = this.#owned(resource);
     const existing = await this.#inspect(resource);
+    if (owned.restored) await owned.egress?.verifyOwnership();
     if (!existing) return { state: 'absent' };
     if (owned.attached?.failed) throw new Error('ATTACH_INTERACTION_FAILED');
     if (existing.state.Running) {
-      await owned.egress?.assertRunning();
+      if (!owned.restored) await owned.egress?.assertRunning();
       if (owned.attached?.settled) { owned.attached.failed = true; throw new Error('ATTACH_ENDED_EARLY'); }
       return { state: 'running' };
     }

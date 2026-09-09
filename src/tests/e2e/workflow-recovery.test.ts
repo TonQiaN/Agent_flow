@@ -115,10 +115,18 @@ test('Docker outage after claim keeps recovery unconfirmed; a new process can la
   } finally { await f.close(); }
 });
 
-for (const repeats of [1, 2]) test(`real resumed Workflow finishes after ${repeats} killed hosts without rerunning accepted A`, { skip: !enabled, timeout: 45000 }, async () => {
-  const f = await setup('resume-running'), resources = [f.resource];
+for (const mode of ['resume-running', 'network-resume']) for (const repeats of [1, 2]) test(`real resumed Workflow ${mode} finishes after ${repeats} killed hosts without rerunning accepted A`, { skip: !enabled, timeout: 45000 }, async () => {
+  const f = await setup(mode), resources = [f.resource];
   try {
     f.worker.process.kill('SIGKILL'); await f.worker.exited;
+    if (mode === 'network-resume' && repeats === 1) {
+      const original = (await f.store.read('run'))!, invalid = structuredClone(original.content) as any;
+      invalid.values[1].saved.receipt.script.imageId = `sha256:${'0'.repeat(64)}`;
+      const changed = await f.store.compareAndSwap('run', original.revision, invalid);
+      const rejected = await output(f.spawn('claim-resume')); assert.equal(rejected.error, 'INVALID_WORKFLOW_FILE_RESTORE');
+      assert.deepEqual(rejected.created, []); assert.deepEqual(rejected.restored, []); assert.deepEqual(await f.store.read('run'), changed);
+      await f.store.compareAndSwap('run', changed.revision, original.content);
+    }
     if (repeats === 2) {
       const middle = f.spawn('claim-resume-pause'), ready = await message(middle); resources.push(ready.resource.id);
       assert.equal(ready.identity.nodeTaskId, 'task-2'); assert.equal(ready.identity.attemptNumber, 2);
@@ -134,12 +142,18 @@ for (const repeats of [1, 2]) test(`real resumed Workflow finishes after ${repea
     assert.equal(attempts.length, repeats + 2); assert.equal(attempts[0].resultStep, 0);
     for (const attempt of attempts.slice(1, -1)) { assert.equal(attempt.interrupted, true); assert.equal(attempt.resultStep, null); assert.equal(attempt.node, 'b'); }
     assert.equal(attempts.at(-1).resultStep, 1); assert.equal(new Set(attempts.map((a: any) => a.resource.resource.id)).size, attempts.length);
-    for (const resource of resources) assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${resource}$`, '--format', '{{.ID}}']), '');
+    for (const resource of resources) {
+      for (const name of [resource, `${resource}-proxy`]) assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${name}$`, '--format', '{{.ID}}']), '');
+      for (const name of [`${resource}-internal`, `${resource}-external`]) assert.equal(await docker(['network', 'ls', '--filter', `name=^${name}$`, '--format', '{{.ID}}']), '');
+    }
     const before = await f.store.read('run'), loaded = await output(f.spawn('load'));
     assert.equal(loaded.error, undefined); assert.deepEqual(loaded.texts, ['seed', 'seedA', 'seedAB']);
     assert.deepEqual(await f.store.read('run'), before);
   } finally {
-    for (const resource of resources.slice(1)) await docker(['rm', '-f', resource]).catch(() => {});
+    for (const resource of resources) {
+      for (const name of [resource, `${resource}-proxy`]) await docker(['rm', '-f', name]).catch(() => {});
+      for (const name of [`${resource}-internal`, `${resource}-external`]) await docker(['network', 'rm', name]).catch(() => {});
+    }
     await f.close();
   }
 });

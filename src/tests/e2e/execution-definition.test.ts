@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { ContractRegistry, FileContractRegistry, ScriptExecutor, compileWorkflow, snapshotWorkflowExecution, assertWorkflowExecutionMatches, snapshotWorkflowStructure } from '@agentflow/engine';
 import type { WorkflowDefinition, ExecutionBackend } from '@agentflow/engine';
-import { DockerBackend } from '../../packages/integrations/docker/backend.js';
+import { DockerBackend } from '@agentflow/integrations';
 import { docker } from '../../packages/integrations/docker/process.js';
 import { systemClock } from '../../packages/integrations/system-clock.js';
 import { FileWorkflowCatalog } from '../../packages/integrations/workflow/files.js';
@@ -71,7 +71,7 @@ test('Docker execution definition freezes the actual image through tag removal a
   finally { await attempt.retryCleanup(); await attempt.releaseExecution(); }
 });
 
-test('Docker refuses late freezing, private bindings, interaction and undescribed network environments', { skip: !enabled, timeout: 30000 }, async t => {
+test('Docker refuses late/private/interactive freezing and describes owned network environments', { skip: !enabled, timeout: 30000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'af-definition-refusal-')); t.after(() => rm(root, { recursive: true, force: true }));
   const options = { workspaceRoot: join(root, 'attempts'), image: 'alpine:3' };
   const backend = new DockerBackend(options), resource = await backend.allocate();
@@ -81,6 +81,8 @@ test('Docker refuses late freezing, private bindings, interaction and undescribe
   await assert.rejects(privateBackend.definition(), /EXECUTION_DEFINITION_UNAVAILABLE/); assert.equal(called, false);
   const interactive = new DockerBackend(options, undefined, { open: () => { called = true; return () => {}; }, output: () => { called = true; } });
   await assert.rejects(interactive.definition(), /EXECUTION_DEFINITION_UNAVAILABLE/); assert.equal(called, false);
-  const network = new DockerBackend({ ...options, network: { kind: 'connect-proxy', proxyImage: 'node:24-alpine', allowedHosts: ['example.com'] } });
-  await assert.rejects(network.definition(), /EXECUTION_DEFINITION_UNAVAILABLE/);
+  const network = new DockerBackend({ ...options, network: { kind: 'connect-proxy', proxyImage: 'node:22-bookworm-slim', allowedHosts: ['example.com'] } });
+  const described = await network.definition() as any;
+  assert.equal(described.schema, 'agentflow-docker-execution/v2'); assert.match(described.egress.proxySha256, /^[a-f0-9]{64}$/);
+  assert.match(described.options.network.proxyImage, /^sha256:/);
 });

@@ -189,7 +189,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       else {
         const binding = this.#bindings.get(expected.componentId), execution = data.execution;
         if (!binding || binding.kind !== 'script' || !object(execution) || execution['schema'] !== 'agentflow-script-execution/v1'
-          || !object(execution['backend']) || execution['backend']['schema'] !== 'agentflow-docker-execution/v1' || !object(execution['backend']['options'])) return fail();
+          || !object(execution['backend']) || !['agentflow-docker-execution/v1', 'agentflow-docker-execution/v2'].includes(execution['backend']['schema'] as string) || !object(execution['backend']['options'])) return fail();
         const image = execution['backend']['options']['image'];
         if (typeof image !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(image)) return fail();
         const predecessor = this.available(expected.predecessor, data.runId, binding.component.inputContract);
