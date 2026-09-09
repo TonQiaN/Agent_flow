@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, stat, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -75,23 +75,37 @@ realTest('Docker: nonzero exit, missing executable and invalid configuration pre
 
 realTest('Docker: timeout and cancellation stop the target, preserve another execution and leave no owned containers', async () => {
   const f = await fixture();
+  let cancelled = false; const active: Promise<RunnerResult>[] = [];
+  const waitForMarker = async (name: string) => {
+    const until = Date.now() + 10000;
+    while (Date.now() < until) {
+      for (const directory of await readdir(join(f.root, 'attempts'))) {
+        try { if ((await readFile(join(f.root, 'attempts', directory, 'outputs', name), 'utf8')) === 'started\n') return; }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    throw new Error('EXECUTION_START_NOT_OBSERVED');
+  };
   try {
     const timeout = await f.run(f.request('echo started > /task/outputs/started; sleep 30', 1500));
     assert.equal(timeout.phase, 'timed_out'); assert.equal(timeout.stop, 'confirmed'); assert.equal(timeout.cleanup, 'removed');
-    assert.equal(await readFile(join(timeout.capture!.outputsPath, 'started'), 'utf8'), 'started\n');
-    let cancelled = false;
-    const pending = f.run(f.request('echo started > /task/outputs/started; sleep 30'), { requested: () => cancelled });
-    const peer = f.run(f.request('sleep 2; echo finished > /task/outputs/peer'));
-    const timer = setTimeout(() => { cancelled = true; }, 1200);
-    const result = await pending; clearTimeout(timer);
+    // The deadline covers prepare/create too, so a timeout does not promise task code began.
+    const pending = f.run(f.request('echo started > /task/outputs/cancel-started; sleep 30'), { requested: () => cancelled });
+    active.push(pending);
+    const peer = f.run(f.request('echo started > /task/outputs/peer-started; sleep 2; echo finished > /task/outputs/peer'));
+    active.push(peer);
+    await Promise.all([waitForMarker('cancel-started'), waitForMarker('peer-started')]);
+    cancelled = true;
+    const result = await pending;
     assert.equal(result.phase, 'cancelled'); assert.equal(result.stop, 'confirmed'); assert.equal(result.cleanup, 'removed');
-    assert.equal(await readFile(join(result.capture!.outputsPath, 'started'), 'utf8'), 'started\n');
+    assert.equal(await readFile(join(result.capture!.outputsPath, 'cancel-started'), 'utf8'), 'started\n');
     assert.equal((await peer).exitCode, 0);
     for (const resource of [timeout.resource!, result.resource!]) {
       const found = execFileSync('docker', ['container', 'ls', '--all', '--filter', `name=^/${resource.id}$`, '--format', '{{.ID}}'], { encoding: 'utf8' });
       assert.equal(found.trim(), '');
     }
-  } finally { await f.cleanup(); }
+  } finally { cancelled = true; await Promise.allSettled(active); await f.cleanup(); }
 });
 
 realTest('Docker: logs are streamed with bounds and declared raw files copied before release', async () => {

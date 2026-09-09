@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, cp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -35,7 +35,7 @@ process.exit(bad?1:0);
 test('Claude composition: synthetic executable exercises version, binding, refresh, redaction and output handoff without model calls',
   { skip: process.env['AGENTFLOW_EGRESS_TESTS'] !== '1', timeout: 120_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'af-claude-composition-')); const tag = `agentflow-test/claude-fixture:${randomUUID()}`;
-    let built = false;
+    let built = false, passed = false;
     try {
       const build = join(root, 'build'); await mkdir(build);
       await writeFile(join(build, 'Dockerfile'), 'FROM node:22-bookworm-slim\nCOPY --chmod=755 claude /usr/local/bin/claude\n');
@@ -51,6 +51,10 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       profile: { id: 'test', ...credential, service: 'anthropic', method: 'subscription', endpoint: 'official', capacity: 1 }, inputSource: input, timeoutMs: 10_000 });
       try {
         const result = execution.result;
+        await writeFile(join(root, 'first-execution.json'), JSON.stringify(result, null, 2), { mode: 0o600 });
+        if (result.runner.capture) for (const stream of ['stdout', 'stderr'] as const) {
+          const file = result.runner.capture[stream]; if (file.complete) await cp(file.path, join(root, `first-${stream}.bin`));
+        }
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);
         assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential.revision, 2); assert.deepEqual(result.diagnostics, []);
         assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.equal(result.version.actual, '2.1.226');
@@ -106,8 +110,10 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       finally { await held.release(); }
       assert.deepEqual(await readdir(join(root, 'attempts')), []); assert.deepEqual(await readdir(join(root, 'version-attempts')), []);
       assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+      passed = true;
     } finally {
       if (built) execFileSync('docker', ['image', 'rm', tag], { stdio: 'pipe' });
-      await rm(root, { recursive: true, force: true });
+      if (passed) await rm(root, { recursive: true, force: true });
+      else process.stderr.write(`Retained Claude test evidence: ${root}\n`);
     }
   });

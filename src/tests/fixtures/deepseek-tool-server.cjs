@@ -53,9 +53,10 @@ server.listen(plan.port ?? 0, '127.0.0.1', () => {
   activeChild = child;
   let stdout = '', stderr = '';
   child.stdout.on('data', part => { stdout += part; }); child.stderr.on('data', part => { stderr += part; });
-  const timer = setTimeout(() => child.kill('SIGTERM'), 60000);
+  // The owning Runner enforces the test's complete deadline and terminates the container.
+  // Do not introduce an earlier hidden deadline inside the synthetic model server.
   child.on('close', async (code, signal) => {
-    clearTimeout(timer); server.close();
+    server.close();
     const sessions = [];
     function collect(path) { if (!fs.existsSync(path)) return; for (const entry of fs.readdirSync(path, { withFileTypes: true })) {
       const file = `${path}/${entry.name}`;
