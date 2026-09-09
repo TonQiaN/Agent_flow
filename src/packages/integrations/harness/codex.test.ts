@@ -79,6 +79,36 @@ test('malformed, truncated, mismatched and non UTF-8 evidence cannot become comp
   }
 });
 
+test('initialization warnings may precede a turn but cannot substitute for completion or leak payloads', () => {
+  const warning = { type: 'item.completed', item: { id: 'warning', type: 'error', message: 'SYNTHETIC_SECRET' } };
+  const parsed = adapter.interpret(evidence([start[0], warning, start[1], completed]));
+  assert.equal(parsed.status, 'completed');
+  assert.deepEqual(parsed.events.find(event => event.kind === 'error')?.data, null);
+  assert.ok(!JSON.stringify(parsed).includes('SYNTHETIC_SECRET'));
+  for (const events of [[warning, ...start, completed], [start[0], warning], [...start, completed, warning],
+    [start[0], { ...warning, type: 'item.started' }, start[1], completed],
+    [start[0], { type: 'item.completed', item: { id: 'early', type: 'agent_message', text: 'Done' } }, start[1], completed]]) {
+    assert.equal(adapter.interpret(evidence(events)).status, 'failed');
+  }
+});
+
+test('failed terminals are complete failure receipts, idempotent and incompatible with success', () => {
+  const failed = { type: 'turn.failed', error: { message: 'SYNTHETIC_SECRET' } };
+  const selected = { ...task, outcomes: ['accepted', 'rejected'] };
+  const parsed = adapter.interpret(evidence([...start, failed, failed], selected));
+  assert.equal(parsed.status, 'failed');
+  assert.deepEqual(parsed.diagnostics, ['HARNESS_REPORTED_FAILURE']);
+  assert.equal(parsed.events.filter(event => event.sourceType === 'turn.failed').length, 1);
+  assert.equal(parsed.outcome, null);
+  assert.equal(parsed.usage.inputTokens, null);
+  assert.ok(!JSON.stringify(parsed).includes('SYNTHETIC_SECRET'));
+  for (const terminals of [[failed, completed], [completed, failed], [failed, { ...failed, error: { message: 'different' } }]]) {
+    assert.ok(adapter.interpret(evidence([...start, ...terminals])).diagnostics.includes('CONFLICTING_HARNESS_TERMINAL'));
+  }
+  assert.ok(adapter.interpret(evidence([failed])).diagnostics.includes('INVALID_HARNESS_EVENT_ORDER'));
+  assert.ok(adapter.interpret(evidence([...start, failed, { type: 'future.event' }])).diagnostics.includes('EVENT_AFTER_HARNESS_TERMINAL'));
+});
+
 test('terminal usage is idempotent, not recursively summed; missing usage remains unknown', () => {
   const duplicate = { usage: { ...completed.usage }, type: 'turn.completed' };
   const parsed = adapter.interpret(evidence([...start, completed, duplicate]));

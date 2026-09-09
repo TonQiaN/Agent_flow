@@ -1,6 +1,6 @@
 # Harness 与凭据接口（首个组合实施中）
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；真实账号模型验收尚未完成，不能把以下接口当作已完成的认证 Runner。
+当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；已通过真实合成数字任务，通用文件 contract、真实刷新与完整 Workflow 仍待验收。
 
 ## Harness
 
@@ -8,9 +8,9 @@
 
 计划针对 Codex 0.153.4，声明 cwd=/task/work、CODEX_HOME=/task/state/codex、私有认证文件和受控网络/内部沙箱需求。身份目录统一由 engine 的 TASK_PATHS 定义；configFiles 可经 Invocation.configFiles 注入只读 /task/config。用户 prompt 使用 argv 的 `--` 分隔符原样传入；调用计划可能含业务文本，应按该数据的访问范围保管。
 
-Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Moby 基线派生策略以运行 Codex 的 bwrap；普通脚本默认 standard。已在 macOS Docker Desktop 使用真实 Codex 0.153.4 和合成凭据验证任务路径可写、auth.json/profile.json 拒绝读取的权限映射。CODEX_HOME 其余临时程序仍可执行，不能禁止整个目录，否则会阻止 Codex 自己的沙箱启动。此结果不证明任意 Linux/AppArmor 环境兼容，也不证明真实认证或模型任务已完成。受控网络另经独立真实 Docker 测试，见 [联网指南](controlled-egress.md)；尚未与真实 Codex 认证联合执行。
+Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Moby 基线派生策略以运行 Codex 的 bwrap；普通脚本默认 standard。已在 macOS Docker Desktop 使用真实 Codex 0.153.4 和合成凭据验证任务路径可写、auth.json/profile.json 拒绝读取的权限映射。CODEX_HOME 其余临时程序仍可执行，不能禁止整个目录，否则会阻止 Codex 自己的沙箱启动。此结果不证明任意 Linux/AppArmor 环境兼容，实际订阅模型小任务另见 [组合验证](../validation/2026-09-09-codex-composition.md)。受控网络也经独立真实 Docker 测试，见 [联网指南](controlled-egress.md)。
 
-`interpret({task, runner, version, stdout, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
+`interpret({task, runner, version, stdout, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
 
 事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。实际文件 contract 与 Workflow 接纳尚未接通。
 
@@ -37,7 +37,7 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 
 finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未接纳新内容，原凭据不被损坏副本覆盖，调用方不能把它当作无异常完成。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
 
-普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实远端刷新和模型验收尚未完成；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
+普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实模型小任务已通过，但未触发远端刷新；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 
 接口与真实证据边界见 [本次验证](../validation/2026-09-09-harness-auth-primitives.md)。取舍分别见 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 和 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
 
@@ -51,4 +51,4 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 
 受信宿主可在 FileExecutionCredentialBinding.acquire 的第四参数传入材料观察器，供脱敏器记住本次值；该回调不来自 Workflow 配置，也不进入普通序列化。
 
-`src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。真实小任务仍受授权门槛阻塞；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。
+`src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。已用明确授权的专用凭据及 gpt-5.6-sol 完成真实小任务；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。

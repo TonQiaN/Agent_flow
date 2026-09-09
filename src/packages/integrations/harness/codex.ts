@@ -54,6 +54,7 @@ export class CodexAdapter implements HarnessAdapter {
     let usage = unknownUsage();
     let outcome: string | null = null;
     let terminal: string | null = null;
+    let terminalCompleted = false;
     let finalMessage: string | null = null;
     let threadStarted = false;
     let turnStarted = false;
@@ -89,18 +90,24 @@ export class CodexAdapter implements HarnessAdapter {
       if (!record(event) || !validToken(event['type'])) { fail('MALFORMED_HARNESS_EVENT'); continue; }
       const type = event['type'];
       // Repeated identical terminal receipts are idempotent; conflicting ones never replace an accepted receipt.
-      if (type === 'turn.completed') {
+      if (type === 'turn.completed' || type === 'turn.failed') {
         let signature: string;
         try { signature = stable(event); } catch { fail('MALFORMED_HARNESS_EVENT'); continue; }
         if (terminal !== null) { if (terminal !== signature) fail('CONFLICTING_HARNESS_TERMINAL'); continue; }
         terminal = signature;
         if (!threadStarted || !turnStarted) fail('INVALID_HARNESS_EVENT_ORDER');
+        if (type === 'turn.failed') {
+          fail('HARNESS_REPORTED_FAILURE');
+          emit(type, 'error', null);
+          continue;
+        }
+        terminalCompleted = true;
         try { usage = parseUsage(event['usage']); } catch { fail('INVALID_HARNESS_USAGE'); }
         emit(type, 'usage', { ...usage });
         continue;
       }
       if (terminal !== null) fail('EVENT_AFTER_HARNESS_TERMINAL');
-      if (type === 'error' || type === 'turn.failed') {
+      if (type === 'error') {
         fail('HARNESS_REPORTED_FAILURE');
         emit(type, 'error', null); // Raw error objects may include request headers and credential values.
       } else if (type === 'thread.started') {
@@ -112,10 +119,16 @@ export class CodexAdapter implements HarnessAdapter {
         turnStarted = true;
         emit(type, 'lifecycle', null);
       } else if (['item.started', 'item.updated', 'item.completed'].includes(type)) {
-        if (!turnStarted) fail('INVALID_HARNESS_EVENT_ORDER');
         const item = event['item'];
         if (!record(item) || !validToken(item['type']) || !validToken(item['id'])) { fail('MALFORMED_HARNESS_ITEM'); continue; }
         const itemType = item['type'];
+        // Codex emits initialization warnings as completed error items before turn.started.
+        const initializationWarning = threadStarted && type === 'item.completed' && itemType === 'error';
+        if (!turnStarted && !initializationWarning) fail('INVALID_HARNESS_EVENT_ORDER');
+        if (itemType === 'error') {
+          emit(type, 'error', null, item['id']);
+          continue;
+        }
         const data: Record<string, JsonValue> = { itemType: redact(itemType) };
         let kind: HarnessEvent['kind'] = 'unknown';
         if (['agent_message', 'reasoning'].includes(itemType)) {
@@ -138,7 +151,7 @@ export class CodexAdapter implements HarnessAdapter {
       }
     }
     if (terminal === null) fail('MISSING_HARNESS_TERMINAL');
-    if (task.outcomes && terminal !== null) {
+    if (task.outcomes && terminalCompleted) {
       try {
         const answer: unknown = JSON.parse(finalMessage ?? 'null');
         if (!record(answer) || Object.keys(answer).length !== 1 || typeof answer['outcome'] !== 'string'
