@@ -1,6 +1,6 @@
 # 模拟 Effect 与 Workflow
 
-Effect 用于受信业务动作，独立于 Agent Harness 和其认证。首期 `EffectExecutor` 实现进程内授权、操作占位、收据校验和幂等复用；`SimulatedEffectService` 只写内存，用于验证行为。当前没有真实业务服务接入或持久恢复。
+Effect 用于受信业务动作，独立于 Agent Harness 和其认证。首期 `EffectExecutor` 实现进程内授权、操作占位、收据校验和幂等复用；`SimulatedEffectService` 只写内存，用于验证行为。可选的独立 Effect 持久日志已实现，Workflow 恢复接线和真实业务服务接入仍待完成。
 
 ## 定义与接入
 
@@ -39,7 +39,31 @@ Workflow 接入可在 `register` 中显式选择 `mode: 'apply'`，并安装 `ap
 
 `effects.query(key)` 返回私有记录的只读副本：请求标识、目标、业务身份、状态及已确认收据。不返回完整输入、授权对象或凭据。公开收据包含 schema、requestId、componentId、target、key、serviceIdentity、mode、status、reference。引擎核对上下文及对应出口 contract，拒绝模型或其他请求生成的“成功收据”。
 
-这不是跨进程数字签名或跨崩溃 exactly-once。记录只属于当前实例，不能用重建执行器、清空记录或简单重发解决 unknown。后续持久化工作需要结合目标服务事实提供恢复；当前没有解除 unknown 的 API。服务抛错一律保守处理，即使服务实际上在写入前因凭据不符而拒绝。
+未安装持久日志时，记录只属于当前实例。不能用重建执行器、清空记录或简单重发解决 unknown；当前没有解除 unknown 的 API。服务抛错一律保守处理，即使服务实际上在写入前因凭据不符而拒绝。持久日志也不是跨进程数字签名或任意服务的 exactly-once 保证。
+
+## 可选持久操作日志
+
+```ts
+const journal = await SqliteEffectRecordStore.open('/absolute/private/effect-journal');
+try {
+  const effects = new EffectExecutor(contracts, components, adapter, journal);
+  const approval = effects.authorize(request); // 仍由宿主根据明确业务权限决定。
+  const result = await effects.execute(request, approval);
+  const operation = await effects.queryDurable(request.key);
+} finally {
+  journal.close();
+}
+```
+
+`SqliteEffectRecordStore` 从 integrations 导出。使用明确的专用持久目录，不能使用每次启动新建的临时目录。命名空间身份由首次事务创建并在重开时保持；`persistenceIdentity()` 返回该非秘密身份，未安装日志返回 null。此身份后续用于 Workflow 实际安装一致性核对，目前尚未接线。
+
+EffectRecordStore 与 RunRecordStore 的业务端口分开，本机底层复用 SQLite 的事务、完整性、WAL/FULL 同步和 CAS。逻辑 key 的存储行名使用哈希，避免与命名空间元数据冲突；引擎仍验证正文中的原 key，不把哈希当成认证。持久请求的 requestId 使用逻辑 key，独立于 Attempt；Component/实现、业务身份、目标和完整 JSON 输入须一致。输入含文件时，消费方仍须把实际文件摘要明确写入 JSON 输入。
+
+apply 消费授权后，先读取日志；已确认 applied 才可复用为 already-applied，仍需本次授权及当前 contract。不存在时先唯一创建 pending，再调用适配器，核对并 CAS 写入 applied 后才返回 accepted。创建冲突或不明返回 EFFECT_RESERVATION_UNCONFIRMED，不调用 apply；读取失败/损坏返回 EFFECT_RECORD_UNAVAILABLE。pending 一律返回 EFFECT_RESULT_UNKNOWN，不能根据宿主退出或存储中没有回执推断外部动作未发生。实际动作完成而日志提交失败同样返回 unknown；后续读取若发现 applied 已真正提交，才可复用。
+
+`queryDurable(key)` 是异步只读查询；pending 是持久不确定状态，不是进程仍存活的证明。原 query 只看当前实例的内存观测。日志不保存授权对象或业务凭据，不提供删除、解锁、导入回执或盲目重试。dry-run 不读写日志。取消在等待占位期间发生时阻止 apply，但已提交占位保留，后续仍保守视为未知。
+
+当前已验证独立 EffectExecutor 的新进程重用及中断边界；EffectWorkflowCatalog 尚无持久执行定义和恢复接线，不能仅凭注入日志就宣称 Workflow 已可恢复。见[验证记录](../validation/2026-09-10-effect-journal.md)。
 
 ## 取消与控制
 

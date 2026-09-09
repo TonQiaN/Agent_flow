@@ -54,3 +54,5 @@ export type { WorkflowRecoveryRecord, WorkflowRecoverySnapshot, WorkflowRecovery
 export type { WorkflowRecoveryProgress } from './workflow/recovery-record.js';
 
 export type { InvocationResourcePlan, InvocationPhaseDefinition, InvocationPhaseCheckpoint, InvocationPhaseSink, InvocationPhaseHandle } from './workflow/phases.js';
+
+export type { EffectRecord, EffectRecordStore } from './persistence/effects.js';

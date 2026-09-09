@@ -52,6 +52,8 @@ Agent 版本探针作为认证获取前独立的 Runner 调用，资源证据不
 
 Agent 文件收据只可随严格加载器的一次性文件恢复能力验证，不提供进程内 Agent receipt 导入。先沿 Workflow 前序文件引用核对归档/清单，再核对完整执行身份、组件、outcome、实际 Driver 给出的 Harness/版本/固定镜像及 Agent 输入/输出清单；File Catalog 以源文件或实际存储快照调用 Agent，因此内层 predecessor 必须为空，外层前序关系仍完整保存。来源收据不替代输出 contract 检查，不把旧输出重新走接纳流程。阶段资源已停止的证据也不证明探针、Driver 或 Catalog 的宿主临时目录已经清理；这些目录的崩溃收尾另行落实并如实保留验收缺口。
 
+Effect 的逻辑操作记录独立于 Run/Attempt 行：键绑定 Component/实现、业务身份、目标和规范化完整输入，不能因新 Attempt 更换逻辑键。可选 EffectRecordStore 只负责版本化 JSON 与 create/CAS，不调用外部服务；本机实现复用既有 SQLite 耐久与并发机制，以持久命名空间身份区分不同存储。执行器消费本次明确授权后先提交唯一 pending 记录，成功确认后才调用 apply；收据和输出 contract 校验通过，再 CAS 保存 applied，提交确认后才向调用方接纳。已有 applied 经身份、请求、输入及契约重查后可在新进程复用；pending 不证明未执行，缺少结果核对能力时返回 unknown 并拒绝再次 apply。提交回执丢失时也不以当前内存替代持久事实。dry-run 不读取或占用日志；重启不会复活旧授权。操作日志不提供解除未知、删除占位或任意回执导入接口，不能用于宣称任意外部服务 exactly-once。此切片先验证真实宿主中断后的独立 Effect 执行器，Workflow 执行定义、恢复认领和操作接线另行完成。
+
 恢复并发必须通过事务状态和执行所有权约束协调；在资源未核对/停止前不启动第二份，不以 PID 消失或超时作为执行停止证明。旧 Blackbox 整 Run 锁不直接固定为将来的 Worker 独占模型，NodeTask 级调度留给 #14。Effect 缺少可靠回执时保持 unknown，按其核对能力处理，不能直接重发。
 
 ## 方案考量（alternatives）
