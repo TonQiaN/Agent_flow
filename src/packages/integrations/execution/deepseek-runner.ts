@@ -26,7 +26,7 @@ export class DeepSeekApiKeyRunner extends CredentialHarnessRunner<DeepSeekApiKey
       || assets.files.some(file => !file || Object.keys(file).sort().join(',') !== 'content,name' || !assetNames.includes(file.name)
         || typeof file.content !== 'string' || !file.content || file.content.includes('\0') || Buffer.byteLength(file.content) > 65536)) throw new Error('INVALID_DEEPSEEK_ASSETS');
     super(store, options, {
-      binding: 'environment', secretEnvironment: deepseekApiKeyEnvironment, memoryMiB: 1024,
+      binding: 'environment', secretEnvironmentKeys: ['DEEPSEEK_API_KEY'], secretEnvironment: deepseekApiKeyEnvironment, memoryMiB: 1024,
       version: DEEPSEEK_VERSION, hosts: DEEPSEEK_API_KEY_HOSTS, versionCommand: ['dsh', '--version'],
       adapter: () => new DeepSeekAdapter(), profile: deepseekApiKeyProfile, redactor: () => new DeepSeekCredentialRedactor(),
       parseVersion: stdout => /^([0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+)\s*$/.exec(stdout)?.[1] ?? null,

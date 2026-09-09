@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join } from 'node:path';
 import { getuid, getgid } from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isIdentifier } from '@agentflow/domain';
-import { TASK_PATHS } from '@agentflow/engine';
+import { TASK_PATHS, snapshotJson } from '@agentflow/engine';
 import type { JsonValue, ExecutionIdentity } from '@agentflow/domain';
 import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
@@ -110,14 +110,16 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#definition !== undefined) return structuredClone(this.#definition);
     if (this.#definitionPromise) return structuredClone(await this.#definitionPromise);
     if (this.#allocationStarted || this.#resources.size || this.#released.size) throw new Error('EXECUTION_DEFINITION_AFTER_ALLOCATION');
-    if (this.#binding || this.#interaction) throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
+    if (this.#interaction || this.#binding && (typeof this.#binding.resourceDefinition !== 'function' || typeof this.#binding.restoreResource !== 'function'))
+      throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
+    const privateState = this.#binding ? snapshotJson(this.#binding.resourceDefinition!()) : undefined;
     this.#definitionPromise = (async () => {
       const [imageId, egress] = await Promise.all([docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]),
         this.#options.network === 'none' ? Promise.resolve(undefined) : prepareEgress(this.#options.network)]);
       if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
       this.#pinnedImage = imageId; this.#egressPrepared = egress;
-      this.#definition = { schema: egress ? 'agentflow-docker-execution/v2' : 'agentflow-docker-execution/v1',
-        ...this.configurationSnapshot() as Record<string, JsonValue>, ...(egress ? { egress: structuredClone(egress.definition) } : {}) };
+      this.#definition = { schema: this.#binding ? 'agentflow-docker-execution/v3' : egress ? 'agentflow-docker-execution/v2' : 'agentflow-docker-execution/v1',
+        ...this.configurationSnapshot() as Record<string, JsonValue>, ...(egress ? { egress: structuredClone(egress.definition) } : {}), ...(this.#binding ? { privateState: privateState! } : {}) };
       return structuredClone(this.#definition!);
     })();
     try { return structuredClone(await this.#definitionPromise); }
@@ -152,6 +154,7 @@ export class DockerBackend implements ExecutionBackend {
     this.#restoring.set(record.resourceId, record.directory);
     try {
       await verifyResourceDirectory(record);
+      await this.#binding?.restoreResource?.({ id: record.resourceId });
       // No filesystem allocation and no container operation. Only later common query/stop observes it.
       this.#resources.set(record.resourceId, { directory: record.directory, name: record.resourceId, imageId: this.#pinnedImage!, removed: false, checkpoint: record, restored: true,
         ...(this.#options.network === 'none' ? {} : { egress: new DockerEgress(record.resourceId, record.directory, this.#options.network,

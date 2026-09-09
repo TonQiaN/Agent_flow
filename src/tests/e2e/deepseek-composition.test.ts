@@ -30,14 +30,21 @@ test('DeepSeek composition: fixed launch, snapshot, controlled egress, native ev
       assets.files.find((file: any) => file.name.endsWith('/launch.mjs')).content = 'throw new Error("mutated")';
       const task = (prompt: string) => ({ identity: { runId: 'composition', nodeTaskId: 'task', attemptId: prompt, attemptNumber: 1 }, prompt,
         config: { model: 'deepseek-v4-flash', reasoning: 'off', search: false, subagents: false } });
+      const phaseEvents: string[] = []; let executionRecord: any;
       for (const prompt of ['normal', 'missing-record', 'nonzero']) {
-        const execution = await runtime.run({ task: task(prompt), profile, inputSource: input, timeoutMs: 15000 });
+        const execution = await runtime.run({ task: task(prompt), profile, inputSource: input, timeoutMs: 15000 }, undefined, prompt === 'normal' ? {
+          version: { async save() { phaseEvents.push('probe'); }, async launch() {}, async complete() { phaseEvents.push('probe-complete'); } },
+          execution: { async save(record) { executionRecord = record; phaseEvents.push('execution'); const lease = await store.acquire(credential); await lease.release(); }, async launch() {} },
+        } : undefined);
         try {
           const result = execution.result; assert.equal(result.stage, 'execution'); assert.equal(result.version.actual, '0.1.1-rc.2');
           assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.deepEqual(result.runner.capture!.network!.allowedHosts, ['api.deepseek.com']);
           assert.equal(result.authentication?.status, 'released'); assert.equal(result.authentication?.refresh, 'unchanged');
           assert.equal((await store.inspect(credential))!.revision, 1); assert.ok(!JSON.stringify(result).includes('fixture-deepseek-key'));
           if (prompt === 'normal') {
+            assert.deepEqual(phaseEvents, ['probe', 'probe-complete', 'execution']);
+            assert.deepEqual(executionRecord.execution, await runtime.executionResourceDefinition(profile));
+            assert.ok(!JSON.stringify(executionRecord).includes('fixture-deepseek-key'));
             assert.equal(result.harness?.status, 'completed', JSON.stringify(result)); assert.equal(result.harness.outcome, null); assert.deepEqual(result.diagnostics, []);
             const message = result.harness.events.find(event => event.kind === 'message'); assert.deepEqual(message!.data, { blockType: 'text', text: '[redacted]' });
             assert.match(await readFile(result.runner.capture!.stdout.path, 'utf8'), /proxy-denied/);
@@ -79,7 +86,8 @@ test('DeepSeek composition: fixed launch, snapshot, controlled egress, native ev
       // A different actual CLI version must stop before credentials are acquired or egress is opened.
       await writeFile(join(build, 'dsh-package.json'), JSON.stringify({ name: '@deepseek-ai/dsh', version: '0.1.1-rc.1' }));
       execFileSync('docker', ['build', '--network', 'none', '--pull=false', '--tag', tag, build], { stdio: 'pipe', timeout: 60000 });
-      const mismatch = await runtime.run({ task: task('wrong-version'), profile: { ...profile, credentialRef: 'unconfigured' }, inputSource: input, timeoutMs: 15000 });
+      const freshRuntime = new DeepSeekApiKeyRunner(store, { workspaceRoot: attempts, image: tag, proxyImage: 'node:22-bookworm-slim' }, JSON.parse(execFileSync(process.execPath, ['src/apps/deepseek-tools/export-assets.mjs'], { encoding: 'utf8' })));
+      const mismatch = await freshRuntime.run({ task: task('wrong-version'), profile: { ...profile, credentialRef: 'unconfigured' }, inputSource: input, timeoutMs: 15000 });
       try { assert.equal(mismatch.result.stage, 'version'); assert.equal(mismatch.result.authentication, null); assert.ok(mismatch.result.diagnostics.includes('HARNESS_VERSION_NOT_VERIFIED')); }
       finally { await mismatch.retryCleanup(); await mismatch.release(); }
     } finally {

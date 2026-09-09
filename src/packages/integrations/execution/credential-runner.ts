@@ -17,7 +17,7 @@ export interface CredentialRedactor { remember(content: string): void; redact(te
 /** Internal trusted host composition, not a workflow configuration or plugin-loading API. */
 export type CredentialRecipe<P extends CredentialIdentity> = CredentialRecipeBase<P> & (
   { readonly binding: 'exclusive' | 'snapshot'; readonly stateFile: string; readonly secretEnvironment?: never }
-  | { readonly binding: 'environment'; readonly secretEnvironment: (content: string) => Readonly<Record<string, string>>; readonly stateFile?: never }
+  | { readonly binding: 'environment'; readonly secretEnvironmentKeys: readonly string[]; readonly secretEnvironment: (content: string) => Readonly<Record<string, string>>; readonly stateFile?: never }
 );
 interface CredentialRecipeBase<P extends CredentialIdentity> {
   readonly memoryMiB?: number;
@@ -54,11 +54,18 @@ export interface CredentialVersionResourceSink {
   complete(): Promise<void>;
 }
 
+export interface CredentialRunPersistence {
+  readonly version: CredentialVersionResourceSink;
+  /** Only transports with actual resource restoration support can enable this phase. */
+  readonly execution?: RunnerResourceSink;
+}
+
 /** Environment composition. Engine Runner and the pure Adapter have no provider-auth branches. */
 export class CredentialHarnessRunner<P extends CredentialIdentity> {
   readonly #store: CredentialStore;
   readonly #options: { workspaceRoot: string; image: string; proxyImage: string };
   readonly #recipe: CredentialRecipe<P>;
+  readonly #executionDefinitions = new Map<string, Promise<JsonValue>>();
   #started = false;
   #images: { image: string; proxyImage: string } | undefined;
   #imagesPending: Promise<{ image: string; proxyImage: string }> | undefined;
@@ -66,6 +73,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     if (!options || Object.keys(options).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
     this.#recipe = Object.freeze({ ...recipe, hosts: Object.freeze([...recipe.hosts]), versionCommand: Object.freeze([...recipe.versionCommand]),
       ...(recipe.systemConfigMounts ? { systemConfigMounts: Object.freeze(recipe.systemConfigMounts.map(m => Object.freeze({ ...m }))) } : {}) });
+    if (recipe.binding === 'environment') this.#recipe = Object.freeze({ ...this.#recipe, secretEnvironmentKeys: Object.freeze([...recipe.secretEnvironmentKeys]) }) as CredentialRecipe<P>;
     this.#store = store; this.#options = Object.freeze({ ...options });
     // Use exactly the same validated environment options for descriptions and execution.
     new DockerBackend(this.#backendOptions(options.image, options.proxyImage));
@@ -87,6 +95,32 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       this.#images = Object.freeze({ image, proxyImage }); return this.#images;
     })();
     try { return await this.#imagesPending; } finally { this.#imagesPending = undefined; }
+  }
+  #credential(profile: P): CredentialIdentity { return { credentialRef: profile.credentialRef, service: profile.service, method: profile.method }; }
+  #recoveryBinding(profile: P) {
+    if (this.#recipe.binding !== 'environment') throw new Error('CREDENTIAL_RESOURCE_RESTORE_UNAVAILABLE');
+    return EnvironmentExecutionCredentialBinding.recoveryBinding(this.#credential(profile), this.#recipe.secretEnvironmentKeys);
+  }
+  /** Actual immutable environment transport; no source store access. */
+  async executionResourceDefinition(rawProfile: P): Promise<JsonValue> {
+    const profile = this.#recipe.profile(structuredClone(rawProfile)), binding = this.#recoveryBinding(profile);
+    const key = canonicalJson(snapshotJson(this.#credential(profile)));
+    let pending = this.#executionDefinitions.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const images = await this.#freezeImages();
+        return new DockerBackend(this.#backendOptions(images.image, images.proxyImage), binding).definition();
+      })();
+      this.#executionDefinitions.set(key, pending);
+      pending.catch(() => { if (this.#executionDefinitions.get(key) === pending) this.#executionDefinitions.delete(key); });
+    }
+    return structuredClone(await pending);
+  }
+  async restoreExecutionResource(value: RunnerResourceCheckpoint, rawProfile: P): Promise<RestoredRunnerResource> {
+    const profile = this.#recipe.profile(structuredClone(rawProfile)), record = structuredClone(value);
+    if (canonicalJson(record.execution) !== canonicalJson(await this.executionResourceDefinition(profile))) throw new Error('CREDENTIAL_RESOURCE_DEFINITION_MISMATCH');
+    const images = this.#images!;
+    return new Runner(new DockerBackend(this.#backendOptions(images.image, images.proxyImage), this.#recoveryBinding(profile)), systemClock).restore(record);
   }
   #probeBackend(image: string): DockerBackend { return new DockerBackend({ workspaceRoot: this.#options.workspaceRoot, image }); }
   async versionProbeDefinition(): Promise<JsonValue> {
@@ -113,10 +147,11 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       profile, timeoutMs, version: this.#recipe.version, versionCommand: this.#recipe.versionCommand,
       authentication: { binding: this.#recipe.binding, stateFile: this.#recipe.stateFile ?? null,
         environment: this.#recipe.stateEnvironment({ ...plan, identity: captured.identity }) },
-      environment: new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
+      environment: this.#recipe.binding === 'environment' ? await this.executionResourceDefinition(profile)
+        : new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
   }
 
-  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }, probePersistence?: CredentialVersionResourceSink): Promise<CredentialExecution> {
+  async run(request: CredentialRunRequest<P>, cancellation: Cancellation = { requested: () => false }, persistence?: CredentialRunPersistence): Promise<CredentialExecution> {
     let task: HarnessTask;
     try { task = structuredClone(request.task); } catch { throw new Error('INVALID_HARNESS_TASK'); }
     const adapter = this.#recipe.adapter(); const plan = adapter.plan(task);
@@ -125,13 +160,18 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     const inputSource = request.inputSource; const timeoutMs = request.timeoutMs;
     if (Object.keys(request).sort().join(',') !== 'inputSource,profile,task,timeoutMs' || typeof inputSource !== 'string'
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_REQUEST');
+    const probePersistence = persistence?.version;
+    if (persistence && (!probePersistence || Object.keys(persistence).some(key => !['version', 'execution'].includes(key)))) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
+    if (persistence?.execution && (typeof persistence.execution.save !== 'function' || persistence.execution.launch !== undefined && typeof persistence.execution.launch !== 'function')) throw new Error('INVALID_CREDENTIAL_RESOURCE_SINK');
     if (probePersistence && (typeof probePersistence.save !== 'function' || typeof probePersistence.launch !== 'function' || typeof probePersistence.complete !== 'function'))
       throw new Error('INVALID_VERSION_RESOURCE_SINK');
+    if (!persistence) this.#started = true; // Reserve before the ordinary run first yields, including an absent cached environment.
     const probeDefinition = probePersistence ? await this.versionProbeDefinition() : undefined;
     const probeSink: RunnerResourceSink | undefined = probePersistence ? {
       save: checkpoint => probePersistence.save({ schema: 'agentflow-credential-version-resource/v1', definition: structuredClone(probeDefinition!), runner: checkpoint }),
       launch: state => probePersistence.launch(state),
     } : undefined;
+    const expectedEnvironment = persistence?.execution ? await this.executionResourceDefinition(profile) : await this.#executionDefinitions.get(canonicalJson(snapshotJson(this.#credential(profile))));
     this.#started = true;
     if (this.#imagesPending) await this.#imagesPending;
     const imageId = this.#images?.image ?? await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.image]);
@@ -165,8 +205,9 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
       backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding);
+      if (expectedEnvironment && canonicalJson(await backend.definition()) !== canonicalJson(expectedEnvironment)) throw new Error('CREDENTIAL_RESOURCE_DEFINITION_MISMATCH');
       runner = new Runner(backend, systemClock);
-      result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation);
+      result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation, persistence?.execution);
     } catch { await binding.abandon(); throw new Error('SUBSCRIPTION_EXECUTION_NOT_PREPARED'); }
     const execution = new CredentialExecution('execution', result, backend, runner, version, binding, redactor, task, [], adapter, invocation.recordFiles ?? []);
     await execution.interpret(); return execution;

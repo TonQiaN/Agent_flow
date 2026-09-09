@@ -20,7 +20,7 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 描述请求并发共享一次冻结；返回值可独立修改，不影响内部选择。已经开始分配资源的 backend 不能在事后首次冻结；冻结正在进行时分配会等待它结束。未调用 definition 的普通 Runner 保持已有行为，仍按当前配置解析镜像。
 
-当前带私有状态绑定或交互接口的 DockerBackend 会返回 `EXECUTION_DEFINITION_UNAVAILABLE`，而非省略认证、代理身份后返回一个看似完整的描述。旧 backend 没有 definition 仍可普通运行，但 ScriptExecutor 的持久化描述明确拒绝；空环境描述也拒绝。
+当前缺少 resourceDefinition/restoreResource 成对能力的私有绑定或带交互接口的 DockerBackend 会返回 `EXECUTION_DEFINITION_UNAVAILABLE`，而非省略认证、代理身份后返回一个看似完整的描述。旧 backend 没有 definition 仍可普通运行，但 ScriptExecutor 的持久化描述明确拒绝；空环境描述也拒绝。
 
 ## 当前限制
 
@@ -38,10 +38,13 @@ agentflow-credential-execution/v2 保存用户 prompt/config/outcomes、实际 A
 
 读取定义只查询本地镜像元数据，不启动版本探针、分配执行目录、访问凭据存储、获取租约或调用模型。实际运行仍执行原生版本验证后才取凭据；定义中的预期版本不能冒充实际探针通过。Profile 的 credentialRef/service/method/endpoint 等非秘密配置参与比较，凭据 generation/revision/token/key 不进入描述，正常刷新不会使定义变化。用户业务 prompt/config 仍会作为运行定义保存，描述器不承担任意业务文本的秘密识别。
 
-同一 Runner 的并发定义请求共享镜像解析；返回值独立。已开始运行而尚未冻结定义时拒绝事后首次描述。DockerBackend.configurationSnapshot 只导出已校验的非秘密配置，不授予网络或私有资源恢复能力；其 definition 仍拒绝缺少身份/收尾证据的私有绑定；无私有绑定的 CONNECT 已有独立资源恢复。Agent startPersisted 当前仍因 resourceDefinition 缺失而在写库/执行前拒绝；定义可比较并不表示 Agent 已能重启恢复。见[验证](../validation/2026-09-10-agent-execution-binding.md)。
+同一 Runner 的并发定义请求共享镜像解析；返回值独立。已开始运行而尚未冻结定义时拒绝事后首次描述。DockerBackend.configurationSnapshot 只导出已校验的非秘密配置，不授予网络或私有资源恢复能力；其 definition 支持不可变环境绑定的 v3 资源描述，仍拒绝缺少身份/收尾证据的其他私有绑定；无私有绑定的 CONNECT 已有独立资源恢复。Agent startPersisted 当前仍因 resourceDefinition 缺失而在写库/执行前拒绝；定义可比较并不表示 Agent 已能重启恢复。见[验证](../validation/2026-09-10-agent-execution-binding.md)。
 
 ## CONNECT 脚本环境
 
 无私有认证绑定的 CONNECT DockerBackend 可取得 agentflow-docker-execution/v2 定义：固定任务和代理镜像 ID、规范化出口配置，并保存 agentflow-egress-execution/v1 的代理程序摘要与策略。代理程序从实际构建包读取，在描述准备时保留原字节对应的文本，后续创建使用同一内容；新安装重新读取后对比，程序变化不能混用。断网定义仍为 v1。
 
 代理和内外两张网络使用同一资源 ID 派生名称，完整任务身份标注在各资源上；其恢复仅重建管理关系，不重新 setup 或 start。任务容器缺失不代表代理和网络已清理。共同 Runner 的移除会核对并清理全部组成部分，失败保留可重试的管理句柄。详见[联网资源恢复验证](../validation/2026-09-10-network-resource-recovery.md)。
+
+
+不可变环境凭据的 Docker 定义为 agentflow-docker-execution/v3，增加只含 credentialRef/service/method 与变量名称的 privateState；没有密钥、内容摘要或源存储 generation/revision。DeepSeek 的 Agent 定义现在包含这个实际环境、固定代理镜像与代理程序摘要；同一组合保留描述，实际执行重新准备后必须一致，否则在分配容器前拒绝。恢复使用只管理绑定，无须当前凭据仍然存在。探针和执行资源的单独恢复能力尚不代表 Workflow 可以恢复 Agent。
