@@ -50,3 +50,5 @@
 [Workflow 检查点](guides/workflow-checkpoints.md)已接入共享正常执行、耐久文件值与异步取消确认；尚未开放重启执行。
 
 [检查点加载与文件恢复](guides/workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
+
+[Runner 资源保存与恢复](guides/runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。

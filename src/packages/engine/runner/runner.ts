@@ -1,12 +1,12 @@
 import { isExecutionIdentity } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
-import { copyJson } from '../json.js';
-import type { Cancellation, Clock, ExecutionBackend, ExecutionResource, RawCapture, RunnerRequest, RunnerResult } from './types.js';
+import { copyJson, canonicalJson } from '../json.js';
+import type { Cancellation, Clock, ExecutionBackend, ExecutionResource, RawCapture, RunnerRequest, RunnerResult, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from './types.js';
 
 export class Runner {
   constructor(private readonly backend: ExecutionBackend, private readonly clock: Clock) {}
 
-  async run(request: RunnerRequest, cancellation: Cancellation = { requested: () => false }): Promise<RunnerResult> {
+  async run(request: RunnerRequest, cancellation: Cancellation = { requested: () => false }, persistence?: RunnerResourceSink): Promise<RunnerResult> {
     let input: RunnerRequest;
     try { input = copyJson(request) as unknown as RunnerRequest; }
     catch { throw new DefinitionError('INVALID_RUNNER_REQUEST'); }
@@ -30,7 +30,19 @@ export class Runner {
       const initial = interruption();
       if (initial) phase = initial;
       else {
+        let execution;
+        if (persistence) {
+          stage = 'RESOURCE_PERSISTENCE';
+          if (typeof persistence.save !== 'function' || !this.backend.definition || !this.backend.snapshotResource) throw new DefinitionError('RUNNER_RESOURCE_PERSISTENCE_UNAVAILABLE');
+          execution = copyJson(await this.backend.definition());
+        }
+        stage = 'ALLOCATE';
         resource = await this.backend.allocate();
+        if (persistence) {
+          stage = 'RESOURCE_PERSISTENCE';
+          const backend = copyJson(await this.backend.snapshotResource!(resource, input.identity));
+          await persistence.save(copyJson({ schema: 'agentflow-runner-resource/v1', identity: input.identity, resource, execution, backend }) as unknown as RunnerResourceCheckpoint);
+        }
         stage = 'PREPARE';
         await this.backend.prepare(resource, input);
         let interrupted = interruption();
@@ -75,4 +87,42 @@ export class Runner {
 
   /** Call only after the receiver has validated/copied outputs and retained needed raw evidence. */
   async release(resource: ExecutionResource): Promise<void> { await this.backend.release(resource); }
+
+  /** Trusted storage facts only. The caller must fence recovery before using this handle. */
+  async restore(value: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
+    let record: RunnerResourceCheckpoint;
+    try { record = copyJson(value) as unknown as RunnerResourceCheckpoint; }
+    catch { throw new DefinitionError('INVALID_RUNNER_RESOURCE_CHECKPOINT'); }
+    if (!record || Object.keys(record).sort().join(',') !== 'backend,execution,identity,resource,schema'
+      || record.schema !== 'agentflow-runner-resource/v1' || !isExecutionIdentity(record.identity)
+      || Object.keys(record.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId'
+      || !record.resource || Object.keys(record.resource).join(',') !== 'id' || typeof record.resource.id !== 'string' || !record.resource.id) throw new DefinitionError('INVALID_RUNNER_RESOURCE_CHECKPOINT');
+    if (!this.backend.definition || !this.backend.restoreResource) throw new DefinitionError('RUNNER_RESOURCE_RESTORE_UNAVAILABLE');
+    if (canonicalJson(copyJson(await this.backend.definition())) !== canonicalJson(record.execution)) throw new DefinitionError('RUNNER_RESOURCE_EXECUTION_MISMATCH');
+    const resource = await this.backend.restoreResource(record.backend, record.identity, record.resource);
+    if (canonicalJson(copyJson(resource)) !== canonicalJson(copyJson(record.resource))) throw new DefinitionError('RUNNER_RESTORED_RESOURCE_MISMATCH');
+    let removed = false, released = false, closing: Promise<{ confirmed: boolean }> | null = null, releasing: Promise<void> | null = null;
+    const stopAndRemove = (): Promise<{ confirmed: boolean }> => {
+      if (closing) return closing;
+      if (removed) return Promise.resolve({ confirmed: true });
+      closing = (async () => {
+        try {
+          if (!(await this.backend.stop(resource)).confirmed) return { confirmed: false };
+          await this.backend.remove(resource);
+          if ((await this.backend.observe(resource)).state !== 'absent') return { confirmed: false };
+          removed = true; return { confirmed: true };
+        } catch { return { confirmed: false }; }
+      })().finally(() => { closing = null; });
+      return closing;
+    };
+    return Object.freeze({ identity: Object.freeze({ ...record.identity }), resource: Object.freeze({ ...resource }),
+      query: () => this.backend.observe(resource), stopAndRemove,
+      release: async () => {
+        if (released) return;
+        if (!removed || closing) throw new DefinitionError('RESTORED_EXECUTION_NOT_REMOVED');
+        if (releasing) return releasing;
+        releasing = this.backend.release(resource).then(() => { released = true; }).finally(() => { releasing = null; });
+        return releasing;
+      } });
+  }
 }

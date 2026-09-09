@@ -5,7 +5,7 @@ import { getuid, getgid } from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS } from '@agentflow/engine';
-import type { JsonValue } from '@agentflow/domain';
+import type { JsonValue, ExecutionIdentity } from '@agentflow/domain';
 import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
 import type { AttachedProcess, DockerInteraction } from './process.js';
@@ -15,6 +15,8 @@ import { DockerEgress, egressOptions } from './egress.js';
 import type { DockerEgressOptions } from './egress.js';
 import { stateEnvironment, credentialEnvironment } from '../execution/state-binding.js';
 import type { PrivateStateBinding } from '../execution/state-binding.js';
+import { resourceRecord, writeResourceMarker, verifyResourceDirectory } from './resource-record.js';
+import type { DockerResourceRecord } from './resource-record.js';
 
 export interface SystemConfigMount { readonly name: string; readonly target: string }
 export function systemConfigMounts(value: readonly SystemConfigMount[] = []): readonly SystemConfigMount[] {
@@ -50,8 +52,10 @@ interface OwnedResource {
   removed: boolean;
   capture?: RawCapture;
   egress?: DockerEgress;
+  checkpoint?: DockerResourceRecord;
+  restored?: boolean;
 }
-interface Inspected { state: { Status: string; Running: boolean; ExitCode: number }; owner: string }
+interface Inspected { state: { Status: string; Running: boolean; ExitCode: number }; labels: Record<string, string>; image: string }
 
 export class DockerBackend implements ExecutionBackend {
   #allocationStarted = false;
@@ -60,6 +64,7 @@ export class DockerBackend implements ExecutionBackend {
   #pinnedImage: string | undefined;
   readonly #resources = new Map<string, OwnedResource>();
   readonly #released = new Set<string>();
+  readonly #restoring = new Map<string, string>();
   readonly #options: Required<DockerOptions>;
   readonly #binding: PrivateStateBinding | undefined;
   readonly #interaction: DockerInteraction | undefined;
@@ -122,8 +127,34 @@ export class DockerBackend implements ExecutionBackend {
     return Object.freeze({ id });
   }
 
+  async snapshotResource(resource: ExecutionResource, identity: ExecutionIdentity): Promise<JsonValue> {
+    const owned = this.#owned(resource);
+    if (!this.#definition || owned.request || owned.restored || owned.checkpoint) throw new Error('RESOURCE_SNAPSHOT_NOT_AVAILABLE');
+    const record = resourceRecord(JSON.parse(JSON.stringify({ schema: 'agentflow-docker-resource/v1', resourceId: resource.id, directory: owned.directory, identity })), identity, this.#options.workspaceRoot);
+    await writeResourceMarker(record); owned.checkpoint = record;
+    return JSON.parse(JSON.stringify(record));
+  }
+
+  async restoreResource(value: JsonValue, identity: ExecutionIdentity, expected: ExecutionResource): Promise<ExecutionResource> {
+    await this.definition();
+    const record = resourceRecord(value, identity, this.#options.workspaceRoot);
+    if (record.resourceId !== expected.id) throw new Error('RESOURCE_ID_MISMATCH');
+    if (this.#resources.has(record.resourceId) || this.#released.has(record.resourceId) || this.#restoring.has(record.resourceId)
+      || [...this.#restoring.values()].includes(record.directory)
+      || [...this.#resources.values()].some(r => r.directory === record.directory)) throw new Error('RESOURCE_ALREADY_OWNED');
+    this.#restoring.set(record.resourceId, record.directory);
+    try {
+      await verifyResourceDirectory(record);
+      // No filesystem allocation and no container operation. Only later common query/stop observes it.
+      this.#resources.set(record.resourceId, { directory: record.directory, name: record.resourceId, imageId: this.#pinnedImage!, removed: false, checkpoint: record, restored: true });
+      return Object.freeze({ id: record.resourceId });
+    } finally { this.#restoring.delete(record.resourceId); }
+  }
+
   async prepare(resource: ExecutionResource, request: RunnerRequest): Promise<void> {
     const owned = this.#owned(resource);
+    if (owned.restored) throw new Error('RESOURCE_EXECUTION_MISMATCH');
+    if (owned.checkpoint) resourceRecord(JSON.parse(JSON.stringify(owned.checkpoint)), request.identity, this.#options.workspaceRoot);
     const invocation = request.invocation;
     if (Object.keys(request).some(key => !['identity', 'invocation', 'inputSource', 'timeoutMs'].includes(key))
       || Object.keys(invocation).some(key => !['argv', 'env', 'recordFiles', 'configFiles'].includes(key))) throw new Error('UNSUPPORTED_RUNNER_CONFIGURATION');
@@ -158,6 +189,8 @@ export class DockerBackend implements ExecutionBackend {
 
   async create(resource: ExecutionResource, request: RunnerRequest): Promise<void> {
     const owned = this.#owned(resource);
+    if (owned.restored) throw new Error('RESOURCE_EXECUTION_MISMATCH');
+    if (owned.checkpoint) resourceRecord(JSON.parse(JSON.stringify(owned.checkpoint)), request.identity, this.#options.workspaceRoot);
     const imageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#pinnedImage ?? this.#options.image]);
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     owned.imageId = imageId;
@@ -167,7 +200,8 @@ export class DockerBackend implements ExecutionBackend {
       await owned.egress.setup(options.uid, options.gid);
     }
     const args = ['create', '--name', owned.name, '--label', `agentflow.resource=${resource.id}`,
-      '--label', `agentflow.attempt=${request.identity.attemptId}`, '--restart', 'no', '--init',
+      '--label', `agentflow.attempt=${request.identity.attemptId}`, '--label', `agentflow.run=${request.identity.runId}`,
+      '--label', `agentflow.node-task=${request.identity.nodeTaskId}`, '--label', `agentflow.attempt-number=${request.identity.attemptNumber}`, '--restart', 'no', '--init',
       '--user', `${options.uid}:${options.gid}`, '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--cpus', String(options.cpus), '--memory', `${options.memoryMiB}m`, '--memory-swap', `${options.memoryMiB}m`,
       '--pids-limit', String(options.pidsLimit), '--log-driver', 'none',
@@ -193,7 +227,7 @@ export class DockerBackend implements ExecutionBackend {
     const owned = this.#owned(resource);
     let raw: string;
     try {
-      raw = await docker(['inspect', '--format', '{"state":{{json .State}},"owner":{{json (index .Config.Labels "agentflow.resource")}}}', owned.name]);
+      raw = await docker(['inspect', '--format', '{"state":{{json .State}},"labels":{{json .Config.Labels}},"image":{{json .Image}}}', owned.name]);
     } catch {
       // Failed inspection alone does not prove absence (the daemon may be unavailable).
       const found = await docker(['container', 'ls', '--all', '--filter', `name=^/${owned.name}$`, '--format', '{{.ID}}']);
@@ -201,12 +235,19 @@ export class DockerBackend implements ExecutionBackend {
       throw new Error('INSPECT_FAILED');
     }
     const data = JSON.parse(raw) as Inspected;
-    if (data.owner !== resource.id || !data.state || typeof data.state.Running !== 'boolean') throw new Error('RESOURCE_OWNERSHIP_MISMATCH');
+    if (data.labels?.['agentflow.resource'] !== resource.id || !data.state || typeof data.state.Running !== 'boolean') throw new Error('RESOURCE_OWNERSHIP_MISMATCH');
+    if (owned.checkpoint) {
+      const i = owned.checkpoint.identity;
+      if (data.labels['agentflow.run'] !== i.runId || data.labels['agentflow.node-task'] !== i.nodeTaskId
+        || data.labels['agentflow.attempt'] !== i.attemptId || data.labels['agentflow.attempt-number'] !== String(i.attemptNumber)
+        || data.image !== this.#pinnedImage) throw new Error('RESOURCE_EXECUTION_MISMATCH');
+    }
     return data;
   }
 
   async start(resource: ExecutionResource): Promise<void> {
     const owned = this.#owned(resource);
+    if (owned.restored) throw new Error('RESTORED_EXECUTION_CANNOT_START');
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
     await owned.egress?.assertRunning();
@@ -299,6 +340,7 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#released.has(resource.id)) return;
     const owned = this.#owned(resource);
     if (!owned.removed) throw new Error('RESOURCE_STILL_OWNED_BY_EXECUTION');
+    if (owned.checkpoint) await verifyResourceDirectory(owned.checkpoint);
     await this.#binding?.beforeRelease(resource);
     await rm(owned.directory, { recursive: true, force: true });
     this.#resources.delete(resource.id);

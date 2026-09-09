@@ -45,3 +45,5 @@ invocation.recordFiles 可声明最多 16 个 state 内相对文件：`{ id: 'ev
 ## 宿主系统配置映射
 
 DockerOptions.systemConfigMounts 可将本次 configFiles 中的文件只读映射到 /etc 子目录内，例如 `{ name: 'managed.json', target: '/etc/example/managed-settings.json' }`。它是宿主后端选项，不是任务可传入的挂载列表；来源不接受宿主绝对路径，目标不接受根配置文件、路径逃逸或重复/父子冲突。缺失来源在凭据准备前拒绝。适用于只读取固定系统位置的程序；/task/config 仍保留原本只读文件。
+
+[持久资源与恢复](runner-resource-recovery.md)提供显式保存端口及新进程旧资源收尾；Workflow 恢复协调另行接入。

@@ -70,3 +70,5 @@
 [共享 Workflow 检查点](2026-09-10-workflow-checkpoints.md)：提交顺序、取消落盘、写入故障与真实宿主 SIGKILL 后的归档读取。
 
 [严格检查点加载与文件引用恢复验证](2026-09-10-workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
+
+[Runner 资源保存与实际中断验证](2026-09-10-runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
