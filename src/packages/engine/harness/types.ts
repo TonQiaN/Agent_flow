@@ -17,7 +17,8 @@ export interface HarnessPlan {
   readonly cwd: string;
   readonly environment: Readonly<Record<string, string>>;
   readonly configFiles: readonly { readonly name: string; readonly content: string }[];
-  readonly authentication: { readonly service: string; readonly method: string; readonly file: string };
+  readonly authentication: { readonly service: string; readonly method: string } & (
+    { readonly file: string; readonly variable?: never } | { readonly variable: string; readonly file?: never });
   readonly requirements: readonly string[];
 }
 export interface HarnessEvent {

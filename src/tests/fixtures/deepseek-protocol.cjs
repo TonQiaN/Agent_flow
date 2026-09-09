@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // Synthetic dsh protocol executable. No provider request or native tool execution; production launcher/capture still run.
+const assert = require('node:assert/strict');
 const fs = require('node:fs'), net = require('node:net');
 if (process.argv.includes('--version')) { console.log(JSON.parse(fs.readFileSync('/usr/local/lib/node_modules/@deepseek-ai/dsh/package.json')).version); process.exit(0); }
 async function main() {
   const prompt = process.argv.at(-1), key = process.env.DEEPSEEK_API_KEY;
+  assert.equal(fs.existsSync('/task/state/deepseek-api-key.json'), false);
+  assert.ok(!process.argv.join(' ').includes('fixture-deepseek-key'));
   if (key !== 'fixture-deepseek-key' || process.cwd() !== '/task/work' || process.env.NODE_USE_ENV_PROXY !== '1') throw new Error('FIXTURE_CONTEXT_MISMATCH');
   const patches = JSON.parse(fs.readFileSync('/task/config/deepseek.json'));
   const model = patches.find(p => p.id === 'agent-default-model').config.model;
@@ -37,7 +40,7 @@ async function main() {
     const dir = '/task/state/deepseek/sessions/project/session'; fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     fs.writeFileSync(dir + '/session.jsonl', [{ type: 'session', version: 0, id: 'fixture', createdAt: 1, cwd: '/task/work', delegationDepth: 0 }, ...events].map(row => JSON.stringify(row)).join('\n') + '\n', { mode: 0o600 });
   }
-  if (prompt === 'tamper-key') fs.writeFileSync('/task/state/deepseek-api-key.json', JSON.stringify({ schema: 'agentflow-deepseek-key/v1', api_key: 'fixture-replacement-key' }));
+
   console.log(key); console.log('{"outcome":"accepted","type":"turn/end"}'); // Never completion authority.
   if (prompt === 'nonzero') process.exitCode = 7;
 }

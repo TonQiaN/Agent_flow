@@ -30,19 +30,19 @@ test('DeepSeek composition: fixed launch, snapshot, controlled egress, native ev
       assets.files.find((file: any) => file.name.endsWith('/launch.mjs')).content = 'throw new Error("mutated")';
       const task = (prompt: string) => ({ identity: { runId: 'composition', nodeTaskId: 'task', attemptId: prompt, attemptNumber: 1 }, prompt,
         config: { model: 'deepseek-v4-flash', reasoning: 'off', search: false, subagents: false } });
-      for (const prompt of ['normal', 'missing-record', 'nonzero', 'tamper-key']) {
+      for (const prompt of ['normal', 'missing-record', 'nonzero']) {
         const execution = await runtime.run({ task: task(prompt), profile, inputSource: input, timeoutMs: 15000 });
         try {
           const result = execution.result; assert.equal(result.stage, 'execution'); assert.equal(result.version.actual, '0.1.1-rc.2');
           assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.deepEqual(result.runner.capture!.network!.allowedHosts, ['api.deepseek.com']);
-          assert.equal(result.authentication?.status, 'released'); assert.equal(result.authentication?.refresh, prompt === 'tamper-key' ? 'failed' : 'unchanged');
+          assert.equal(result.authentication?.status, 'released'); assert.equal(result.authentication?.refresh, 'unchanged');
           assert.equal((await store.inspect(credential))!.revision, 1); assert.ok(!JSON.stringify(result).includes('fixture-deepseek-key'));
           if (prompt === 'normal') {
             assert.equal(result.harness?.status, 'completed', JSON.stringify(result)); assert.equal(result.harness.outcome, null); assert.deepEqual(result.diagnostics, []);
             const message = result.harness.events.find(event => event.kind === 'message'); assert.deepEqual(message!.data, { blockType: 'text', text: '[redacted]' });
             assert.match(await readFile(result.runner.capture!.stdout.path, 'utf8'), /proxy-denied/);
             assert.deepEqual(JSON.parse(await readFile(join(result.runner.capture!.outputsPath, 'answer.json'), 'utf8')), { sum: 6 });
-          } else { assert.notEqual(result.harness?.status, 'completed'); if (prompt === 'tamper-key') assert.ok(result.diagnostics.includes('AUTHENTICATION_NOT_FINALIZED')); }
+          } else { assert.notEqual(result.harness?.status, 'completed'); }
           assert.equal(await readFile(join(input, 'numbers.json'), 'utf8'), original);
           (result.runner as { cleanup: string }).cleanup = 'blocked'; assert.equal(execution.result.runner.cleanup, 'removed');
         } finally { await execution.retryCleanup(); await execution.release(); }

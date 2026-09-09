@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [凭据环境注入与 DeepSeek 无密钥文件执行](2026-09-09-credential-environment.md) |
 | 2026-09-09 | [基础四项验收缺口核对](2026-09-09-foundation-acceptance-audit.md) |
 | 2026-09-09 | [DeepSeek 宿主执行与文件交接](2026-09-09-deepseek-execution.md) |
 | 2026-09-09 | [DeepSeek API key 与不可变快照交接](2026-09-09-deepseek-api-key.md) |

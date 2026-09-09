@@ -22,8 +22,14 @@ export interface BindingFinalization {
   readonly diagnostics: readonly string[];
 }
 
+/** Shared lifecycle consumed by execution composition, independent of secret transport. */
+export interface ExecutionCredentialBinding extends PrivateStateBinding {
+  abandon(): Promise<void>;
+  finish(result: RunnerResult): Promise<BindingFinalization>;
+}
+
 /** A lease or immutable snapshot with one execution copy. No Harness or business-outcome interpretation. */
-export class FileExecutionCredentialBinding implements PrivateStateBinding {
+export class FileExecutionCredentialBinding implements ExecutionCredentialBinding {
   readonly environment: Readonly<Record<string, string>>;
   readonly #identity: ExecutionIdentity;
   readonly #stateFile: string;

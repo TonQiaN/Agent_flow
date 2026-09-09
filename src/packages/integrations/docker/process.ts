@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
+import { credentialEnvironment } from '../execution/state-binding.js';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { openSync, writeSync, closeSync } from 'node:fs';
 import type { CapturedFile } from '@agentflow/engine';
 
 /** Bounded control output. No shell and no ambient command interpolation. */
-export async function docker(args: readonly string[], timeoutMs = 15_000): Promise<string> {
+export async function docker(args: readonly string[], timeoutMs = 15_000, secrets: Readonly<Record<string, string>> = {}): Promise<string> {
+  const selected = credentialEnvironment(secrets);
+  if (Object.keys(selected).length && args[0] !== 'create') throw new Error('INVALID_CREDENTIAL_COMMAND');
   return new Promise((resolve, reject) => {
-    const child = spawn('docker', [...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('docker', [...args], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...selected } });
     const chunks: Buffer[] = [];
     let bytes = 0;
     let failed = false;

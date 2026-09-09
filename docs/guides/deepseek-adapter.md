@@ -8,7 +8,7 @@
 
 plan 固定工作目录 /task/work、只读 /task/config/deepseek.json 和容器启动程序；通过 requirements 声明 private-state、readonly-config、controlled-egress、deepseek-runtime-assets 与 deepseek-session-record。宿主须满足全部声明，提供匹配当前实现的受信容器资产，并按 DEEPSEEK_SESSION_RECORD 采集私有会话。工具服务、启动/采集程序位于 src/apps/deepseek-tools；Adapter 只声明资产位置，不读取应用文件或启动进程。所需 SDK 是镜像内精确版本的可选 peer，宿主库不加载它们。
 
-authentication 声明 service=deepseek、method=api-key 和固定私有交接位置 /task/state/deepseek-api-key.json。Adapter 不接收、寻找或读取密钥。静态凭据边界见下节；声明本身不等于完整执行入口。
+authentication 声明 service=deepseek、method=api-key、variable=DEEPSEEK_API_KEY，不声明任务密钥文件。Adapter 不接收、寻找或读取密钥。静态凭据边界见下节；声明本身不等于完整执行入口。
 
 ## 完成与出口
 
@@ -26,11 +26,13 @@ authentication 声明 service=deepseek、method=api-key 和固定私有交接位
 
 DeepSeekApiKeyCodec 与 FileCredentialStore 接收显式内容或受控文件中的内部交接记录，固定 schema=agentflow-deepseek-key/v1 和 api_key 两字段；错误不回显内容。密钥为 8–8192 个无空白可打印 ASCII，记录不超过 16 KiB，不自动修剪或继承环境。使用 deepseekApiKeyProfile 校验元数据：service=deepseek、method=api-key、endpoint=official、credentialRef、id、capacity=null。认证层不施加会话独占；null 不表示远端额度无限。DEEPSEEK_API_KEY_HOSTS 固定为 api.deepseek.com。
 
-宿主通过 FileExecutionCredentialBinding.acquireSnapshot 取得短租约内读取的不可变快照，再提供固定 stateFile=deepseek-api-key.json 和空路径环境。源锁立即释放，prepare 为本次资源写入独立 0600 副本；引擎 Invocation 不含源秘密或源路径。DeepSeekCredentialRedactor 由受信观察器记住本次 key，再提供普通事件脱敏。该绑定不会回写源 key，管理 configure 的轮换或删除不被旧执行覆盖。
+宿主通过 `EnvironmentExecutionCredentialBinding.acquire(store, {identity, credential}, deepseekApiKeyEnvironment, waitMs, remember)` 在短租约内读取不可变快照，随即释放源锁。prepare 只绑定执行资源，不创建密钥文件；Docker create 的 argv 只包含 `--env DEEPSEEK_API_KEY`，值来自这次绑定提供的客户端环境。普通 Invocation.env、配置文件、结果和后续 Docker 查询不携带该秘密。
 
-finish 仍核对 Runner 身份、资源、停止和清理。静态 key 的 refresh=unchanged 表示副本字节检查通过；变化或缺失为 failed，不能当作成功认证收尾。停止或清理未知时保留副本和 beforeRelease 门槛；源锁已释放，管理侧不必等待整个模型任务。原始日志仍为私有证据，已知值脱敏不等于任意 PII 过滤。
+固定启动器只读取注入的 DEEPSEEK_API_KEY，校验格式后传给原生 CLI；不会搜索文件或其他环境来源。工具进程清空继承环境，保持独立进程视图。Docker daemon 管理员仍能查看容器环境，属于受信宿主边界，不能宣称密钥对管理员不可见。
 
-静态凭据的实际验证见 [API key 与快照绑定](../validation/2026-09-09-deepseek-api-key.md)。
+finish 核对 Runner 身份、资源、停止和清理，确认容器移除后丢弃绑定快照。refresh=unchanged 表示未回存源 key，不再表示工作副本字节比对，也不证明远端有效。停止或清理未知时保留 beforeRelease 门槛；源锁已释放，管理 configure 的轮换或删除不会被旧执行覆盖。普通事件由 DeepSeekCredentialRedactor 脱敏，原始日志仍为私有证据。
+
+当前验证见 [环境注入](../validation/2026-09-09-credential-environment.md)；早先的 [文件快照验证](../validation/2026-09-09-deepseek-api-key.md)保留历史证据，文件绑定 API 仍存在，但已不是 DeepSeek 组合的注入方式。
 
 ## 宿主执行入口
 
