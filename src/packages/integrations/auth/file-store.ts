@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
 import { isIdentifier } from '@agentflow/domain';
-import type { CredentialIdentity, CredentialLease, CredentialMetadata, CredentialSource, CredentialStore } from '@agentflow/engine';
+import type { CredentialIdentity, CredentialLease, CredentialMetadata, CredentialSource, CredentialManagementStore, CredentialManagementLease } from '@agentflow/engine';
 
 export interface CredentialCodec {
   readonly service: string;
@@ -33,7 +33,7 @@ async function safe<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 /** POSIX, current-user local storage. Ancestors outside root must be controlled by the host. */
-export class FileCredentialStore implements CredentialStore {
+export class FileCredentialStore implements CredentialManagementStore {
   readonly #root: string;
   readonly #codecs = new Map<string, CredentialCodec>();
 
@@ -140,15 +140,29 @@ export class FileCredentialStore implements CredentialStore {
       else if ('file' in source && typeof source.file === 'string' && isAbsolute(source.file)) content = await readPrivate(source.file, LIMIT);
       else throw new CredentialError('INVALID_CREDENTIAL_SOURCE');
       this.#validate(selected, content);
+      const lease = await this.acquireManagement(selected, waitMs);
+      try { return await lease.configure(content); } finally { await lease.release(); }
+    });
+  }
+
+  async acquireManagement(identity: CredentialIdentity, waitMs = 0): Promise<CredentialManagementLease> {
+    this.#codec(identity);
+    const selected = Object.freeze({ ...identity });
+    return safe(async () => {
       const lock = await this.#lock(selected, waitMs);
       try {
-        const previous = await this.#read(selected);
-        if (previous?.payload === content) return metadata(previous);
-        if (previous?.revision === Number.MAX_SAFE_INTEGER) throw new CredentialError('CREDENTIAL_REVISION_EXHAUSTED');
-        const stored: StoredCredential = { ...selected, schema: 1, generation: previous?.generation ?? randomUUID(), revision: (previous?.revision ?? 0) + 1, payload: content };
-        await this.#replace(stored);
-        return metadata(stored);
-      } finally { await lock.release(); }
+        const initial = await this.#read(selected);
+        return new FileManagementLease(initial ? metadata(initial) : null, lock, async (expected, content) => {
+          this.#validate(selected, content);
+          const current = await this.#read(selected);
+          if (expected ? !current || current.generation !== expected.generation || current.revision !== expected.revision : current !== null)
+            throw new CredentialError('CREDENTIAL_REVISION_CONFLICT');
+          if (current?.payload === content) return metadata(current);
+          if (current?.revision === Number.MAX_SAFE_INTEGER) throw new CredentialError('CREDENTIAL_REVISION_EXHAUSTED');
+          const stored: StoredCredential = { ...selected, schema: 1, generation: current?.generation ?? randomUUID(), revision: (current?.revision ?? 0) + 1, payload: content };
+          await this.#replace(stored); return metadata(stored);
+        });
+      } catch (error) { await lock.release(); throw error; }
     });
   }
 
@@ -234,6 +248,31 @@ class FileLease implements CredentialLease {
   }
   release(): Promise<void> {
     return this.#exclusive(async () => { if (!this.#released) { await this.#lock.release(); this.#released = true; } });
+  }
+}
+
+class FileManagementLease implements CredentialManagementLease {
+  #metadata: CredentialMetadata | null;
+  #released = false;
+  #queue: Promise<unknown> = Promise.resolve();
+  readonly #lock: Lock;
+  readonly #commit: (expected: CredentialMetadata | null, content: string) => Promise<CredentialMetadata>;
+  constructor(initial: CredentialMetadata | null, lock: Lock, commit: (expected: CredentialMetadata | null, content: string) => Promise<CredentialMetadata>) {
+    this.#metadata = initial; this.#lock = lock; this.#commit = commit;
+  }
+  get metadata(): CredentialMetadata | null { return this.#metadata; }
+  toJSON(): { credential: CredentialMetadata | null; released: boolean } { return { credential: this.#metadata, released: this.#released }; }
+  #serial<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.#queue.then(() => safe(operation)); this.#queue = next.catch(() => undefined); return next;
+  }
+  configure(content: string): Promise<CredentialMetadata> {
+    return this.#serial(async () => {
+      if (this.#released) throw new CredentialError('CREDENTIAL_LEASE_RELEASED');
+      this.#metadata = await this.#commit(this.#metadata, content); return this.#metadata;
+    });
+  }
+  release(): Promise<void> {
+    return this.#serial(async () => { if (!this.#released) { await this.#lock.release(); this.#released = true; } });
   }
 }
 
