@@ -122,31 +122,49 @@ export class FileContractRegistry {
     const total = files.reduce((sum, file) => sum + file.bytes, 0);
     if (files.length > contract.maxFiles) fail('', '', 'MAX_FILES');
     if (!Number.isSafeInteger(total) || total > contract.maxTotalBytes) fail('', '', 'MAX_TOTAL_BYTES');
-    const roots: { path: string; rule: FileRule }[] = [];
+    const roots = new Map<string, FileRule>();
+    const structuralParents = new Set<string>();
+    const memberCounts = new Map<string, number>();
+    for (const file of files) {
+      const parts = file.path.split('/'); parts.pop();
+      while (parts.length) { const parent = parts.join('/'); memberCounts.set(parent, (memberCounts.get(parent) ?? 0) + 1); parts.pop(); }
+    }
     for (const rule of contract.rules) {
       const candidates = entries.filter(entry => entry.kind === (rule.kind === 'tree' ? 'directory' : 'file') && matches(rule.match, entry.path));
       if (candidates.length < rule.minCount || candidates.length > rule.maxCount) fail('', rule.id, 'COUNT');
       for (const candidate of candidates) {
-        roots.push({ path: candidate.path, rule });
+        if (roots.has(candidate.path)) {
+          fail(candidate.path, rule.id, 'AMBIGUOUS_MATCH'); return { valid: false, issues };
+        }
+        roots.set(candidate.path, rule);
+        const parts = candidate.path.split('/'); parts.pop();
+        while (parts.length) { structuralParents.add(parts.join('/')); parts.pop(); }
         if (rule.kind === 'tree') {
-          const size = files.filter(file => file.path.startsWith(candidate.path + '/')).length;
+          const size = memberCounts.get(candidate.path) ?? 0;
           if (size < rule.minFiles! || size > rule.maxFiles!) fail(candidate.path, rule.id, 'TREE_FILE_COUNT');
         }
       }
     }
-    for (let i = 0; i < roots.length; i++) for (let j = 0; j < i; j++) {
-      const a = roots[i]!, b = roots[j]!;
-      if (a.path === b.path || a.rule.kind === 'tree' && b.path.startsWith(a.path + '/') || b.rule.kind === 'tree' && a.path.startsWith(b.path + '/')) fail(a.path, a.rule.id, 'AMBIGUOUS_MATCH');
+    for (const [path, rule] of roots) {
+      const parts = path.split('/'); parts.pop();
+      while (parts.length) {
+        if (roots.get(parts.join('/'))?.kind === 'tree') { fail(path, rule.id, 'AMBIGUOUS_MATCH'); return { valid: false, issues }; }
+        parts.pop();
+      }
     }
     const assignments: { path: string; rule: string }[] = [];
     for (const entry of entries) {
-      const owners = roots.filter(root => root.path === entry.path || root.rule.kind === 'tree' && entry.path.startsWith(root.path + '/'));
-      if (!owners.length) {
-        if (entry.kind === 'file' || !roots.some(root => root.path.startsWith(entry.path + '/'))) fail(entry.path, '', 'UNMATCHED_ENTRY');
+      let rule = roots.get(entry.path);
+      const parts = entry.path.split('/'); parts.pop();
+      while (!rule && parts.length) {
+        const parent = roots.get(parts.join('/')); if (parent?.kind === 'tree') rule = parent;
+        parts.pop();
+      }
+      if (!rule) {
+        if (entry.kind === 'file' || !structuralParents.has(entry.path)) fail(entry.path, '', 'UNMATCHED_ENTRY');
         continue;
       }
-      if (owners.length !== 1) { fail(entry.path, '', 'AMBIGUOUS_MATCH'); continue; }
-      const rule = owners[0]!.rule; assignments.push({ path: entry.path, rule: rule.id });
+      assignments.push({ path: entry.path, rule: rule.id });
       if (entry.kind === 'file') {
         if (entry.bytes > rule.maxBytes) fail(entry.path, rule.id, 'MAX_BYTES');
         if (!rule.mediaTypes.includes(entry.mediaType)) fail(entry.path, rule.id, 'MEDIA_TYPE');
