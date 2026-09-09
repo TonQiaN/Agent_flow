@@ -22,3 +22,12 @@ test('rejects layer reversal, private subpaths, cross-package relatives and unde
 });
 
 test('actual production tree satisfies the dependency rules', () => assert.deepEqual(checkBoundaries(), []));
+
+test('tracks createRequire aliases and still rejects undeclared or computed runtime imports', () => {
+  assert.deepEqual(importSpecifiers(`import { createRequire as create } from 'node:module';
+    const loadSdk = create('/image/package.json'); loadSdk('sdk'); loadSdk(name); import(loadSdk.resolve('sdk/subpath')); import(loadSdk.resolve(name));`, 'runtime.mjs'), ['node:module', 'sdk', null, 'sdk/subpath', null]);
+  const runtime = { name: '@agentflow/runtime', directory: '/repo/src/apps/runtime', app: true, dependencies: { sdk: '1' } };
+  assert.equal(importViolation(runtime, runtime.directory + '/main.mjs', 'sdk', [runtime]), undefined);
+  assert.ok(importViolation(runtime, runtime.directory + '/main.mjs', 'missing', [runtime]));
+  assert.ok(importViolation(runtime, runtime.directory + '/main.mjs', null, [runtime]));
+});

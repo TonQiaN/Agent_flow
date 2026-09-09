@@ -16,6 +16,12 @@
 
 基础 CI 运行同一 npm run check，使用 Linux 上的 Node 24 与 26；源码构建与测试类型检查分开，便携包不加载 Node 全局类型，测试可以使用 Node 测试 API。每次本地验证与远端矩阵分别记录，配置存在不代表远端已经通过；发布、部署与流程预检自动化不随此配置隐含启用。
 
+## 容器内工具程序
+
+DeepSeek 的隔离文件服务属于容器内应用，放在 src/apps/deepseek-tools，宿主 integrations 只负责后续按执行身份装配，不导入其程序为库。它使用原生 Node ESM 启动脚本和固定镜像提供的 SDK；SDK 在应用 manifest 中声明精确版本的可选 peer dependency，并明确由镜像提供，避免给所有宿主执行组合安装另一套 Harness。缺少或版本不符须在执行模型任务前失败，不能把 optional 理解为功能降级许可。
+
+依赖检查同样扫描该应用，接纳显式 peer 声明，并追踪 node:module createRequire 产生的静态加载函数；动态模块名、未声明 SDK 及应用作为库导入仍拒绝。固定安装根用于该容器程序的模块解析，不来自用户输入。本次使用原生 JavaScript 是独立程序与镜像 SDK 的装载边界；业务与宿主内部包继续保持严格 TypeScript。实际原生工具测试验证程序行为，不能用宿主编译通过代替容器兼容性。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |

@@ -1,0 +1,27 @@
+{
+  "name": "@agentflow/deepseek-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Container-only tool services; optional SDK peers are required in the selected image.",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "@deepseek-ai/dsh-fs": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-fs-local": "0.1.1-rc.2",
+    "@deepseek-ai/dsh": "0.1.1-rc.2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs-local": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  }
+}

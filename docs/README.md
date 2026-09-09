@@ -24,3 +24,5 @@
 [Claude Adapter](guides/claude-adapter.md) 已实现 2.1.226 的独立调用计划、协议解析和真实无凭据离线启动验证；其订阅组合已通过合成刷新与文件交接、真实 CLI 断网格式识别；实际工具隔离已有断网合成服务驱动真实 CLI 的回归，真实任务仍未验收，见 [组合入口](guides/claude-execution.md)。DeepSeek 尚未接入。
 
 [DeepSeek 配置预检](validation/2026-09-09-deepseek-compatibility.md) 已验证工具开关和原生会话；默认文件策略无法满足固定目录，执行组合仍在开发。
+
+[DeepSeek 原生文件隔离](validation/2026-09-09-deepseek-file-isolation.md) 已允许固定输入副本/输出写入并保护私有文件；Bash、搜索和完整执行组合尚待接通。

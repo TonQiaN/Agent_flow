@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [DeepSeek 原生文件服务隔离](2026-09-09-deepseek-file-isolation.md) |
 | 2026-09-09 | [DeepSeek 配置与原生能力预检](2026-09-09-deepseek-compatibility.md) |
 | 2026-09-09 | [Claude 调用计划与协议](2026-09-09-claude-adapter.md) |
 | 2026-09-09 | [真实 Codex 批卷 Workflow](2026-09-09-tutor-grading-codex.md) |
