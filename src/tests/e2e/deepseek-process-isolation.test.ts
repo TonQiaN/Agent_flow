@@ -4,13 +4,13 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, symlink } from 'node:fs/promis
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Runner } from '@agentflow/engine';
-import { DockerBackend, systemClock } from '@agentflow/integrations';
+import { DockerBackend, systemClock, DeepSeekAdapter } from '@agentflow/integrations';
 import { deepseekConfiguration, deepseekHeadlessArguments } from '../../packages/integrations/harness/deepseek-configuration.js';
 import { interpretDeepseekSession, DEEPSEEK_SESSION_RECORD } from '../../packages/integrations/harness/deepseek-session.js';
 const image = process.env['AGENTFLOW_DEEPSEEK_IMAGE'];
-async function assets() {
+async function assets(includeOutcome = false) {
   const manifest = JSON.parse(await readFile(new URL('../../apps/deepseek-tools/package.json', import.meta.url), 'utf8'));
-  return Promise.all((manifest.files as string[]).map(async name => ({ name: `deepseek-policy/${name}`,
+  return Promise.all((manifest.files as string[]).filter(name => includeOutcome || name !== 'outcome-service.mjs').map(async name => ({ name: `deepseek-policy/${name}`,
     content: await readFile(new URL(`../../apps/deepseek-tools/${name}`, import.meta.url), 'utf8') })));
 }
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGP4z8DAAMIM/4EAAB/uBfsL2WiLAAAAAElFTkSuQmCC';
@@ -32,32 +32,36 @@ const steps = [
   { id: 'bash_write_config', name: 'bash', input: { command: 'printf tamper > /task/config/deepseek.json' } },
   { id: 'bash_environment', name: 'bash', input: { command: 'env; cat /proc/self/environ' } },
   { id: 'bash_network', name: 'bash', input: { command: `node -e 'require("node:http").get("http://127.0.0.1:FIXTURE_PORT/tool-network-probe",r=>r.pipe(process.stdout)).on("error",()=>{console.log("network-denied");process.exitCode=1})'` } },
+  { id: 'invalid_outcome', name: 'agentflow_outcome', input: { outcome: 'not-declared' } },
+  { id: 'extra_outcome', name: 'agentflow_outcome', input: { outcome: 'accepted', extra: true } },
+  { id: 'choose_outcome', name: 'agentflow_outcome', input: { outcome: 'accepted' } },
 ].map(step => step.name === 'bash' ? { ...step, input: { ...step.input, description: 'Verify isolated tool behavior' } } : step);
 test('DeepSeek native Bash, grep and glob share the isolated task view with file tools', { skip: !image, timeout: 120000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'af-deepseek-process-')); let removable = true;
   try {
     const input = join(root, 'input'); await mkdir(input); await writeFile(join(input, 'original.txt'), '原始答案'); await writeFile(join(input, 'pixel.png'), Buffer.from(png, 'base64'));
-    const config = deepseekConfiguration({ model: 'deepseek-v4-flash-vision-exp', reasoning: 'off', search: false, subagents: false });
-    const patches = JSON.parse(config.configFiles[0].content);
+    const adapter = new DeepSeekAdapter(), task = { identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, prompt: '完成工具隔离测试。', config: { model: 'deepseek-v4-flash-vision-exp', reasoning: 'off', search: false, subagents: false }, outcomes: ['accepted', 'rejected'] };
+    const config = adapter.plan(task);
+    const patches = JSON.parse(config.configFiles[0]!.content);
     patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
-    patches.push(...['fs-sandbox', 'subprocess', 'bash-sandbox', 'sandbox-policy'].map(id => ({ id, disabled: true })), { insert: [
-      { id: 'agentflow-tool-space', name: '/task/config/deepseek-policy/tool-space.mjs' },
-      { id: 'agentflow-isolated-fs', name: '/task/config/deepseek-policy/fs-service.mjs' },
-      { id: 'agentflow-isolated-process', name: '/task/config/deepseek-policy/subprocess-service.mjs' },
-      { id: 'agentflow-task-policy', name: '/task/config/deepseek-policy/sandbox-policy.mjs' },
-      { id: 'agentflow-isolated-bash', name: '/task/config/deepseek-policy/bash-service.mjs', config: { cwd: '/task/work', timeoutMs: 5000 } },
-    ] });
     const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }, {
       environment: {}, async prepare(_resource, state) { await symlink('/task/state/private-fixture.txt', join(dirname(state), 'work/state-link')); }, async beforeRelease() {},
     }), systemClock);
     const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'process', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 90000,
-      invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(), { name: 'deepseek.json', content: JSON.stringify(patches) },
+      invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(true), { name: 'deepseek.json', content: JSON.stringify(patches) },
         { name: 'plan.json', content: JSON.stringify({ environment: config.environment, argv: deepseekHeadlessArguments('完成工具隔离测试。'), captureSession: true, launch: true, port: 39091, prompt: '完成工具隔离测试。', privateImage: png, steps }) },
         { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
     removable = result.stop === 'confirmed' && result.cleanup === 'removed';
     assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0); assert.ok(removable);
     const observed = JSON.parse(await readFile(result.capture!.stdout.path, 'utf8'));
-    assert.ok(observed.authenticatedRequests > 0); assert.equal(observed.invalidAuthentication, 0);
+    assert.equal(observed.code, 0, observed.stderr);
+    assert.deepEqual(Object.keys(observed.requestPaths).sort(), ['POST /chat/completions', 'POST /files']);
+    assert.equal(observed.requestPaths['POST /chat/completions'], steps.length + 1);
+    assert.ok(observed.requestPaths['POST /files'] > 0); // This fixture refuses uploads; native CLI falls back to verified inline images.
+    assert.equal(observed.authenticatedRequests, Object.values(observed.requestPaths).reduce((a: number, n) => a + Number(n), 0));
+    assert.equal(Object.keys(observed.requestKinds).length, 1);
+    const kind = JSON.parse(Object.keys(observed.requestKinds)[0]!); assert.equal(kind.path, '/chat/completions'); assert.ok(kind.tools > 0);
+    assert.equal(observed.requestKinds[Object.keys(observed.requestKinds)[0]!], steps.length + 1); assert.equal(observed.invalidAuthentication, 0);
     assert.equal(observed.captureError, undefined, JSON.stringify(observed.results));
     assert.match(observed.results.read_image, /image\/png/);
     assert.match(observed.results.reserved_code, /[Uu]nknown tool|UNKNOWN_TOOL/);
@@ -66,8 +70,9 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     assert.equal(observed.imageUrls.length, 1); assert.match(observed.imageUrls[0], /^data:image\/png;base64,/);
     assert.deepEqual(Buffer.from(observed.imageUrls[0].split(',')[1], 'base64'), Buffer.from(png, 'base64'));
     const rawSession = await readFile(result.capture!.files[DEEPSEEK_SESSION_RECORD.id]!.path);
-    const interpretation = interpretDeepseekSession({ task: { identity: result.identity, prompt: '完成工具隔离测试。', config: { model: 'deepseek-v4-flash-vision-exp', reasoning: 'off', search: false, subagents: false } }, runner: result, version: config.version, session: rawSession, redact: text => text });
+    const interpretation = adapter.interpret({ task, runner: result, version: config.version, records: { deepseek_session: rawSession }, stdout: await readFile(result.capture!.stdout.path), redact: text => text });
     assert.equal(interpretation.status, 'completed', JSON.stringify(interpretation.diagnostics));
+    assert.equal(interpretation.outcome, 'accepted');
     assert.equal(interpretation.usage.inputTokens, (steps.length + 1) * 10);
     assert.equal(interpretation.usage.outputTokens, (steps.length + 1) * 2);
     assert.equal(rawSession.toString(), observed.sessions[0]);
@@ -80,8 +85,11 @@ test('DeepSeek native Bash, grep and glob share the isolated task view with file
     for (const id of ['bash_private_0', 'bash_private_1', 'bash_private_2', 'bash_write_private', 'bash_write_config'])
       assert.match(observed.results[id], /[Ee]xit [Cc]ode: 1|[Rr]ead-only file system|No such file/);
     const events = observed.sessions.flatMap((session: string) => session.trim().split('\n').map(line => JSON.parse(line)));
-    for (const id of ['grep_private_0', 'grep_private_1', 'grep_private_2', 'read_private_image', 'reserved_code', 'read_key'])
+    for (const id of ['grep_private_0', 'grep_private_1', 'grep_private_2', 'read_private_image', 'reserved_code', 'read_key', 'invalid_outcome', 'extra_outcome'])
       assert.equal(events.find((event: any) => event.type === 'tool/result' && event.data.message.source.callId === id)?.data.message.content[0].isError, true);
+    const chosen = events.find((event: any) => event.type === 'tool/result' && event.data.message.source.callId === 'choose_outcome');
+    assert.deepEqual(chosen.data.meta, { schema: 'agentflow-outcome/v1', outcome: 'accepted' });
+    assert.equal(chosen.data.message.content[0].isError, false);
     assert.match(observed.results.bash_environment, /PATH=/);
     assert.ok(!observed.results.glob_private.includes('private-fixture.txt'));
     assert.ok(!JSON.stringify(observed.results).includes('private-fixture-content'));
@@ -145,7 +153,7 @@ for (const mode of ['failModel', 'cancelModel', 'cancelCapture']) test(`DeepSeek
   try {
     const input = join(root, 'input'); await mkdir(input);
     const config = deepseekConfiguration({ model: 'deepseek-v4-flash', search: false, subagents: false });
-    const patches = JSON.parse(config.configFiles[0].content); patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
+    const patches = JSON.parse(config.configFiles[0]!.content); patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
     const result = await new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1' }), systemClock).run({
       identity: { runId: 'deepseek', nodeTaskId: mode, attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 60000,
       invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(),
@@ -158,5 +166,31 @@ for (const mode of ['failModel', 'cancelModel', 'cancelCapture']) test(`DeepSeek
     assert.equal(observed.code, 1, observed.stderr); assert.equal(observed.signal, null); assert.match(observed.stderr, /DEEPSEEK_LAUNCH_FAILED/);
     assert.equal(result.capture!.files[DEEPSEEK_SESSION_RECORD.id]!.complete, false);
     assert.ok(!observed.stderr.includes('fixture-deepseek-secret'));
+  } finally { if (removable) await rm(root, { recursive: true, force: true }); }
+});
+
+for (const repeat of [true, false]) test(`DeepSeek native outcome rejects ${repeat ? 'duplicate selection' : 'tools after selection'}`, { skip: !image, timeout: 120000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-deepseek-outcome-')); let removable = true;
+  try {
+    const input = join(root, 'input'); await mkdir(input);
+    const adapter = new DeepSeekAdapter(), task = { identity: { runId: 'deepseek', nodeTaskId: 'outcome', attemptId: 'isolated', attemptNumber: 1 }, prompt: 'Finish the task.',
+      config: { model: 'deepseek-v4-flash', reasoning: 'off', search: false, subagents: false }, outcomes: ['accepted', 'rejected'] };
+    const plan = adapter.plan(task), patches = JSON.parse(plan.configFiles[0]!.content);
+    patches.find((patch: any) => patch.id === 'llm-deepseek').config.baseURL = 'http://127.0.0.1:39091';
+    const calls = [{ id: 'choose', name: 'agentflow_outcome', input: { outcome: 'accepted' } }, repeat
+      ? { id: 'later', name: 'agentflow_outcome', input: { outcome: 'rejected' } }
+      : { id: 'later', name: 'read', input: { file_path: '/task/config/deepseek.json' } }];
+    const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }), systemClock);
+    const result = await runner.run({ identity: task.identity, inputSource: input, timeoutMs: 90000,
+      invocation: { argv: ['node', '/task/config/server.cjs'], recordFiles: [DEEPSEEK_SESSION_RECORD], configFiles: [...await assets(true),
+        { name: 'deepseek.json', content: JSON.stringify(patches) }, { name: 'plan.json', content: JSON.stringify({ launch: true, prompt: task.prompt, port: 39091, environment: plan.environment, steps: calls }) },
+        { name: 'server.cjs', content: await readFile(new URL('../fixtures/deepseek-tool-server.cjs', import.meta.url), 'utf8') }] } });
+    removable = result.stop === 'confirmed' && result.cleanup === 'removed'; assert.equal(result.exitCode, 0); assert.ok(removable);
+    const stdout = await readFile(result.capture!.stdout.path), observed = JSON.parse(stdout.toString()); assert.equal(observed.code, 0, observed.stderr);
+    const raw = await readFile(result.capture!.files[DEEPSEEK_SESSION_RECORD.id]!.path);
+    const value = adapter.interpret({ task, runner: result, version: plan.version, stdout, records: { deepseek_session: raw }, redact: text => text });
+    assert.equal(value.status, 'failed'); assert.equal(value.outcome, null); assert.ok(value.diagnostics.includes('TOOL_AFTER_STRUCTURED_OUTCOME'));
+    const events = raw.toString().trim().split('\n').map(line => JSON.parse(line)), later = events.find((e: any) => e.type === 'tool/result' && e.data.message.source.callId === 'later');
+    assert.equal(later.data.message.content[0].isError, repeat); if (repeat) assert.match(observed.results.later, /OUTCOME_ALREADY_SELECTED/);
   } finally { if (removable) await rm(root, { recursive: true, force: true }); }
 });

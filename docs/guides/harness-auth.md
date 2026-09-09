@@ -10,7 +10,7 @@
 
 Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Moby 基线派生策略以运行 Codex 的 bwrap；普通脚本默认 standard。已在 macOS Docker Desktop 使用真实 Codex 0.153.4 和合成凭据验证任务路径可写、auth.json/profile.json 拒绝读取的权限映射。CODEX_HOME 其余临时程序仍可执行，不能禁止整个目录，否则会阻止 Codex 自己的沙箱启动。此结果不证明任意 Linux/AppArmor 环境兼容，实际订阅模型小任务另见 [组合验证](../validation/2026-09-09-codex-composition.md)。受控网络也经独立真实 Docker 测试，见 [联网指南](controlled-egress.md)。
 
-`interpret({task, runner, version, stdout, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
+`interpret({task, runner, version, stdout, records?, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
 
 事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。[通用文件 contract](file-contracts.md) 已提供，完整 Workflow 接纳尚未接通。
 
@@ -56,3 +56,5 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 `src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。已用明确授权的专用凭据及 gpt-5.6-sol 完成真实小任务；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。
 
 [Agent 接纳与可信收据](agent-acceptance.md) 通过通用驱动接口连接上述能力，统一检查终态、收尾和文件契约，并提供同 Run 的前序收据引用。
+
+[DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；宿主认证与执行组合尚未提供。

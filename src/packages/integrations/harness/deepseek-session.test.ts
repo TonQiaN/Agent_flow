@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { RunnerResult, HarnessTask } from '@agentflow/engine';
+import { DeepSeekAdapter } from './deepseek.js';
 import { interpretDeepseekSession } from './deepseek-session.js';
 const identity = { runId: 'run', nodeTaskId: 'node', attemptId: 'attempt', attemptNumber: 1 };
 const task: HarnessTask = { identity, prompt: '用户原始任务', config: { model: 'deepseek-v4-flash', search: false, subagents: false } };
@@ -84,4 +85,60 @@ test('DeepSeek session requires matching declared calls, invocations and results
   const mismatch = structuredClone(rows); mismatch[7]!.data.message.source.callId = 'other'; assert.equal(result(mismatch).status, 'failed');
   const args = structuredClone(rows); args[6]!.data.arguments = '{"changed":true}'; assert.equal(result(args).status, 'failed');
   assert.equal(result([...first, event('turn/end', { turn: 1, reason: { kind: 'completed' } })]).status, 'failed');
+});
+
+function selectionRows(calls: { name?: string; args?: unknown; meta?: unknown; isError?: boolean }[] = [{}]) {
+  const rows = [event('turn/start', { turn: 1 }), native()[2]!];
+  for (const [index, call] of calls.entries()) {
+    const b = { turn: 1, step: index + 1 }, id = `select-${index}`, name = call.name ?? 'agentflow_outcome', args = JSON.stringify(call.args ?? { outcome: 'accepted' });
+    rows.push(event('step/start', b), event('assistant/chunk', { ...b, chunk: { type: 'finish', reason: { kind: 'tool-calls' } } }),
+      event('assistant/message', { ...b, message: message([{ type: 'tool-call', id, name, arguments: args }]), usage: { inputTokens: 1, outputTokens: 1 } }),
+      event('tool/call', { ...b, callId: id, name, arguments: args }),
+      event('tool/result', { ...b, message: { role: 'user', source: { kind: 'tool', callId: id }, content: [{ type: 'tool-result', toolCallId: id, isError: call.isError ?? false, content: [{ type: 'text', text: '{"outcome":"accepted"}' }] }] }, meta: call.meta ?? { schema: 'agentflow-outcome/v1', outcome: 'accepted' } }),
+      event('step/end', b));
+  }
+  rows.push(...native().filter(e => !['turn/start', 'user/message'].includes(e.type)).map(e => ({ ...e, data: { ...e.data, ...(e.data.step ? { step: calls.length + 1 } : {}) } })));
+  return rows;
+}
+const multiResult = (rows = selectionRows()) => interpretDeepseekSession({ ...evidence(rows), task: { ...task, outcomes: ['accepted', 'rejected'] } });
+test('DeepSeek structured outcome comes from a paired successful native result, with failed choices recoverable', () => {
+  assert.equal(multiResult().status, 'completed'); assert.equal(multiResult().outcome, 'accepted');
+  const corrected = multiResult(selectionRows([{ args: { outcome: 'wrong' }, isError: true }, {}])); assert.equal(corrected.status, 'completed'); assert.equal(corrected.outcome, 'accepted');
+  assert.equal(multiResult(selectionRows([{ args: { outcome: 'rejected' }, meta: { schema: 'agentflow-outcome/v1', outcome: 'rejected' } }])).outcome, 'rejected');
+  assert.equal(result(selectionRows()).status, 'failed'); // No multi-exit contract registered this tool.
+  assert.ok(multiResult(native()).diagnostics.includes('MISSING_STRUCTURED_OUTCOME'));
+});
+test('DeepSeek refuses text-only, foreign-tool, malformed and conflicting structured outcomes', () => {
+  for (const call of [{ name: 'read' }, { isError: true }, { meta: {} }, { meta: { outcome: 'accepted' } },
+    { meta: { schema: 'agentflow-outcome/v2', outcome: 'accepted' } }, { meta: { schema: 'agentflow-outcome/v1', outcome: 'wrong' } },
+    { meta: { schema: 'agentflow-outcome/v1', outcome: 'accepted', extra: true } },
+    { args: { outcome: 'rejected' } }, { args: { outcome: 'accepted', extra: true } }]) {
+    const value = multiResult(selectionRows([call])); assert.equal(value.status, 'failed', JSON.stringify(call)); assert.equal(value.outcome, null);
+  }
+  const ambiguous = selectionRows(); delete ambiguous.find(e => e.type === 'tool/result')!.data.message.content[0].isError; assert.equal(multiResult(ambiguous).status, 'failed');
+});
+test('DeepSeek accepted outcome forbids later calls, repeated selection and outstanding tools at selection time', () => {
+  for (const later of [{}, { name: 'read' }, { isError: true }]) {
+    const value = multiResult(selectionRows([{}, later])); assert.equal(value.status, 'failed'); assert.ok(value.diagnostics.includes('TOOL_AFTER_STRUCTURED_OUTCOME'));
+  }
+  const batch = selectionRows(); batch.find(e => e.type === 'assistant/message')!.data.message.content.push({ type: 'tool-call', id: 'pending', name: 'read', arguments: '{}' });
+  const end = batch.findIndex(e => e.type === 'step/end');
+  batch.splice(end, 0, event('tool/call', { ...boundary, callId: 'pending', name: 'read', arguments: '{}' }),
+    event('tool/result', { ...boundary, message: { role: 'user', source: { kind: 'tool', callId: 'pending' }, content: [{ type: 'tool-result', toolCallId: 'pending', isError: false, content: [] }] } }));
+  assert.ok(multiResult(batch).diagnostics.includes('INVALID_STRUCTURED_OUTCOME'));
+  const aborted = selectionRows(); aborted.at(-1)!.data.reason.kind = 'aborted'; assert.equal(multiResult(aborted).outcome, null);
+});
+test('DeepSeek auxiliary model work makes complete usage unknown while preserving normal terminal interpretation', () => {
+  for (const type of ['session/title-llm-request', 'compaction/start', 'compaction/summary', 'llm/retry', 'llm/retry-started']) {
+    const rows = native(); rows.splice(3, 0, event(type, { usage: { inputTokens: 99, outputTokens: 99 } }));
+    const value = result(rows); assert.equal(value.status, 'completed'); assert.deepEqual(value.usage, { inputTokens: null, cachedInputTokens: null, outputTokens: null, reasoningOutputTokens: null });
+  }
+});
+
+test('DeepSeek Adapter accepts named native bytes and checks stdout capture independently', () => {
+  const adapter = new DeepSeekAdapter(), base = evidence(), e = { ...base, stdout: new Uint8Array(), records: { deepseek_session: base.session } };
+  assert.equal(adapter.interpret(e).status, 'completed');
+  assert.ok(adapter.interpret({ ...e, stdout: base.session }).diagnostics.includes('RAW_CAPTURE_INCOMPLETE'));
+  const capture = base.runner.capture!;
+  assert.equal(adapter.interpret({ ...e, runner: { ...base.runner, capture: { ...capture, stdout: { ...capture.stdout, bytes: 1 } } } }).status, 'failed');
 });

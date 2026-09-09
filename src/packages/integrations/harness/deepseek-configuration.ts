@@ -1,7 +1,20 @@
 import type { JsonValue } from '@agentflow/domain';
+import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS, snapshotJson } from '@agentflow/engine';
+import type { HarnessTask } from '@agentflow/engine';
 
 export const DEEPSEEK_VERSION = '0.1.1-rc.2';
+
+export function deepseekTask(raw: HarnessTask): HarnessTask {
+  let task: HarnessTask; try { task = snapshotJson(raw) as unknown as HarnessTask; } catch { throw new Error('INVALID_HARNESS_TASK'); }
+  if (!task || !isExecutionIdentity(task.identity) || Object.keys(task.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId'
+    || Object.keys(task).some(key => !['identity', 'prompt', 'config', 'outcomes'].includes(key))) throw new Error('INVALID_HARNESS_TASK');
+  deepseekHeadlessArguments(task.prompt);
+  if (task.outcomes !== undefined && (!Array.isArray(task.outcomes) || task.outcomes.length < 2 || task.outcomes.length > 32
+    || !task.outcomes.every(isIdentifier) || new Set(task.outcomes).size !== task.outcomes.length)) throw new Error('INVALID_HARNESS_OUTCOMES');
+  deepseekConfiguration(task.config);
+  return task;
+}
 
 /** Internal configuration mapping. This alone does not provide an executable Harness. */
 export function deepseekConfiguration(raw: JsonValue) {
@@ -20,6 +33,7 @@ export function deepseekConfiguration(raw: JsonValue) {
       ...(config['reasoning'] === undefined ? {} : { reasoningEffort: config['reasoning'] }) } },
     { id: 'session-persistence-jsonl', config: { root: `${TASK_PATHS.state}/deepseek/sessions`, compression: 'none', packChunks: false } },
     { id: 'tool-web', config: { search: false, fetch: false } },
+    { id: 'session-title-llm', disabled: true },
     ...['tool-subagent', 'tool-subagent-fork', 'tool-subagent-control', 'tool-subagent-list-agents', 'tool-subagent-report',
       'subagent-spawn-in-process', 'subagent-fork-in-process', 'tool-workflow', 'workflow-worker-thread', 'tool-ralph']
       .map(id => ({ id, disabled: true })),

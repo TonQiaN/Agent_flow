@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [DeepSeek Adapter 与结构化出口](2026-09-09-deepseek-adapter.md) |
 | 2026-09-09 | [DeepSeek 固定启动与图像交接](2026-09-09-deepseek-launch.md) |
 | 2026-09-09 | [DeepSeek 私有会话采集与原生完成证据](2026-09-09-deepseek-session.md) |
 | 2026-09-09 | [DeepSeek 统一工具进程隔离](2026-09-09-deepseek-process-isolation.md) |

@@ -32,3 +32,7 @@ export type { ClaudeSubscriptionProfile } from './auth/claude-subscription.js';
 export { ClaudeSubscriptionRunner, ClaudeExecution } from './execution/claude-runner.js';
 export type { ClaudeRunRequest, ClaudeExecutionResult } from './execution/claude-runner.js';
 export { ClaudeAgentDriver } from './execution/claude-agent-driver.js';
+
+export { DeepSeekAdapter } from './harness/deepseek.js';
+export { DEEPSEEK_VERSION } from './harness/deepseek-configuration.js';
+export { DEEPSEEK_SESSION_RECORD } from './harness/deepseek-session.js';

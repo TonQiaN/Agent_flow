@@ -1,8 +1,7 @@
-import { isExecutionIdentity } from '@agentflow/domain';
 import type { JsonValue } from '@agentflow/domain';
-import { snapshotJson, TASK_PATHS } from '@agentflow/engine';
-import type { HarnessEvidence, HarnessEvent, HarnessResult, HarnessTask, HarnessUsage } from '@agentflow/engine';
-import { deepseekConfiguration, DEEPSEEK_VERSION } from './deepseek-configuration.js';
+import { TASK_PATHS } from '@agentflow/engine';
+import type { HarnessEvidence, HarnessEvent, HarnessResult, HarnessUsage } from '@agentflow/engine';
+import { deepseekTask, DEEPSEEK_VERSION } from './deepseek-configuration.js';
 
 export const DEEPSEEK_SESSION_RECORD = { id: 'deepseek_session', path: 'deepseek-session.jsonl', maxBytes: 16 * 1024 * 1024 } as const;
 type Evidence = Omit<HarnessEvidence, 'stdout'> & { readonly session: Uint8Array };
@@ -18,15 +17,12 @@ const metadata = new Set(['agent-preset/selected', 'agent/inbox/spliced', 'appro
 
 /** Internal pure interpreter. Only the trusted Runner record may supply session bytes; stdout is never protocol. */
 export function interpretDeepseekSession(e: Evidence): HarnessResult {
-  const task = snapshotJson(e.task) as unknown as HarnessTask;
-  if (!task || !isExecutionIdentity(task.identity) || Object.keys(task.identity).sort().join(',') !== 'attemptId,attemptNumber,nodeTaskId,runId' || Object.keys(task).some(key => !['identity', 'prompt', 'config', 'outcomes'].includes(key)) || typeof task.prompt !== 'string' || !task.prompt.trim() || task.prompt.includes('\0') || task.prompt.length > 65536) throw new Error('INVALID_HARNESS_TASK');
-  deepseekConfiguration(task.config);
-  const diagnostics = new Set<string>(), events: HarnessEvent[] = []; let usage = emptyUsage();
+  const task = deepseekTask(e.task);
+  const diagnostics = new Set<string>(), events: HarnessEvent[] = []; let usage = emptyUsage(), outcome: string | null = null, auxiliaryUsage = false;
   const fail = (code: string) => { diagnostics.add(code); };
-  const done = (): HarnessResult => ({ identity: task.identity, harness: 'deepseek', status: diagnostics.size ? 'failed' : 'completed', outcome: null, usage, events, diagnostics: [...diagnostics] });
+  const done = (): HarnessResult => ({ identity: task.identity, harness: 'deepseek', status: diagnostics.size ? 'failed' : 'completed', outcome: diagnostics.size ? null : outcome, usage: auxiliaryUsage ? emptyUsage() : usage, events, diagnostics: [...diagnostics] });
   const emit = (type: string, kind: HarnessEvent['kind'], data: JsonValue = null) => { if (events.length >= 100000) { fail('EVENT_LIMIT_EXCEEDED'); return; } events.push({ identity: { ...task.identity }, harness: 'deepseek', sequence: events.length, sourceType: type, kind, data }); };
   const redact = (text: string): string => { try { const safe = e.redact(text); if (typeof safe !== 'string') throw new Error(); return safe; } catch { fail('EVENT_REDACTION_FAILED'); return '[unavailable]'; } };
-  if (task.outcomes !== undefined) fail('UNSUPPORTED_DEEPSEEK_OUTCOMES');
   if (e.version !== DEEPSEEK_VERSION) fail('UNSUPPORTED_HARNESS_VERSION');
   if (Object.keys(task.identity).some(key => task.identity[key as keyof typeof task.identity] !== e.runner.identity[key as keyof typeof task.identity])) fail('EXECUTION_IDENTITY_MISMATCH');
   if (e.runner.phase !== 'exited' || e.runner.exitCode !== 0 || e.runner.stop !== 'confirmed' || e.runner.cleanup !== 'removed') fail('RUNNER_NOT_SUCCESSFUL');
@@ -95,6 +91,7 @@ export function interpretDeepseekSession(e: Evidence): HarnessResult {
         }
         if ((finish === 'tool-calls') !== (expected.size > 0)) fail('INVALID_TOOL_PAIRING');
       } else if (type === 'tool/call') {
+        if (outcome !== null) fail('TOOL_AFTER_STRUCTURED_OUTCOME');
         const id = data['callId'], call = typeof id === 'string' ? expected.get(id) : undefined;
         if (!messageSeen || !call || call.name !== data['name'] || call.arguments !== data['arguments'] || running.has(id as string)) fail('INVALID_TOOL_PAIRING');
         else { running.add(id as string); emit(type, 'tool', { name: redact(call.name) }); }
@@ -103,7 +100,17 @@ export function interpretDeepseekSession(e: Evidence): HarnessResult {
         const id = object(source) ? source['callId'] : undefined;
         if (!object(message) || message['role'] !== 'user' || !object(source) || source['kind'] !== 'tool' || typeof id !== 'string' || !running.delete(id)
           || !Array.isArray(message['content']) || message['content'].length !== 1 || !object(message['content'][0]) || message['content'][0]['type'] !== 'tool-result' || message['content'][0]['toolCallId'] !== id || !Array.isArray(message['content'][0]['content']) || (message['content'][0]['isError'] !== undefined && typeof message['content'][0]['isError'] !== 'boolean')) fail('INVALID_TOOL_PAIRING');
-        else expected.delete(id);
+        else {
+          const call = expected.get(id)!;
+          if (call.name === 'agentflow_outcome' && message['content'][0]['isError'] !== true) {
+            const meta = data['meta']; let args: unknown; try { args = JSON.parse(call.arguments); } catch { /* Refused below. */ }
+            if (outcome !== null || expected.size !== 1 || running.size !== 0 || message['content'][0]['isError'] !== false || !task.outcomes
+              || !object(args) || Object.keys(args).join(',') !== 'outcome' || !object(meta) || Object.keys(meta).sort().join(',') !== 'outcome,schema'
+              || meta['schema'] !== 'agentflow-outcome/v1' || typeof meta['outcome'] !== 'string' || !task.outcomes.includes(meta['outcome']) || args['outcome'] !== meta['outcome']) fail('INVALID_STRUCTURED_OUTCOME');
+            else outcome = meta['outcome'];
+          }
+          expected.delete(id);
+        }
         emit(type, 'tool');
       } else {
         if (!messageSeen || finish === null || expected.size || running.size) fail('INVALID_HARNESS_EVENT_ORDER');
@@ -114,13 +121,15 @@ export function interpretDeepseekSession(e: Evidence): HarnessResult {
       else if (data['source']['kind'] === 'user') {
         prompts++; if (prompts !== 1 || data['content'].length !== 1 || !object(data['content'][0]) || data['content'][0]['type'] !== 'text' || data['content'][0]['text'] !== task.prompt) fail('TASK_PROMPT_MISMATCH');
       }
-    } else if (metadata.has(type)) { /* The raw record owns metadata; it is not projected. */ }
+    } else if (['session/title-llm-request', 'compaction/start', 'compaction/summary', 'llm/retry', 'llm/retry-started'].includes(type)) { auxiliaryUsage = true; }
+    else if (metadata.has(type)) { /* The raw record owns metadata; it is not projected. */ }
     else if (/^(subagent\/|team\/|tool-workflow\/|tool\/code-|web\/)/.test(type) || type === 'session/end-seed') fail('UNSUPPORTED_HARNESS_EVENT');
     else if (event['ignorable'] === true) emit(redact(type), 'unknown');
     else fail('UNSUPPORTED_HARNESS_EVENT');
   }
   if (!turns || activeTurn || activeStep || !messages || !finalStop) fail('MISSING_HARNESS_TERMINAL');
   if (prompts !== 1) fail('TASK_PROMPT_MISMATCH');
+  if (task.outcomes && outcome === null) fail('MISSING_STRUCTURED_OUTCOME');
   return done();
 }
 
