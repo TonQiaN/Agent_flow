@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, copyFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createGradingFixture } from './flow.js';
+import { createGradingFixture } from './fixture.js';
 
 // The optional destination must be new. No network, model, student records or production writes.
 const destination = resolve(process.argv[2] ?? 'tutor-fixture-result');

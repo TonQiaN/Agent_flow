@@ -2,21 +2,21 @@ import { cp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ComponentDefinition, JsonValue } from '@agentflow/domain';
 import { AgentExecutor, ComponentRegistry, EffectExecutor, EffectWorkflowCatalog, compileWorkflow, WorkflowRuntime } from '@agentflow/engine';
-import type { EffectMode, FileManifest, WorkflowCatalog, WorkflowDefinition, WorkflowSnapshot, EffectRequest, EffectApproval } from '@agentflow/engine';
+import type { AgentExecutionDriver, ArtifactStore, EffectMode, FileManifest, WorkflowCatalog, WorkflowDefinition, WorkflowSnapshot, EffectRequest, EffectApproval } from '@agentflow/engine';
 import { FileArtifactStore, FileWorkflowCatalog, FileJsonWorkflowCatalog, SimulatedEffectService } from '@agentflow/integrations';
 import { gradingContracts } from './contracts.js';
-import { GradingFixtureDriver, fixtureRoot } from './fixture-driver.js';
-import type { FixtureMode } from './fixture-driver.js';
 import { readJson, review, sourcePaths } from './gate.js';
 import type { Candidate, GateReport } from './gate.js';
 
-const component = (id: string, kind: ComponentDefinition['kind'], inputContract: string, outcomes: Record<string, string>): ComponentDefinition => ({ id, kind, implementation: `${id}-impl`, inputContract, outcomes });
-export interface GradingOptions { readonly marker?: FixtureMode; readonly fixer?: 'correct' | 'stuck'; readonly repairs?: number; readonly maxSteps?: number; readonly mode?: EffectMode; readonly allowApply?: boolean }
-export function gradingDefinition(options: GradingOptions = {}): WorkflowDefinition {
-  return { id: 'fixture-grading', start: 'intake', input: { kind: 'files', id: 'source-files' }, maxSteps: options.maxSteps ?? 20,
+export const gradingComponent = (id: string, kind: ComponentDefinition['kind'], inputContract: string, outcomes: Record<string, string>): ComponentDefinition => ({ id, kind, implementation: `${id}-impl`, inputContract, outcomes });
+const component = gradingComponent;
+export interface GradingPublication { readonly mode?: EffectMode; readonly allowApply?: boolean }
+export interface GradingRouteOptions { readonly id: string; readonly marker: string; readonly fixer: string; readonly repairs?: number; readonly maxSteps?: number }
+export function gradingWorkflow(options: GradingRouteOptions): WorkflowDefinition {
+  return { id: options.id, start: 'intake', input: { kind: 'files', id: 'source-files' }, maxSteps: options.maxSteps ?? 20,
     outcomes: { published: { kind: 'json', id: 'effect-receipt' }, rejected: { kind: 'files', id: 'reviewed-files' } },
-    nodes: { intake: { component: 'intake' }, marker: { component: `marker-${options.marker ?? 'wrong'}` }, gate: { component: 'grading-gate' },
-      fixer: { component: `fixer-${options.fixer ?? 'correct'}` }, projection: { component: 'publication-input' }, publish: { component: 'publish' } },
+    nodes: { intake: { component: 'intake' }, marker: { component: options.marker }, gate: { component: 'grading-gate' },
+      fixer: { component: options.fixer }, projection: { component: 'publication-input' }, publish: { component: 'publish' } },
     routes: [{ from: 'intake', outcome: 'completed', to: { node: 'marker' } }, { from: 'marker', outcome: 'completed', to: { node: 'gate' } },
       { from: 'gate', outcome: 'passed', to: { node: 'projection' } }, { from: 'gate', outcome: 'rejected', to: { end: 'rejected' } },
       { from: 'gate', outcome: 'revise', to: { node: 'fixer' }, limit: { max: options.repairs ?? 1, exhausted: { end: 'rejected' } } },
@@ -24,25 +24,33 @@ export function gradingDefinition(options: GradingOptions = {}): WorkflowDefinit
       ...['simulated', 'applied', 'already-applied'].map(outcome => ({ from: 'publish', outcome, to: { end: 'published' } }))] };
 }
 export interface GradingRun { readonly input: JsonValue; readonly snapshot: WorkflowSnapshot }
+export interface GradingAgentBinding { readonly component: ComponentDefinition; readonly prompt: string; readonly config: JsonValue }
+export interface GradingSetup<D extends AgentExecutionDriver> {
+  readonly source: string;
+  readonly driver: (artifacts: ArtifactStore) => D;
+  readonly agents: readonly GradingAgentBinding[];
+  readonly definition: WorkflowDefinition;
+}
 
 /** Local acceptance application. All writes are to a private in-memory service. */
-export async function createGradingFixture(root: string, options: GradingOptions = {}) {
+export async function createGradingApplication<D extends AgentExecutionDriver>(root: string, setup: GradingSetup<D>, options: GradingPublication = {}) {
   options = structuredClone(options);
+  const definition = structuredClone(setup.definition), bindings = structuredClone(setup.agents), sourcePath = setup.source, factory = setup.driver;
+  const reserved = new Set(['intake', 'grading-gate', 'publication-input', 'publish']);
+  for (const binding of bindings) {
+    if (reserved.has(binding.component.id) || binding.component.kind !== 'agent') throw new Error('INVALID_GRADING_AGENT_BINDING');
+    reserved.add(binding.component.id);
+  }
   const contracts = gradingContracts(), store = new FileArtifactStore(join(root, 'artifacts'), contracts.files);
   const files = new FileWorkflowCatalog(contracts.files, store, join(root, 'nodes'));
   const bridge = new FileJsonWorkflowCatalog(files, contracts.json, join(root, 'transforms'));
-  const driver = new GradingFixtureDriver(store, join(root, 'agents')), agents = new AgentExecutor(contracts.files, store, driver);
+  const driver = factory(store), agents = new AgentExecutor(contracts.files, store, driver);
   const runtime = new WorkflowRuntime(), originals = new Map<string, FileManifest>(), runs = new Set<string>(), owners = new Map<string, WorkflowCatalog>();
   const source = join(root, 'original'); await mkdir(source, { recursive: true });
-  await cp(join(fixtureRoot, 'source'), join(source, 'source'), { recursive: true, errorOnExist: true, force: false });
+  await cp(sourcePath, join(source, 'source'), { recursive: true, errorOnExist: true, force: false });
   files.registerFunction(component('intake', 'transform', 'source-files', { completed: 'source-files' }), async ctx => { await cp(ctx.inputPath, ctx.outputsPath, { recursive: true }); return { outcome: 'completed' }; }); owners.set('intake', files);
-  for (const mode of ['correct', 'wrong', 'malformed', 'source-tamper', 'bad-evidence', 'stuck'] as const) {
-    const id = `marker-${mode}`; files.registerAgent(component(id, 'agent', 'source-files', { completed: 'candidate-files' }), agents,
-      { prompt: 'Grade the submitted answers against the supplied paper and answer key. Put candidate.json and the source bundle in outputs.', config: { mode } }); owners.set(id, files);
-  }
-  for (const mode of ['correct', 'stuck'] as const) {
-    const id = `fixer-${mode}`; files.registerAgent(component(id, 'agent', 'reviewed-files', { completed: 'candidate-files' }), agents,
-      { prompt: 'Read gate-report.json and repair the grading candidate. Put the corrected bundle in outputs.', config: { mode } }); owners.set(id, files);
+  for (const binding of bindings) {
+    files.registerAgent(binding.component, agents, { prompt: binding.prompt, config: binding.config }); owners.set(binding.component.id, files);
   }
   files.registerFunction(component('grading-gate', 'gate', 'candidate-files', { passed: 'reviewed-files', revise: 'reviewed-files', rejected: 'reviewed-files' }), async ctx => {
     const original = originals.get(ctx.identity.runId); if (!original) throw new Error('UNKNOWN_GRADING_SOURCE'); return review(ctx, original);
@@ -73,9 +81,9 @@ export async function createGradingFixture(root: string, options: GradingOptions
     ...(options.mode === 'apply' ? { approval: approve } : {}) }); owners.set('publish', effectCatalog);
   const catalog: WorkflowCatalog = { resolve(id) { const owner = owners.get(id); if (!owner) throw new Error('UNKNOWN_GRADING_COMPONENT'); return owner.resolve(id); } };
   return { source, files, bridge, driver, service, runtime, catalog, approve,
-    async run(runId: string, definition = gradingDefinition(options)): Promise<GradingRun> {
+    async run(runId: string, requestedDefinition = definition): Promise<GradingRun> {
       if (runs.has(runId)) throw new Error('DUPLICATE_GRADING_RUN'); runs.add(runId);
-      const plan = compileWorkflow(definition, catalog), input = await files.prepareInput(runId, source, 'source-files');
+      const plan = compileWorkflow(requestedDefinition, catalog), input = await files.prepareInput(runId, source, 'source-files');
       originals.set(runId, files.inspect(input, runId).manifest);
       try { return { input, snapshot: await runtime.start(plan, runId, input).completion }; }
       catch (error) { await files.release(input, runId); throw error; }
