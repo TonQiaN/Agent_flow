@@ -54,3 +54,5 @@
 - [凭据备份恢复](2026-09-09-credential-recovery.md)：尾部截断、删除与版本隔离、旧记录规范化及真实进程崩溃。
 
 - [矩阵当前验收核对](2026-09-09-matrix-readiness.md)：认证缺口闭合、共用业务入口和剩余真实证据。
+
+- [DeepSeek 偶发超时诊断](2026-09-09-deepseek-timeout-diagnostics.md)：操作/子进程证据、有界重复检查及失败捕获保留。

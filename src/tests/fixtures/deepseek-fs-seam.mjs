@@ -7,6 +7,28 @@ import IsolatedFileSystem from '/task/config/deepseek-policy/fs-service.mjs';
 import { Context } from '/task/config/deepseek-policy/sdk.mjs';
 import ToolSpace from '/task/config/deepseek-policy/tool-space.mjs';
 const ctx = new Context(), space = new ToolSpace(ctx), service = new IsolatedFileSystem(ctx);
+// Test-only evidence: operation order and process lifecycle, never request content.
+let sequence = 0;
+const trace = (event, details = {}) => process.stderr.write(JSON.stringify({ sequence: sequence++, time: Date.now(), event, ...details }) + '\n');
+for (const name of ['resolve', 'stat', 'readText', 'readBytes', 'writeText', 'closeWorker']) {
+  const invoke = service[name];
+  service[name] = async (...args) => {
+    trace('operation-start', { method: name });
+    try { const value = await invoke(...args); trace('operation-end', { method: name }); return value; }
+    catch (error) { trace('operation-error', { method: name, code: error.code }); throw error; }
+  };
+}
+const untracedSpawn = childProcess.spawn;
+childProcess.spawn = (...args) => {
+  const child = untracedSpawn(...args); trace('spawn', { pid: child.pid });
+  const kill = child.kill.bind(child);
+  child.kill = signal => { const result = kill(signal); trace('kill', { pid: child.pid, signal, sent: result }); return result; };
+  child.on('exit', (code, signal) => trace('exit', { pid: child.pid, code, signal }));
+  child.on('close', (code, signal) => trace('close', { pid: child.pid, code, signal }));
+  child.on('error', error => trace('spawn-error', { code: error.code }));
+  return child;
+};
+syncBuiltinESMExports();
 try {
   const temporary = await service.resolve('/tmp/persistent.txt');
   await service.writeText(temporary, '跨请求临时文件');
@@ -50,4 +72,4 @@ try {
   await space.close();
   assert.deepEqual((await host.readdir('/tmp')).filter(name => name.startsWith('agentflow-tools-')), []);
   console.log('isolated_fs_seam_verified');
-} finally { await space.close(); }
+} finally { await space.close(); childProcess.spawn = untracedSpawn; syncBuiltinESMExports(); }
