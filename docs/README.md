@@ -68,3 +68,5 @@
 [不可变 API key 执行资源](validation/2026-09-10-credential-resource-recovery.md)可在不读取或恢复旧密钥的情况下独立清理；完整 Agent Workflow 和订阅占用仍待接通。
 
 [Workflow 通用阶段](guides/workflow-phases.md)已通过真实容器多次中断恢复；Agent Driver/Catalog 与文件收据仍未接入。
+
+[实际 Agent Workflow](validation/2026-09-10-agent-workflow.md)已接通不可变 API key 的阶段记录与文件收据，以 DeepSeek 合成协议验证 A 保留、B 多次中断恢复；订阅和宿主临时目录崩溃收尾仍待完成。

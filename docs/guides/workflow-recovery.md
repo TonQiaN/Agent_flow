@@ -1,6 +1,6 @@
 # Workflow 恢复执行
 
-当前内置支持相同定义、契约和实际镜像的无私有认证绑定的 Script Workflow（断网或 CONNECT）。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
+当前内置支持相同定义、契约和实际镜像的无私有认证 Script Workflow（断网或 CONNECT），以及不可变环境 API key 的 Agent Workflow（DeepSeek 合成验证，见[阶段指南](workflow-phases.md)）。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
 
 ```ts
 import { claimWorkflowRecovery } from '@agentflow/engine';
@@ -54,6 +54,6 @@ v5 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资�
 
 只支持当前可核对的实际执行绑定；v1/v2/v3/v4 是未发布的试验格式，拒绝自动迁移。完整证据和剩余缺口见[新 Attempt 验证](../validation/2026-09-10-workflow-resume.md)。
 
-无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；Agent 已有独立探针和不可变 API key 资源恢复端口，但认证占用与 Workflow 阶段协调尚未贯通。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。
+无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；不可变 API key 的 Agent 阶段与文件收据已贯通；订阅占用仍未接通。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。
 
 多阶段 executor 的恢复逐一经 restorePhaseResource 恢复该 Attempt 中已经保存的资源，按声明的反向顺序清理；所有资源确认移除并释放后才提交 resourceRemoved=true。部分失败保留 false，后续可重新核对已移除的资源。活动 operation 或任一 pending launch 拒绝认领；各阶段进度不增加业务 steps。详见[阶段指南](workflow-phases.md)。

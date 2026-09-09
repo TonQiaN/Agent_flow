@@ -90,3 +90,5 @@
 [不可变 API key 执行资源](2026-09-10-credential-resource-recovery.md)可在不读取或恢复旧密钥的情况下独立清理；完整 Agent Workflow 和订阅占用仍待接通。
 
 [Workflow 通用阶段记录与恢复](2026-09-10-workflow-phases.md)记录本轮验证和未完成边界。
+
+[实际 Agent Workflow 阶段与文件收据](2026-09-10-agent-workflow.md)。

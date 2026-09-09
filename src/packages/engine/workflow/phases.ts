@@ -1,19 +1,16 @@
+import type { InvocationResourcePlan, InvocationPhaseSink } from '../runner/phases.js';
+export type { InvocationPhaseDefinition, InvocationResourcePlan, InvocationPhaseHandle, InvocationPhaseSink } from '../runner/phases.js';
 import { isIdentifier } from '@agentflow/domain';
-import type { JsonValue, ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity } from '@agentflow/domain';
 import type { RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState } from '../runner/types.js';
 import { validateRunnerResourceCheckpoint } from '../runner/checkpoint.js';
 import { runnerLaunchStates } from '../runner/launch.js';
 import { DefinitionError } from '../errors.js';
 import { copyJson, canonicalJson } from '../json.js';
-export type InvocationPhaseDefinition = { readonly id: string; readonly kind: 'resource'; readonly execution: JsonValue }
-  | { readonly id: string; readonly kind: 'operation' };
-export interface InvocationResourcePlan { readonly schema: 'agentflow-invocation-resources/v1'; readonly phases: readonly InvocationPhaseDefinition[] }
 export interface InvocationPhaseCheckpoint {
   readonly id: string; readonly kind: 'resource' | 'operation'; readonly status: 'active' | 'completed';
   readonly resource: RunnerResourceCheckpoint | null; readonly launch: RunnerLaunchState | null;
 }
-export interface InvocationPhaseHandle { readonly resource?: RunnerResourceSink; complete(): Promise<void> }
-export interface InvocationPhaseSink { enter(id: string): Promise<InvocationPhaseHandle> }
 const equal = (a: unknown, b: unknown) => canonicalJson(copyJson(a)) === canonicalJson(copyJson(b));
 const check = (value: unknown) => { if (!value) throw new DefinitionError('INVALID_INVOCATION_PHASES'); };
 export function validateInvocationPlan(value: unknown): InvocationResourcePlan {

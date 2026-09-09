@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import type { RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
+import type { InvocationPhaseSink, InvocationResourcePlan, AgentExecutionRequest, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
 import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
@@ -124,6 +124,20 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     if (binding.kind !== 'script') throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
     return binding.executor.definitionSnapshot(clone(binding.definition));
   }
+  private agentRequest(binding: Extract<Binding, { kind: 'agent' }>): AgentExecutionRequest {
+    const c = binding.component;
+    return { componentId: c.id, identity: { runId: 'preflight', nodeTaskId: 'preflight', attemptId: 'preflight', attemptNumber: 1 },
+      prompt: binding.prompt, config: clone(binding.config), outcomes: clone(c.outcomes), input: { contractId: c.inputContract, source: '/workflow-preflight/input' } };
+  }
+  async resourcePlan(component: ComponentDefinition): Promise<InvocationResourcePlan | null> {
+    this.validate(component); const binding = this.#bindings.get(component.id)!;
+    return binding.kind === 'agent' ? binding.executor.resourcePlan(this.agentRequest(binding)) : null;
+  }
+  async restorePhaseResource(component: ComponentDefinition, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
+    this.validate(component); const binding = this.#bindings.get(component.id)!;
+    if (binding.kind !== 'agent') throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
+    return binding.executor.restorePhaseResource(this.agentRequest(binding), phase, record);
+  }
   async resourceDefinition(component: ComponentDefinition): Promise<JsonValue> {
     this.validate(component); const binding = this.#bindings.get(component.id)!;
     if (binding.kind !== 'script') throw new DefinitionError('RESOURCE_DEFINITION_UNAVAILABLE');
@@ -188,16 +202,31 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       if (expected === null) { if (receipt !== null) return fail(); }
       else {
         const binding = this.#bindings.get(expected.componentId), execution = data.execution;
-        if (!binding || binding.kind !== 'script' || !object(execution) || execution['schema'] !== 'agentflow-script-execution/v1'
-          || !object(execution['backend']) || !['agentflow-docker-execution/v1', 'agentflow-docker-execution/v2'].includes(execution['backend']['schema'] as string) || !object(execution['backend']['options'])) return fail();
-        const image = execution['backend']['options']['image'];
-        if (typeof image !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(image)) return fail();
+        if (!binding || !['script', 'agent'].includes(binding.kind)) return fail();
         const predecessor = this.available(expected.predecessor, data.runId, binding.component.inputContract);
         if (!shape(receipt, ['identity', 'componentId', 'predecessor', 'input', 'output', 'outcome', 'agent', 'script']) || !object(receipt)
           || !equal(receipt['identity'], expected.identity) || receipt['componentId'] !== expected.componentId || receipt['outcome'] !== expected.outcome
           || !equal(receipt['predecessor'], expected.predecessor) || !equal(receipt['input'], predecessor.manifest)
-          || !equal(receipt['output'], saved['manifest']) || receipt['agent'] !== null
-          || !equal(receipt['script'], { identity: expected.identity, outcome: expected.outcome, imageId: image, exitCode: 0 })) return fail();
+          || !equal(receipt['output'], saved['manifest'])) return fail();
+        if (binding.kind === 'script') {
+          if (!object(execution) || execution['schema'] !== 'agentflow-script-execution/v1'
+            || !object(execution['backend']) || !['agentflow-docker-execution/v1', 'agentflow-docker-execution/v2'].includes(execution['backend']['schema'] as string)
+            || !object(execution['backend']['options'])) return fail();
+          const image = execution['backend']['options']['image'];
+          if (typeof image !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(image) || receipt['agent'] !== null
+            || !equal(receipt['script'], { identity: expected.identity, outcome: expected.outcome, imageId: image, exitCode: 0 })) return fail();
+        } else if (binding.kind === 'agent') {
+          const actual = await binding.executor.receiptDefinition(this.agentRequest(binding)), agent = receipt['agent'];
+          if (!isIdentifier(actual.harness) || !isIdentifier(actual.version) || !/^sha256:[a-f0-9]{64}$/.test(actual.imageId)
+            || receipt['script'] !== null || !object(agent)
+            || !shape(agent, ['id', 'identity', 'componentId', 'predecessor', 'harness', 'version', 'imageId', 'input', 'output', 'outcome'])
+            || typeof agent['id'] !== 'string' || !/^receipt-[1-9][0-9]*$/.test(agent['id'])
+            || !equal(agent['identity'], expected.identity) || agent['componentId'] !== expected.componentId || agent['outcome'] !== expected.outcome
+            || agent['predecessor'] !== null || agent['harness'] !== actual.harness || agent['version'] !== actual.version || agent['imageId'] !== actual.imageId
+            || !equal(agent['output'], saved['manifest']) || !object(agent['input']) || typeof agent['input']['id'] !== 'string' || !uuid.test(agent['input']['id'])
+            || !equal(agent['input'], { ...predecessor.manifest, id: agent['input']['id'] })) return fail();
+        }
+
       }
       await mkdir(this.workRoot, { recursive: true, mode: 0o700 }); const stat = await lstat(this.workRoot);
       if (!stat.isDirectory() || stat.isSymbolicLink() || stat.uid !== process.getuid?.() || (stat.mode & 0o777) !== 0o700) throw new ArtifactError('INVALID_WORKFLOW_WORK_ROOT');
@@ -288,7 +317,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       this.#resources.delete(key(identity));
     } finally { resources.cleaning = false; }
   }
-  async execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink): Promise<WorkflowNodeResult> {
+  async execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink, phases?: InvocationPhaseSink): Promise<WorkflowNodeResult> {
     component = clone(component); identity = clone(identity);
     this.validate(component);
     if (!isExecutionIdentity(identity) || this.#attempts.has(key(identity))) throw new DefinitionError('INVALID_FILE_WORKFLOW_ATTEMPT');
@@ -332,7 +361,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       } else {
         resources.stopped = false;
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
-          config: clone(b.config), outcomes: clone(component.outcomes), input: { source: inputPath, contractId: component.inputContract } }, cancellation);
+          config: clone(b.config), outcomes: clone(component.outcomes), input: { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
         if (result.status === 'failed') return { ...failed(result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;

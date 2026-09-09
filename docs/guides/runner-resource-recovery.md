@@ -39,7 +39,7 @@ CONNECT 恢复会核对任务容器、代理和内外两张网络的完整身份
 
 CodexSubscriptionRunner、ClaudeSubscriptionRunner 和 DeepSeekApiKeyRunner 共享 `versionProbeDefinition()` 与 `restoreVersionResource(checkpoint)`。宿主可通过 `run(request, cancellation, { version: probeSink })` 单独记录认证获取前的版本探针：`save` 接收带实际探针定义的 Runner 资源，`launch` 接收共同启动日志，`complete` 在核验版本、移除容器并释放目录后被等待；任何记录拒绝都不能进入凭据获取。
 
-恢复只返回共同 Runner 管理句柄，调用者须先确认恢复所有权，再查询、停止/移除和释放。这个端口尚未接入 Workflow 的阶段检查点，也不记录后续模型执行资源或认证占用；不能据此恢复完整 Agent。实际中断与反例见[验证记录](../validation/2026-09-10-version-resource-recovery.md)。
+恢复只返回共同 Runner 管理句柄，调用者须先确认恢复所有权，再查询、停止/移除和释放。不可变 API key 组合已将此端口接入 [Workflow 阶段](workflow-phases.md)，与执行资源和获取操作分开记录；独立端口不授予完整恢复权。实际中断与反例见[验证记录](../validation/2026-09-10-version-resource-recovery.md)。
 
 
 ## 不可变 API key 执行
@@ -48,4 +48,4 @@ DeepSeekApiKeyRunner 可通过 `executionResourceDefinition(profile)` 取得实�
 
 宿主确认恢复所有权后调用 `restoreExecutionResource(checkpoint, profile)`，再使用共同 query、stopAndRemove、release。恢复不读凭据存储、不获取旧 key、不写回已轮换或已删除记录；通过实际环境定义、完整资源身份及私有目录标记核对，再清理任务、代理和两张网络。获取凭据期间没有执行资源记录时仍不可自动恢复，不能以宿主退出推断占用结束。
 
-这个接口尚未接入 Workflow 的多个资源阶段和 Agent 文件收据；没有端到端 Agent 新 Attempt 恢复承诺。见[不可变凭据资源验证](../validation/2026-09-10-credential-resource-recovery.md)。
+这个接口已接入不可变 API key Agent 的 Workflow 多阶段和文件收据，使用合成 DeepSeek 验证新 Attempt；真实官方模型、订阅占用与宿主临时目录崩溃清理尚未验收。见[不可变凭据资源验证](../validation/2026-09-10-credential-resource-recovery.md)。
