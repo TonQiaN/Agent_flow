@@ -64,3 +64,5 @@ Agent_flow/
 `engine/components/effect-executor` 与 `engine/workflow/effects` 分开保存操作授权/幂等接纳和 Workflow 适配；`integrations/effects/simulated-service` 只提供内存模拟目标，不接触 Harness 凭据。
 
 耐久文件端口位于 `src/packages/engine/persistence/artifacts.ts`，本地实现位于 `src/packages/integrations/artifacts/file-archive.ts`；与临时 store 共用内部 `snapshot-io.ts`，归档没有临时释放生命周期。见[归档指南](../guides/artifact-archive.md)。
+
+`src/packages/engine/workflow/structure.ts` 从受信编译计划导出结构与实际契约，供后续持久化核对；不负责 Runner 环境或执行恢复。见[结构指南](../guides/workflow-structure.md)。

@@ -1,5 +1,6 @@
 import { isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition } from '@agentflow/domain';
+import type { WorkflowContractDefinition } from './structure.js';
 import { DefinitionError } from '../errors.js';
 import { copyJson } from '../json.js';
 import type { CompiledWorkflow, WorkflowCatalog, WorkflowContract, WorkflowDefinition, WorkflowDestination, WorkflowNodeExecutor, WorkflowRoute } from './types.js';
@@ -14,7 +15,7 @@ const contract = (value: unknown): value is WorkflowContract => keys(value, ['ki
   && ['json', 'files'].includes((value as WorkflowContract).kind) && isIdentifier((value as WorkflowContract).id);
 const equal = (a: WorkflowContract, b: WorkflowContract): boolean => a.kind === b.kind && a.id === b.id;
 export const routeKey = (node: string, outcome: string): string => JSON.stringify([node, outcome]);
-interface Binding { readonly component: ComponentDefinition; readonly executor: WorkflowNodeExecutor; readonly input: WorkflowContract; readonly outcomes: ReadonlyMap<string, WorkflowContract> }
+interface Binding { readonly component: ComponentDefinition; readonly executor: WorkflowNodeExecutor; readonly input: WorkflowContract; readonly outcomes: ReadonlyMap<string, WorkflowContract>; readonly definitions: readonly WorkflowContractDefinition[] | null }
 interface Plan { readonly definition: WorkflowDefinition; readonly bindings: ReadonlyMap<string, Binding>; readonly routes: ReadonlyMap<string, WorkflowRoute> }
 const plans = new WeakMap<CompiledWorkflow, Plan>();
 /** Internal authority lookup. A JSON clone of the public definition is not an executable plan. */
@@ -48,7 +49,9 @@ export function compileWorkflow(value: WorkflowDefinition, catalog: WorkflowCata
       const input = snapshot(executor.contract(component.inputContract));
       const outcomes = new Map(Object.entries(component.outcomes).map(([outcome, ref]) => [outcome, snapshot(executor.contract(ref))]));
       if (!contract(input) || input.id !== component.inputContract || [...outcomes].some(([outcome, ref]) => !contract(ref) || ref.id !== component.outcomes[outcome])) throw new Error();
-      bindings.set(id, { component, executor, input, outcomes });
+      const describe = source.contractDefinition?.bind(source);
+      const definitions = describe ? [...new Set([component.inputContract, ...Object.values(component.outcomes)])].map(ref => snapshot(describe(ref))) : null;
+      bindings.set(id, { component, executor, input, outcomes, definitions });
     } catch { return fail('INVALID_WORKFLOW_BINDING', `/nodes/${id}`); }
   }
   const start = bindings.get(definition.start);

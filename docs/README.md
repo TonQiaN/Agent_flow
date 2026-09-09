@@ -42,3 +42,5 @@
 [Run 记录存储](guides/run-record-store.md)已提供 SQLite/CAS 基础；流程快照和重启恢复尚未接入，完整持久化能力仍待后续验收。
 
 [耐久文件归档](guides/artifact-archive.md)已支持跨进程文件引用及独立可写物化；尚未接入 Workflow 恢复。
+
+[Workflow 结构快照](guides/workflow-structure.md)已支持实际契约导出和一致性核对；执行绑定及节点恢复仍待接入。

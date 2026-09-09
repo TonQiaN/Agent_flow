@@ -51,3 +51,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [本地 Run 记录存储](run-record-store.md)：SQLite/CAS 基础，尚未连接流程恢复。
 
 - [耐久文件归档](artifact-archive.md)：独立归档保留、摘要引用与跨进程物化。
+
+- [Workflow 结构快照](workflow-structure.md)：实际注册定义、跨 Catalog 一致性和有限证明范围。

@@ -60,3 +60,5 @@
 - [Run 记录存储验证](2026-09-09-run-record-store.md)：多进程 CAS、提交前后 SIGKILL 和损坏拒绝。
 
 - [耐久文件归档](2026-09-10-artifact-archive.md)：删除原始/临时材料后新进程恢复、并发发布与 SIGKILL。
+
+- [Workflow 结构快照](2026-09-10-workflow-structure.md)：SQLite 重开核对、同名 schema 冲突及嵌套文件契约。

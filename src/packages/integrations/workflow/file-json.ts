@@ -64,6 +64,9 @@ export class FileJsonWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExe
     if (this.#jsonIds.has(id)) return { kind: 'json', id };
     throw new DefinitionError('UNKNOWN_TRANSFORM_CONTRACT');
   }
+  contractDefinition(id: string): import('@agentflow/engine').WorkflowContractDefinition {
+    return this.contract(id).kind === 'files' ? this.files.contractDefinition(id) : { kind: 'json', id, schema: this.json.definition(id) };
+  }
   check(id: string, value: JsonValue): readonly WorkflowIssue[] {
     if (this.contract(id).kind === 'files') return this.files.check(id, value);
     const result = this.json.check(id, value); return result.valid ? [] : result.issues.map(i => ({ contractId: i.contractId, path: i.instancePath, rule: i.schemaPath, code: i.keyword }));
