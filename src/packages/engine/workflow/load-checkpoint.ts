@@ -150,10 +150,10 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   };
   try {
     // Check all required capabilities before materializing any value.
-    for (const r of requests) if (r.record.contract.kind === 'files' && !getPlan(compiled).bindings.get(r.record.node)!.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
+    for (const r of requests) if ((r.record.contract.kind === 'files' || r.expected !== null && getPlan(compiled).bindings.get(r.record.node)!.component.kind === 'effect') && !getPlan(compiled).bindings.get(r.record.node)!.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
     for (const r of requests) {
       const binding = getPlan(compiled).bindings.get(r.record.node)!;
-      if (r.record.contract.kind === 'files') {
+      if (r.record.contract.kind === 'files' || r.expected !== null && binding.component.kind === 'effect') {
         const handle = await binding.executor.restoreValue!(issueValueRestore({ ...r, execution: checkpoint.execution.bindings[r.record.node]! }));
         if (!handle || typeof handle.dispose !== 'function') throw new DefinitionError('INVALID_WORKFLOW_RESTORE_HANDLE');
         disposers.push(handle.dispose.bind(handle));

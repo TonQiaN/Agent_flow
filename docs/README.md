@@ -78,3 +78,5 @@
 [直接存储交接](validation/2026-09-10-direct-artifact-capture.md)已省掉内置组合的 Catalog checkpoint/restore 中间目录；目标存储未发布暂存及旧进程临时快照仍待处理。
 
 [Effect 持久操作日志](validation/2026-09-10-effect-journal.md)已通过真实进程中断和竞争验证，已确认回执可复用、未知操作不重发；Workflow 接线仍待完成。
+
+[Effect Workflow 恢复](validation/2026-09-10-effect-workflow.md)已接通固定操作的 apply、实际定义和日志身份比较、严格回执核对及新 Attempt；动态映射、其他绑定和完整 #13 仍待完成。

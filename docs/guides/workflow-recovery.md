@@ -57,3 +57,5 @@ v5 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资�
 无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；不可变 API key 的 Agent 阶段与文件收据已贯通；订阅占用仍未接通。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。
 
 多阶段 executor 的恢复逐一经 restorePhaseResource 恢复该 Attempt 中已经保存的资源，按声明的反向顺序清理；所有资源确认移除并释放后才提交 resourceRemoved=true。部分失败保留 false，后续可重新核对已移除的资源。活动 operation 或任一 pending launch 拒绝认领；各阶段进度不增加业务 steps。详见[阶段指南](workflow-phases.md)。
+
+固定操作的 apply Effect 可通过实际操作日志执行只读恢复准入检查。pending 在 Run 认领前阻塞；已保存回执或无占位时才进入共同 CAS/正常新 Attempt 路径，唯一占位继续防止迟到宿主重复 apply，正常执行仍需当前授权。它不走 Docker 清理或恢复旧服务会话，见[Effect 指南](workflow-effects.md#固定操作的持久-workflow)。
