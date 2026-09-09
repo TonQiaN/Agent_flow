@@ -7,6 +7,7 @@ import { loadWorkflowCheckpoint } from './load-checkpoint.js';
 import type { WorkflowNodeExecutor } from './types.js';
 import type { RunRecord, RunRecordStore } from '../persistence/types.js';
 import type { RunnerResourceCheckpoint, RunnerResourceSink } from '../runner/types.js';
+import { runnerLaunchStates } from '../runner/launch.js';
 const environment = { schema: 'test-runner/v1' };
 const resource = (identity: ExecutionIdentity): RunnerResourceCheckpoint => ({ schema: 'agentflow-runner-resource/v1', identity: structuredClone(identity), resource: { id: `${identity.runId}-${identity.nodeTaskId}` }, execution: environment, backend: { schema: 'test-resource/v1' } });
 class Store implements RunRecordStore {
@@ -37,7 +38,7 @@ test('normal Workflow saves actual per-Attempt resource before continuation and 
   });
   await (await new WorkflowRuntime().startPersisted(flow, 'run', 1, store)).completion;
   const last = (await store.read())!.content as any;
-  assert.equal(last.schema, 'agentflow-workflow-checkpoint/v2'); assert.deepEqual(last.attempts.map((a: any) => a.resultStep), [0, 1]);
+  assert.equal(last.schema, 'agentflow-workflow-checkpoint/v3'); assert.deepEqual(last.attempts.map((a: any) => a.resultStep), [0, 1]);
   for (const record of store.records) { const loaded = await loadWorkflowCheckpoint(flow, 'run', { read: async () => record }); await loaded.dispose(); }
 });
 test('resource CAS rejection blocks continuation and successor and leaves the last complete Attempt record', async () => {
@@ -104,4 +105,42 @@ test('cancellation during a pending resource CAS preserves complete Attempt fact
   for (const record of store.records) { const loaded = await loadWorkflowCheckpoint(flow, 'run', { read: async () => record }); await loaded.dispose(); }
   const last = (await store.read())!.content as any; assert.equal(last.attempts.length, 1); assert.equal(last.attempts[0].resultStep, 0);
   assert.equal(last.attempts[0].resource.identity.runId, 'run');
+});
+
+test('Workflow launch journal enforces ordered invocation-local transitions and validates every saved state', async () => {
+  const store = new Store(); let retained: RunnerResourceSink | undefined;
+  const flow = compiled(async (c, input, identity, _cancel, sink) => {
+    assert.ok(sink?.launch); await assert.rejects(sink.launch('prepare_pending'), /WORKFLOW_LAUNCH_TRANSITION_INVALID/);
+    await sink.save(resource(identity));
+    await assert.rejects(sink.launch('start_pending'), /WORKFLOW_LAUNCH_TRANSITION_INVALID/);
+    for (const state of runnerLaunchStates.slice(1)) {
+      await sink.launch(state as Exclude<typeof state, 'allocated'>);
+      assert.equal(((await store.read())!.content as any).attempts.at(-1).launch, state);
+      await assert.rejects(sink.launch(state as Exclude<typeof state, 'allocated'>), /WORKFLOW_LAUNCH_TRANSITION_INVALID/);
+    }
+    await assert.rejects(sink.launch(undefined as any), /WORKFLOW_LAUNCH_TRANSITION_INVALID/);
+    retained = sink; return { identity, componentId: c.id, status: 'accepted', outcome: 'ok', output: input };
+  });
+  await (await new WorkflowRuntime().startPersisted(flow, 'run', 1, store)).completion;
+  await assert.rejects(retained!.launch!('prepare_pending'), /WORKFLOW_RESOURCE_PORT_CLOSED/);
+  for (const record of store.records) { const loaded = await loadWorkflowCheckpoint(flow, 'run', { read: async () => record }); await loaded.dispose(); }
+  for (const mutation of [(c: any) => { c.attempts[0].launch = null; }, (c: any) => { c.attempts[0].launch = 'other'; },
+    (c: any) => { c.attempts[0].resource = null; }, (c: any) => { c.schema = 'agentflow-workflow-checkpoint/v2'; }]) {
+    const record = structuredClone(store.records.at(-1)!); mutation(record.content);
+    await assert.rejects(loadWorkflowCheckpoint(flow, 'run', { read: async () => record }));
+  }
+});
+test('overlapping launch calls reject and a lost durable write permanently closes the invocation port', async () => {
+  const store = new Store(); const cas = store.compareAndSwap.bind(store); let reject!: (error: Error) => void;
+  store.compareAndSwap = async (id, revision, content) => (content as any).attempts.at(-1)?.launch === 'prepare_pending'
+    ? new Promise((_r, failure) => { reject = failure; }) : cas(id, revision, content);
+  const flow = compiled(async (c, input, identity, _cancel, sink) => {
+    await sink!.save(resource(identity)); const pending = sink!.launch!('prepare_pending');
+    await assert.rejects(sink!.launch!('prepare_completed'), /WORKFLOW_RESOURCE_PORT_CLOSED/);
+    reject(new Error('owner lost')); await assert.rejects(pending, /owner lost/);
+    await assert.rejects(sink!.launch!('prepare_completed'), /WORKFLOW_RESOURCE_PORT_CLOSED/);
+    return { identity, componentId: c.id, status: 'accepted', outcome: 'ok', output: input };
+  });
+  await assert.rejects((await new WorkflowRuntime().startPersisted(flow, 'run', 1, store)).completion, /owner lost/);
+  assert.equal((store.records.at(-1)!.content as any).attempts[0].launch, 'allocated');
 });

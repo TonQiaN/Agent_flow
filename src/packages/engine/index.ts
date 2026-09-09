@@ -48,4 +48,4 @@ export { consumeWorkflowValueRestore, WorkflowRestoreError } from './workflow/re
 export type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './workflow/restore-value.js';
 
 export { canonicalJson } from './json.js';
-export type { RunnerResourceCheckpoint, RunnerResourceSink, RestoredRunnerResource } from './runner/types.js';
+export type { RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from './runner/types.js';

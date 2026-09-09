@@ -39,7 +39,7 @@ for (const interrupt of [false, true]) test(`persisted real script Workflow reta
     const reading = child(root, 'read'); processes.push(reading); const [code] = await reading.exited;
     assert.equal(code, 0, reading.output().stderr);
     const { record, texts } = JSON.parse(reading.output().stdout), checkpoint = record.content as WorkflowCheckpoint;
-    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v2'); assert.equal(checkpoint.execution.version, 1);
+    assert.equal(checkpoint.schema, 'agentflow-workflow-checkpoint/v3'); assert.equal(checkpoint.execution.version, 1);
     assert.deepEqual(texts, interrupt ? ['seed', 'seedA'] : ['seed', 'seedA', 'seedAB']);
     assert.equal(checkpoint.snapshot.steps.length, interrupt ? 1 : 2);
     assert.equal(checkpoint.snapshot.status, interrupt ? 'running' : 'succeeded');
@@ -200,4 +200,60 @@ test('Workflow resource CAS failure prevents actual container creation and all s
     } finally { store.close(); }
     removable = true;
   } finally { if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained resource CAS evidence: ${root}\n`); }
+});
+
+for (const [mode, launch, expected] of [
+  ['pause-prepare_pending', 'prepare_pending', 'absent'], ['pause-prepare_completed', 'prepare_completed', 'absent'],
+  ['pause-create_pending', 'create_pending', 'absent'], ['pause-create_completed', 'create_completed', 'created'],
+  ['pause-start_pending', 'start_pending', 'created'], ['pause-start_completed', 'start_completed', 'running'],
+  ['inside-create', 'create_pending', 'created'], ['inside-start', 'start_pending', 'running'],
+] as const) test(`durable launch journal survives actual host SIGKILL: ${mode}`, { skip: !enabled, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-launch-journal-')); let resource: string | undefined, removable = false;
+  const processes: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, `journal-${mode}`); processes.push(running);
+    const [message] = await Promise.race([once(running.process, 'message'), running.exited.then(() => { throw new Error(running.output().stderr || 'early exit'); })]);
+    resource = message.resource.id; assert.match(resource!, /^af-[a-f0-9-]+$/); assert.equal(message.launch, launch);
+    running.process.kill('SIGKILL'); assert.deepEqual(await running.exited, [null, 'SIGKILL']);
+    if (expected === 'absent') assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${resource}$`, '--format', '{{.ID}}']), '');
+    else assert.equal(await docker(['inspect', '--format', '{{.State.Status}}', resource!]), expected);
+    for (const name of ['temporary', 'work']) await rm(join(root, name), { recursive: true, force: true });
+    const loading = child(root, 'load', `journal-${mode}`); processes.push(loading); const [code] = await loading.exited;
+    assert.equal(code, 0, loading.output().stderr); const result = JSON.parse(loading.output().stdout);
+    assert.equal(result.error, undefined); assert.equal(result.checkpoint.attempts[0].launch, launch);
+    assert.equal(result.checkpoint.attempts[0].resource.resource.id, resource); assert.equal(result.checkpoint.attempts[0].resultStep, null);
+    assert.deepEqual(result.started, []); assert.deepEqual(result.texts, ['seed']);
+    assert.equal(await readFile(join(root, 'source/value.txt'), 'utf8'), 'seed'); removable = true;
+  } finally {
+    for (const p of processes) if (p.process.exitCode === null && p.process.signalCode === null) { p.process.kill('SIGKILL'); await p.exited; }
+    // Test-owned cleanup only: the fixture was killed at a known paused boundary; this is not automatic recovery authority.
+    if (resource) await docker(['rm', '-f', resource]).catch(() => {});
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained launch journal evidence: ${root}\n`);
+  }
+});
+
+for (const [mode, phase, previous, created, started] of [
+  ['fail', 'create_pending', 'prepare_completed', [], []], ['fail', 'create_completed', 'create_pending', ['a'], []],
+  ['fail', 'start_pending', 'create_completed', ['a'], []], ['fail', 'start_completed', 'start_pending', ['a'], ['a']],
+  ['conflict', 'create_pending', 'prepare_completed', [], []],
+] as const) test(`real launch CAS failure does not issue any later operation: ${mode}-${phase}`, { skip: !enabled, timeout: 20000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-launch-rejected-')); let removable = false;
+  const runningProcesses: ReturnType<typeof child>[] = [];
+  try {
+    await mkdir(join(root, 'source')); await writeFile(join(root, 'source/value.txt'), 'seed');
+    const running = child(root, `journal-${mode}-${phase}`); runningProcesses.push(running); const [code] = await running.exited;
+    assert.equal(code, 0, running.output().stderr); const result = JSON.parse(running.output().stdout);
+    assert.equal(result.status, 'failed'); assert.deepEqual(result.created, created); assert.deepEqual(result.started, started);
+    const store = await SqliteRunRecordStore.open(join(root, 'db'));
+    try {
+      const record = (await store.read('run'))!.content as any, attempt = record.attempts[0];
+      assert.equal(attempt.launch, previous); assert.equal(attempt.resultStep, null); assert.deepEqual(record.snapshot.steps, []);
+      assert.equal(await docker(['container', 'ls', '--all', '--filter', `name=^/${attempt.resource.resource.id}$`, '--format', '{{.ID}}']), '');
+    } finally { store.close(); }
+    removable = true;
+  } finally {
+    for (const p of runningProcesses) if (p.process.exitCode === null && p.process.signalCode === null) { p.process.kill('SIGKILL'); await p.exited; }
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained launch failure evidence: ${root}\n`);
+  }
 });
