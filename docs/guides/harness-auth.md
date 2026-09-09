@@ -1,6 +1,6 @@
 # Harness 与凭据接口（首个组合实施中）
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；已通过真实合成数字任务，通用文件 contract 已接入示例，可信前序执行证据、真实刷新与完整 Workflow 仍待验收。
+当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；已通过真实合成数字任务，通用文件 contract 已接入示例，进程内可信收据已接通，真实刷新与完整 Workflow 仍待验收。
 
 ## Harness
 
@@ -52,3 +52,5 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 受信宿主可在 FileExecutionCredentialBinding.acquire 的第四参数传入材料观察器，供脱敏器记住本次值；该回调不来自 Workflow 配置，也不进入普通序列化。
 
 `src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。已用明确授权的专用凭据及 gpt-5.6-sol 完成真实小任务；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。
+
+[Agent 接纳与可信收据](agent-acceptance.md) 通过通用驱动接口连接上述能力，统一检查终态、收尾和文件契约，并提供同 Run 的前序收据引用。

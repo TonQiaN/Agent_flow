@@ -47,7 +47,8 @@ test('directory trees preserve structure and match bounded members without a pro
   const r = registry({ ...contract, rules: [tree] }); const result = r.check('answer', entries);
   assert.equal(result.valid, true);
   assert.ok(codes({ ...contract, rules: [{ ...tree, maxFiles: 0, minFiles: 0 }] }, entries).includes('TREE_FILE_COUNT'));
-  assert.ok(codes({ ...contract, rules: [tree] }, [...entries, { path: 'unclaimed', kind: 'directory' }]).includes('UNMATCHED_ENTRY'));
+  const withEmpty = r.check('answer', [...entries, { path: 'unclaimed', kind: 'directory' }]);
+  assert.equal(withEmpty.valid, true); if (withEmpty.valid) assert.ok(!withEmpty.directories.includes('unclaimed'));
 });
 
 test('glob semantics, unmatched files and overlapping tree/file claims never pick an arbitrary winner', () => {

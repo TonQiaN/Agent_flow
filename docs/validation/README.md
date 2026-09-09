@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-09 | [Agent 接纳与可信收据](2026-09-09-agent-acceptance.md) |
 | 2026-09-09 | [文件契约与快照交接](2026-09-09-file-contracts.md) |
 | 2026-09-09 | [Codex 订阅组合入口](2026-09-09-codex-composition.md) |
 | 2026-09-09 | [私有凭据执行绑定](2026-09-09-credential-binding.md) |
