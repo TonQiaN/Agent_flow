@@ -160,3 +160,20 @@ realTest('Docker: configuration paths, collisions and limits reject before proce
     }
   } finally { await f.cleanup(); }
 });
+
+realTest('Docker: raw records share a bounded 16 MiB budget and one log may exceed 1 MiB', async () => {
+  const f = await fixture();
+  try {
+    const result = await f.run({ ...f.request('unused'), invocation: { argv: ['/bin/sh', '-c', 'head -c 2097152 /dev/zero > /task/state/session.bin'],
+      recordFiles: [{ id: 'session', path: 'session.bin', maxBytes: 16 * 1024 * 1024 }] } });
+    assert.equal(result.exitCode, 0); assert.equal(result.capture!.files['session']!.bytes, 2097152);
+    assert.equal(result.capture!.files['session']!.complete, true); assert.equal(result.capture!.files['session']!.truncated, false);
+    for (const recordFiles of [
+      [{ id: 'large', path: 'one', maxBytes: 16 * 1024 * 1024 + 1 }],
+      [{ id: 'first', path: 'one', maxBytes: 8 * 1024 * 1024 }, { id: 'second', path: 'two', maxBytes: 8 * 1024 * 1024 + 1 }],
+    ]) {
+      const rejected = await f.run({ ...f.request('true'), invocation: { argv: ['true'], recordFiles } });
+      assert.equal(rejected.phase, 'failed'); assert.ok(rejected.diagnostics.includes('PREPARE_FAILED'));
+    }
+  } finally { await f.cleanup(); }
+});

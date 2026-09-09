@@ -104,7 +104,7 @@ export class DockerBackend implements ExecutionBackend {
     const records = invocation.recordFiles ?? [];
     if (!Array.isArray(records) || records.length > 16 || new Set(records.map(item => item.id)).size !== records.length
       || records.some(item => !isIdentifier(item.id) || ['stdout', 'stderr'].includes(item.id) || typeof item.path !== 'string' || !safeRelative(item.path)
-        || !Number.isSafeInteger(item.maxBytes) || item.maxBytes < 1 || item.maxBytes > 1024 * 1024)) throw new Error('INVALID_RECORD_CONFIGURATION');
+        || !Number.isSafeInteger(item.maxBytes) || item.maxBytes < 1 || item.maxBytes > 16 * 1024 * 1024) || records.reduce((total, item) => total + item.maxBytes, 0) > 16 * 1024 * 1024) throw new Error('INVALID_RECORD_CONFIGURATION');
     const configs = invocation.configFiles ?? [];
     if (!Array.isArray(configs) || configs.length > 16 || configs.some(file => !file || typeof file !== 'object'
       || Object.keys(file).sort().join(',') !== 'content,name' || typeof file.name !== 'string' || !safeRelative(file.name)
