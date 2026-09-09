@@ -37,3 +37,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Tutor 合成批卷与文件到 JSON 转换](tutor-grading-fixture.md)
 
 - [真实 Codex 批卷 Workflow](tutor-grading-codex.md)
+
+- [Claude 调用计划与协议](claude-adapter.md)
