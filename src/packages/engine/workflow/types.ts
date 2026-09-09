@@ -38,6 +38,8 @@ export interface WorkflowNodeExecutor {
   /** Actual backend whose resource can be saved by this invocation; absent for resource-free code. */
   resourceDefinition?(component: ComponentDefinition): Promise<JsonValue>;
   /** Common Runner ownership restoration after the coordinator acquires its durable claim. */
+  /** Read-only operation-journal admission; never invokes a service or grants permission. */
+  checkRecovery?(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity): Promise<void>;
   restoreResource?(component: ComponentDefinition, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
   /** Save a live value through its actual owner; only trusted checkpoint coordination calls this port. */
   checkpointValue?(value: JsonValue, runId: string, contractId: string): Promise<JsonValue>;

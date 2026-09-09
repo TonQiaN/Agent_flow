@@ -30,3 +30,5 @@ Catalog 的 restoreValue 只消费加载器签发的一次性进程内请求。�
 实际不可变 API key Agent 的文件收据也已接入严格加载：从已安装 Driver 取得 Harness/版本/镜像，核对内外身份、前序引用和完整输入/输出清单；没有 Agent receipt 的公开导入接口。详见[阶段指南](workflow-phases.md)。
 
 内置 FileArtifactStore 支持直接在存储暂存范围物化归档并完成 contract 校验，因此加载不再建立 Catalog restore 目录；同一清理句柄释放整个本次快照范围。旧存储没有此可选端口时保持原路径回退。再次保存也可直接交给归档，见[归档交接](artifact-archive.md#直接接收已物化副本)。
+
+固定操作的 apply Effect 也通过加载器的一次性校验请求核对已接纳 JSON 回执：由实际 Effect 适配层比较前序输入、操作映射与持久日志。缺失日志、输入冲突或回执变化拒绝；加载不调用服务或授权策略，见[Effect 指南](workflow-effects.md#固定操作的持久-workflow)。

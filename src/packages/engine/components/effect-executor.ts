@@ -43,6 +43,8 @@ export interface EffectReceipt {
 export interface EffectAdapter {
   readonly implementation: string;
   readonly serviceIdentity: string;
+  /** Actual installed service implementation/version; no credentials or external operation. */
+  definition?(): Promise<JsonValue>;
   simulate(request: EffectAdapterRequest): Promise<EffectReceipt>;
   apply(request: EffectAdapterRequest): Promise<EffectReceipt>;
 }
@@ -81,11 +83,11 @@ export class EffectExecutor {
   readonly #namespace = ++nextExecutorId;
   #sequence = 0;
   constructor(private readonly contracts: ContractRegistry, private readonly components: ComponentRegistry, adapter: EffectAdapter, store?: EffectRecordStore) {
-    if (!isIdentifier(adapter.implementation) || !isIdentifier(adapter.serviceIdentity) || typeof adapter.simulate !== 'function' || typeof adapter.apply !== 'function') throw new DefinitionError('INVALID_EFFECT_ADAPTER');
+    if (!isIdentifier(adapter.implementation) || !isIdentifier(adapter.serviceIdentity) || typeof adapter.simulate !== 'function' || typeof adapter.apply !== 'function' || adapter.definition !== undefined && typeof adapter.definition !== 'function') throw new DefinitionError('INVALID_EFFECT_ADAPTER');
     if (store && (!isIdentifier(store.identity) || ['read', 'create', 'compareAndSwap'].some(k => typeof store[k as 'read'] !== 'function'))) throw new DefinitionError('INVALID_EFFECT_STORE');
     this.#store = store ? Object.freeze({ identity: store.identity, read: store.read.bind(store), create: store.create.bind(store), compareAndSwap: store.compareAndSwap.bind(store) }) : null;
     this.#adapter = Object.freeze({ implementation: adapter.implementation, serviceIdentity: adapter.serviceIdentity,
-      simulate: adapter.simulate.bind(adapter), apply: adapter.apply.bind(adapter) });
+      simulate: adapter.simulate.bind(adapter), apply: adapter.apply.bind(adapter), ...(adapter.definition ? { definition: adapter.definition.bind(adapter) } : {}) });
   }
   validateComponent(id: string): void {
     const c = this.components.get(id);
@@ -118,6 +120,30 @@ export class EffectExecutor {
   }
   /** Durable namespace identity for installed composition checks; no paths or business credentials. */
   persistenceIdentity(): string | null { return this.#store?.identity ?? null; }
+  async definitionSnapshot(): Promise<JsonValue> {
+    if (!this.#store || !this.#adapter.definition) throw new DefinitionError('EFFECT_EXECUTION_DEFINITION_UNAVAILABLE');
+    const actual = copyJson(await this.#adapter.definition());
+    if (!actual || typeof actual !== 'object' || Array.isArray(actual) || typeof actual['schema'] !== 'string' || !actual['schema']) throw new DefinitionError('INVALID_EFFECT_EXECUTION_DEFINITION');
+    return copyJson({ schema: 'agentflow-effect-execution/v1', implementation: this.#adapter.implementation,
+      serviceIdentity: this.#adapter.serviceIdentity, journalIdentity: this.#store.identity, adapter: actual });
+  }
+  private async operationFor(request: EffectRequest): Promise<{ prepared: ReturnType<EffectExecutor['prepare']>; prior: RecordEntry | null }> {
+    const prepared = this.prepare(request);
+    if (!this.#store || prepared.mode !== 'apply') throw new DefinitionError('EFFECT_PERSISTENCE_UNAVAILABLE');
+    const row = await this.#store.read(prepared.r.key), prior = row ? this.durable(row, prepared.r.key) : null;
+    if (prior && prior.fingerprint !== prepared.fingerprint) throw new DefinitionError('EFFECT_KEY_CONFLICT');
+    if (prior && prior.state !== 'applied') throw new DefinitionError('EFFECT_RESULT_UNKNOWN');
+    return { prepared, prior };
+  }
+  /** Read-only admission check; unique durable reservation still arbitrates any late writer. */
+  async checkRecovery(request: EffectRequest): Promise<void> { await this.operationFor(request); }
+  /** Validate saved business facts; never authorize, call the service, or import a receipt. */
+  async validateDurableReceipt(request: EffectRequest, outcome: string, output: JsonValue): Promise<void> {
+    const { prepared, prior } = await this.operationFor(request);
+    if (!prior || !['applied', 'already-applied'].includes(outcome)
+      || canonical(copyJson({ ...prior.receipt!, status: outcome })) !== canonical(copyJson(output))
+      || !this.contracts.check(prepared.component.outcomes[outcome]!, output).valid) throw new DefinitionError('INVALID_DURABLE_EFFECT_RECEIPT');
+  }
   private durable(record: EffectRecord, key: string): RecordEntry {
     const fail = (): never => { throw new DefinitionError('INVALID_EFFECT_RECORD'); };
     const row = clone(record), c = row.content;

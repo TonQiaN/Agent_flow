@@ -33,7 +33,10 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
     const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted ? attempt : null;
     const binding = active ? getPlan(compiled).bindings.get(active.node)! : null;
     if (active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases)) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
-    if (binding && (binding.component.kind === 'effect' || (active?.phases !== undefined ? !binding.executor.restorePhaseResource : !binding.executor.resourceDefinition || !binding.executor.restoreResource))) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
+    if (binding?.component.kind === 'effect') {
+      if (!binding.executor.checkRecovery || active!.resource !== null || active!.phases !== undefined) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
+      await binding.executor.checkRecovery(snapshot(binding.component), snapshot(checkpoint.cursor.value), snapshot(active!.identity));
+    } else if (binding && (active?.phases !== undefined ? !binding.executor.restorePhaseResource : !binding.executor.resourceDefinition || !binding.executor.restoreResource)) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
     const owned = active?.phases !== undefined ? active.phases.filter(p => p.resource !== null).map(p => ({ phase: p.id, record: p.resource! })).reverse()
       : active?.resource ? [{ phase: null, record: active.resource }] : [];
     if (!owned.length && prior && !prior.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
