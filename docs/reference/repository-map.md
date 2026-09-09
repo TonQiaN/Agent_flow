@@ -55,3 +55,5 @@ Agent_flow/
 正式开发以 Issue 为工作起点，按对应决定及当前说明执行。原始资料可由研究任务提炼进决定，但正式决定不依赖原始资料路径；原始区内部结构不在本图管理。
 
 [生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
+
+`src/packages/integrations/workflow` 提供文件函数/Agent 与串行 Workflow 的本机连接、私有文件来源引用及失败资源清理；核心编译器与运行控制留在 `engine/workflow`。

@@ -96,7 +96,10 @@ export class AgentExecutor {
     await this.artifacts.release(receipt.output.id); this.#released.add(id);
   }
 
-  async execute(request: AgentExecutionRequest, cancellation: Cancellation = { requested: () => false }): Promise<AgentAttempt> {
+  /** Side-effect-free definition preflight; no Attempt reservation or input capture. */
+  validate(request: AgentExecutionRequest): void { this.prepare(request); }
+
+  private prepare(request: AgentExecutionRequest) {
     let captured: AgentExecutionRequest;
     try { captured = clone(request); } catch { throw new DefinitionError('INVALID_AGENT_REQUEST'); }
     if (!captured || !isIdentifier(captured.componentId) || !isExecutionIdentity(captured.identity)
@@ -113,6 +116,11 @@ export class AgentExecutor {
       attemptId: captured.identity.attemptId, attemptNumber: captured.identity.attemptNumber });
     const task: HarnessTask = { identity, prompt: captured.prompt, config: captured.config, ...(outcomes.length === 1 ? {} : { outcomes: outcomes.map(([name]) => name) }) };
     try { this.driver.validate(clone(task)); } catch { throw new DefinitionError('INVALID_AGENT_CONFIGURATION'); }
+    return { captured, outcomes, input, identity, task };
+  }
+
+  async execute(request: AgentExecutionRequest, cancellation: Cancellation = { requested: () => false }): Promise<AgentAttempt> {
+    const { captured, outcomes, input, identity, task } = this.prepare(request);
     let predecessor: ExecutionReceipt | null = null;
     if ('receiptId' in input) {
       predecessor = this.receipt(input.receiptId);
