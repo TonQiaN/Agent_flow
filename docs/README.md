@@ -60,3 +60,5 @@
 [Workflow 恢复认领与旧资源清理](guides/workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；同一 NodeTask 的新 Attempt 已通过一次/连续两次 SIGKILL 恢复，见[验证](validation/2026-09-10-workflow-resume.md)。
 
 [Agent 执行定义](guides/workflow-execution-snapshot.md)：实际 Harness、用户说明、运行资产及非秘密 Profile，执行/代理镜像固定并用于后续运行；Agent 资源与认证恢复仍待接通。
+
+[联网资源恢复](validation/2026-09-10-network-resource-recovery.md)：无私有认证的 CONNECT Script 经共同 Runner 核对并清理任务容器、代理与网络，再进入正常新 Attempt；Agent 认证恢复仍待完成。

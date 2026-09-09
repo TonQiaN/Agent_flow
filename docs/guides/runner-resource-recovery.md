@@ -1,6 +1,6 @@
 # Runner 资源保存与恢复
 
-Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持断网 Docker；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权与同 NodeTask 新 Attempt 已接入[Workflow 恢复](workflow-recovery.md)，其他绑定及未知操作仍待验收。
+Runner 可在正常执行时通过显式 `RunnerResourceSink` 保存实际分配的资源，重启后使用同一 backend 定义核对、停止并移除旧执行。当前内置实现支持无私有认证绑定的 Docker（断网或 CONNECT）；资源保存已接入 [Workflow 活动 Attempt 检查点](workflow-checkpoints.md)；恢复所有权与同 NodeTask 新 Attempt 已接入[Workflow 恢复](workflow-recovery.md)，其他绑定及未知操作仍待验收。
 
 ```ts
 const result = await runner.run(request, cancellation, {
@@ -32,3 +32,5 @@ Runner 先取得实际执行环境描述，再 allocate。分配后由 backend �
 正常持久 Workflow 还提供 RunnerResourceSink.launch 操作记录端口，准备/创建/启动前置记录等待 CAS，启动完成以共同 observe 为准。仅使用 save 的独立 Runner 调用没有这份操作进度证据，不能将其视为具备自动恢复条件。见 [验证与边界](../validation/2026-09-10-runner-launch-journal.md)。
 
 [Workflow 恢复协调](workflow-recovery.md)已通过实际节点的 ScriptExecutor 绑定本接口，先认领 CAS 再核对、停止、移除和释放，确认记录留在同一 Run。该协调当前仍不启动新 Attempt。
+
+CONNECT 恢复会核对任务容器、代理和内外两张网络的完整身份；代理还核对固定镜像。即使任务容器缺失，仍须移除代理/网络才确认收尾；工作目录丢失不会跳过 Docker 核对。代理已停止或缺失不阻止恢复者收尾，但查询错误、同名异属或网络仍有其他成员导致移除失败时，不确认清理完成，不释放资源归属目录。恢复不会删除其他成员容器。见[验证](../validation/2026-09-10-network-resource-recovery.md)。
