@@ -1,10 +1,12 @@
 import type { ExecutionIdentity } from '@agentflow/domain';
 
-export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state' });
+export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state', config: '/task/config' });
 
 export interface Invocation {
   readonly argv: readonly string[];
   readonly env?: Readonly<Record<string, string>>;
+  /** Host-generated, non-secret UTF-8 protocol configuration; mounted read-only. */
+  readonly configFiles?: readonly { readonly name: string; readonly content: string }[];
   /** Relative to the private state directory. Raw evidence, never business outputs. */
   readonly recordFiles?: readonly { readonly id: string; readonly path: string; readonly maxBytes: number }[];
 }
@@ -32,6 +34,7 @@ export interface RawCapture {
   readonly files: Readonly<Record<string, CapturedFile>>;
   readonly outputsPath: string;
   readonly imageId: string | null;
+  readonly network?: { readonly kind: 'connect-proxy'; readonly proxyImageId: string | null; readonly allowedHosts: readonly string[] };
 }
 export interface ExecutionBackend {
   allocate(): Promise<ExecutionResource>;

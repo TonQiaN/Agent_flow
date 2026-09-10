@@ -1,6 +1,6 @@
 # 使用指南
 
-当前支持确定性 Component、JSON contract 与离线 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
+当前支持确定性 Component、JSON contract 与 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
 
 在仓库根目录运行：
 
@@ -17,3 +17,11 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 从 [文档入口](../README.md) 了解当前能力，再查对应决定与说明。维护正式知识使用 [文档维护指南](../development/documentation.md)；原始资料区不要求统一整理方式，不作为日常开发默认上下文。
 
 [Docker Runner](runner.md) 提供可写文件副本、原始采集和真实取消/清理；完整 Agent、Workflow 和批卷流程继续实施，当前示例未调用模型或外部业务服务。
+
+[Harness / 认证接口](harness-auth.md) 说明首个组合已实现的计划、parser 和凭据租约，以及真实订阅小任务和未完成边界。
+
+[受控联网](controlled-egress.md) 说明独立代理、精确目标及真实网络验证；首个 Codex 订阅组合已接通。
+
+[文件契约与独立交接](file-contracts.md) 说明 outputs 自动收集、目录树约束、JSON 文件 schema 与交接完整性检查。
+
+[Agent 接纳与可信收据](agent-acceptance.md) 说明单次执行接纳、可信前序引用和失败后的清理句柄。
