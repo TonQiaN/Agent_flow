@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fork, execFile } from 'node:child_process';
@@ -9,14 +8,12 @@ import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { SqliteRunRecordStore } from '@agentflow/integrations';
-import { sourcePaths } from '../../examples/tutor-grading/gate.js';
 const enabled=process.env['AGENTFLOW_DOCKER_TESTS']==='1';
 const worker=fileURLToPath(new URL('../fixtures/tutor-script-workflow.mjs',import.meta.url));
 const execute=promisify(execFile);
 async function fixture(){
  const root=await mkdtemp(join(tmpdir(),'af-tutor-scripts-'));await cp(fileURLToPath(new URL('../../examples/tutor-grading/fixtures/source',import.meta.url)),join(root,'source/source'),{recursive:true});
- const files=await Promise.all(sourcePaths.map(async path=>({path,sha256:createHash('sha256').update(await readFile(join(root,'source',path))).digest('hex')})));
- await writeFile(join(root,'facts.json'),JSON.stringify({files}));return root;
+ return root;
 }
 function child(root:string,mode:string,variant:string,interrupt='no'){
  const process=fork(worker,[root,mode,variant,interrupt],{execArgv:['--import','tsx'],stdio:['ignore','pipe','pipe','ipc']});let stdout='',stderr='';process.stdout!.on('data',b=>stdout+=b);process.stderr!.on('data',b=>stderr+=b);
@@ -42,8 +39,7 @@ test('Tutor Gate SIGKILL recovery keeps intake/marker and source facts, stops ol
   const [message]=await Promise.race([once(old.process,'message'),old.exited.then(()=>{throw new Error(JSON.stringify(old.text()));})]);assert.equal(message.point,'gate-running');resource=message.resource.id;
   assert.deepEqual(await old.exited,[null,'SIGKILL']);assert.equal((await execute('docker',['inspect','--format','{{.State.Running}}',resource!])).stdout.trim(),'true');
   const store=await SqliteRunRecordStore.open(join(root,'runs'));let before;try{before=await store.read('run');}finally{store.close();}
-  const facts=await readFile(join(root,'facts.json'),'utf8'),changed=JSON.parse(facts);changed.files[0].sha256='f'.repeat(64);await writeFile(join(root,'facts.json'),JSON.stringify(changed));
-  const refused=await complete(root,'resume','wrong','yes',1);assert.equal(refused.error,'WORKFLOW_EXECUTION_MISMATCH');assert.deepEqual(refused.started,[]);assert.deepEqual(refused.restored,[]);await writeFile(join(root,'facts.json'),facts);
+  const refused=await complete(root,'source-drift','wrong','yes',1);assert.equal(refused.error,'WORKFLOW_EXECUTION_MISMATCH');assert.deepEqual(refused.started,[]);assert.deepEqual(refused.restored,[]);
   for(const path of ['source','temporary','nodes'])await rm(join(root,path),{recursive:true,force:true});
   const resumed=await complete(root,'resume','wrong','yes');assert.equal(resumed.snapshot.outcome,'passed');assert.deepEqual(resumed.started,['gate','fixer','gate']);assert.deepEqual(resumed.restored,['gate']);
   assert.deepEqual(resumed.snapshot.steps.slice(0,2),(before!.content as any).snapshot.steps);assert.equal(resumed.snapshot.steps[2].result.identity.nodeTaskId,'task-3');assert.equal(resumed.snapshot.steps[2].result.identity.attemptNumber,2);
@@ -54,4 +50,15 @@ test('Tutor Gate SIGKILL recovery keeps intake/marker and source facts, stops ol
   if(old.process.exitCode===null&&old.process.signalCode===null)old.process.kill('SIGKILL');if(resource)await execute('docker',['rm','-f',resource]);
   if(removable)await rm(root,{recursive:true,force:true});else console.error(`Retained Tutor recovery evidence: ${root}`);
  }
+});
+
+test('Tutor source reopens from the first durable Run row after host loss before any node starts',{skip:!enabled,timeout:45000},async()=>{
+ const root=await fixture(),old=child(root,'run','correct','queued');let removable=false;
+ try{
+  const [message]=await Promise.race([once(old.process,'message'),old.exited.then(()=>{throw new Error(JSON.stringify(old.text()));})]);assert.equal(message.point,'source-saved');assert.deepEqual(await old.exited,[null,'SIGKILL']);
+  const store=await SqliteRunRecordStore.open(join(root,'runs'));try{const c=(await store.read('run'))!.content as any;assert.equal(c.snapshot.status,'queued');assert.deepEqual(c.attempts,[]);}finally{store.close();}
+  for(const path of ['source','temporary','nodes','attempts'])await rm(join(root,path),{recursive:true,force:true});
+  const resumed=await complete(root,'resume','correct','queued');assert.equal(resumed.snapshot.outcome,'passed');assert.deepEqual(resumed.started,['intake','marker','gate']);assert.deepEqual(resumed.restored,[]);assert.ok(resumed.record.content.attempts.every((a:any)=>a.identity.attemptNumber===1));
+  const loaded=await complete(root,'load','correct','queued');assert.deepEqual(loaded.snapshot,resumed.snapshot);assert.deepEqual(loaded.started,[]);removable=true;
+ }finally{if(old.process.exitCode===null&&old.process.signalCode===null)old.process.kill('SIGKILL');if(removable)await rm(root,{recursive:true,force:true});else console.error(`Retained source bootstrap evidence: ${root}`);}
 });

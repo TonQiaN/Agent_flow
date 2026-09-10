@@ -71,3 +71,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [确定性 JSON 函数](deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通函数、文件函数及完整 #13 仍有验收缺口。
 
 [批卷文件 Script](tutor-file-scripts.md)：复用现有 Runner 的 intake/Gate 绑定。
+
+[批卷原始来源的准备与重开](tutor-source-reopening.md)。
