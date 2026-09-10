@@ -49,3 +49,5 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_CODEX_IMAGE=agentflo
 这是首次真实模型的完整批卷 Workflow 接入验收。候选结构简单，不证明真实 PDF/OCR、题型评分质量或复杂学生反馈已完成。#10/#11 其余 Harness 组合、#13–#16 和最终真实学生批卷/报告/PDF 继续按计划推进。Workflow PR 尚未创建，现有 #17→#18→#19 已占三层短栈；本地检查不能冒充远端 CI。
 
 [使用指南](../guides/tutor-grading-codex.md) · [合成回归](2026-09-09-tutor-grading-fixture.md)
+
+2026-09-10 交付复核：#17、#18、#19 已按 merge commit 合并，Workflow 分支同步 main b62ce53，未改变 c251a6b 的产品源码。完整本地矩阵再次通过 **151 项、0 失败、0 跳过**，包含实际 Docker、受控网络和四种离线 Codex 启动；真实模型沿用上文已保存的验收证据。新 PR 的检查和作者评审另按其精确提交读回，不借用前置 PR 的 CI。
