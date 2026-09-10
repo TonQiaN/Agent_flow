@@ -62,7 +62,7 @@ store.close();
 - `runUntilStopped(pollMs = 1000)` 持续轮询；默认领取期限为 30 秒并定期续期。宿主可自行启动多个进程，各有独立 Worker 名称。
 - `query()` 返回 Worker 的 idle / working / draining / stopped；队列的 `query()` 返回任务状态、归属和等待原因。
 - `stop('drain')` 排空当前节点；`stop('cancel')` 请求正常引擎取消当前执行。`stop()` 本身不等待整个 Worker 结束，仍须等待运行 Promise 后再关闭存储。
-- `queue.cancelReady(runId)` 取消未领取的任务；与领取竞争时只有一个操作生效。活动任务返回 `QUEUE_TASK_ACTIVE`，当前没有跨进程取消命令通道。
+- `queue.cancelReady(runId)` 取消未领取的任务；与领取竞争时只有一个操作生效。活动任务返回 `QUEUE_TASK_ACTIVE`，当前没有跨进程取消命令通道。 已完成旧资源清理后因凭据繁忙重新就绪的任务也可取消；其历史 Attempt 原样保留，不启动新 Attempt。恢复清理未确认或已被重新领取时仍拒绝取消。
 
 ## 等待、失败与恢复
 
