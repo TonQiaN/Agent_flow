@@ -20,6 +20,6 @@
 
 ## 验证边界
 
-完整最终回归结果在[本轮验证记录](2026-09-10-script-execution-binding.md)中登记。另一次完整命令误在受限宿主沙箱启动，明确报本地端口 listen EPERM 和 Docker socket permission denied；该结果不作为产品回归通过或新产品故障，已保留输出，改在获授权的本地 Docker 环境执行同一命令。
+此修复在后续本地切片中完成，现在提前归入 Harness PR #27；当前交付复核在[矩阵验证记录](2026-09-09-matrix-readiness.md)中登记。另一次完整命令误在受限宿主沙箱启动，明确报本地端口 listen EPERM 和 Docker socket permission denied；该结果不作为产品回归通过或新产品故障，已保留输出，改在获授权的本地 Docker 环境执行同一命令。
 
 本修复关闭已复现的文件服务取消收尾缺口。此前原生 Bash/grep/glob 长工具序列的另一项总期限失败没有相同的 exit/close 证据，仍不能归到同一根因。真实官方矩阵、学生批卷、报告/PDF 和节点持久化恢复继续分别验收。
