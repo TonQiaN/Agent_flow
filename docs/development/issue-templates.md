@@ -1,6 +1,6 @@
 # Issue 分类与填写指南
 
-本页对应 `.github/ISSUE_TEMPLATE/` 的五份主 Issue 表单与空白入口配置。设计依据见 [分类决定](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 和 [共通决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-common)，开发与交付衔接见 [工作指南](workflow.md)。本轮变更须合入默认分支后才影响新建入口，实际验证范围见 [验证记录](../validation/2026-09-10-main-issue-templates.md)。
+本页对应 `.github/ISSUE_TEMPLATE/` 的五份主 Issue 表单与空白入口配置。设计依据见 [分类决定](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 和 [共通决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-common)，开发与交付衔接见 [工作指南](workflow.md)。本轮变更已通过 PR #23 合入默认分支，五类主表和空白入口已实际核对，验证范围见 [验证记录](../validation/2026-09-10-main-issue-templates.md)。
 
 ## 主 Issue 与 Sub-issue
 
@@ -12,7 +12,9 @@ Sub-issue 关联到主 Issue，由对应负责人自主组织其承担的具体�
 
 ## 选择领域与主要类型
 
-主 Issue 的“所属领域”单选“开发流程”或“项目内容”，无默认选择。前者指团队开发、协作、文档治理及工作约定，后者指 AgentFlow 产品的能力、行为、架构与相关研究；交叉影响在范围中表达。主要类型按最后承诺交付什么选择，与领域独立。
+主 Issue 的“所属领域”单选“开发流程”或“项目内容”。前者指团队开发、协作、文档治理及工作约定，后者指 AgentFlow 产品的能力、行为、架构与相关研究；交叉影响在范围中表达。主要类型按最后承诺交付什么选择，与领域独立。
+
+2026-09-10 的实际 GitHub 表单会预选第一项“开发流程”，即使 YAML 没有配置 default。提交前请确认所属领域，必要时切换为“项目内容”；界面初始值不表示已完成分类判断。
 
 | 主要目标 | 主 Issue 入口与标题前缀 |
 | --- | --- |
@@ -58,13 +60,13 @@ Sub-issue 关联到主 Issue，由对应负责人自主组织其承担的具体�
 
 网页从 [New issue 选择器](https://github.com/TonQiaN/Agent_flow/issues/new/choose) 选择主 Issue 表单。填写后另设真实 Assignees，核对提交的标题、正文与责任人；提示文字不会自动成为确认记录。
 
-Sub-issue 可以从主 Issue 的 Create sub-issue 创建，或将已有 Issue 用 Add existing issue 关联。也可以使用 Blank issue 创建后再关联。这里只说明平台入口，正文由负责人自主决定。[GitHub 子项说明](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)，2026-09-10 核对。
+Sub-issue 可以从主 Issue 的 Create sub-issue 创建。当前原生窗口先显示仓库共享的模板选择器，选择 Blank issue 后只有空白标题和自由正文，不附带主表字段。也可以用 Add existing issue 关联已有 Issue，或先从常规 Blank issue 入口创建再关联。这里只说明平台入口，正文由负责人自主决定。[GitHub 子项说明](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues)，2026-09-10 核对。
 
 `config.yml` 设置 `blank_issues_enabled: true`，因此有访问权限的用户可以看到空白入口。这个开关无法只对 Sub-issue 开放，主 Issue 使用五表仍由人参与整理落实；不表示已配置自动拦截。[GitHub 入口配置](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)。
 
 通过 CLI/API 创建主 Issue 时，先读取对应完整 YAML，按其字段标题准备正文，补齐共同信息及缺陷专用事实；可选项可后补。用 `gh issue create --body-file` 提交准备好的文件，并明确设置标题和 Assignees。读取服务器保存的内容核对，不把工具入口当作表单会自动展开的保证。Sub-issue 不受这套正文准备要求约束。
 
-当前仓库私有，GitHub 对 input、textarea、dropdown 的 required 校验标注了公开仓库限制。表单字段、正文编辑和 CLI/API 均不能代替人参与的就绪确认；owner 文字不会自动设置 Assignees。[GitHub 表单结构](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)，2026-09-10 核对。配置只在合入默认分支后作用于新建入口，本轮不会用旧版线上检查代表新版效果。
+当前仓库私有，GitHub 对 input、textarea、dropdown 的 required 校验标注了公开仓库限制。表单字段、正文编辑和 CLI/API 均不能代替人参与的就绪确认；owner 文字不会自动设置 Assignees。[GitHub 表单结构](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)，2026-09-10 核对。配置只在默认分支生效；本轮已实际打开新版选择器、五类表单、空白入口和子项创建窗口，检查范围与未提交真实测试 Issue 的边界见验证记录。
 
 ## 与 PR 的关联和验收
 

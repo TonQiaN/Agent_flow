@@ -54,8 +54,8 @@ PR 引用本次覆盖的主 Issue 和实际存在的 Sub-issue。一个子项可
 
 | 已具备 | 尚未完成 |
 | --- | --- |
-| 五类主 Issue 表单、空白入口配置及职责说明 | 新配置合入默认分支后的实际入口核对、长期使用效果 |
+| 五类主 Issue 表单、空白与子项入口的实际显示核对及职责说明 | 长期使用效果 |
 | 人参与整理、预检、决定与 PR 的交接约定 | 自动状态、自动预检、决策增量门禁 |
 | 局部文档与模板验证 | 产品 CI/CD、测试矩阵、真实产品开发流程 |
 
-本轮实现与验证见 [主 Issue 模板验证](../validation/2026-09-10-main-issue-templates.md)。[2026-09-08 验证](../validation/2026-09-08-issue-templates.md) 是旧版五表的历史证据，不能代表本轮入口已生效。私有仓库 required、Assignees 与默认分支的实际平台限制见 Issue 指南。Sub-issue 目前没有模板或写作推荐，本轮也未验证长期模板化收益。
+本轮实现与验证见 [主 Issue 模板验证](../validation/2026-09-10-main-issue-templates.md)。[2026-09-08 验证](../validation/2026-09-08-issue-templates.md) 是旧版五表的历史证据；本轮默认分支入口已另行核对。私有仓库 required、Assignees 与默认分支的实际平台限制见 Issue 指南。Sub-issue 目前没有模板或写作推荐，本轮也未验证长期模板化收益。
