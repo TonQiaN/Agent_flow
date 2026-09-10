@@ -5,8 +5,7 @@ import { AgentExecutor, ComponentRegistry, EffectExecutor, EffectWorkflowCatalog
 import type { AgentExecutionDriver, ArtifactStore, EffectMode, FileManifest, WorkflowCatalog, WorkflowDefinition, WorkflowSnapshot, EffectRequest, EffectApproval } from '@agentflow/engine';
 import { FileArtifactStore, FileWorkflowCatalog, FileJsonWorkflowCatalog, SimulatedEffectService } from '@agentflow/integrations';
 import { gradingContracts } from './contracts.js';
-import { readJson, review, sourcePaths } from './gate.js';
-import type { Candidate, GateReport } from './gate.js';
+import { review, publicationInput } from './gate.js';
 
 export const gradingComponent = (id: string, kind: ComponentDefinition['kind'], inputContract: string, outcomes: Record<string, string>): ComponentDefinition => ({ id, kind, implementation: `${id}-impl`, inputContract, outcomes });
 const component = gradingComponent;
@@ -58,11 +57,7 @@ export async function createGradingApplication<D extends AgentExecutionDriver>(r
   bridge.register(component('publication-input', 'transform', 'reviewed-files', { completed: 'publication-json' }), async ctx => {
     const receipt = ctx.source.receipt;
     if (receipt?.componentId !== 'grading-gate' || receipt.outcome !== 'passed') throw new Error('GATE_RECEIPT_REQUIRED');
-    const candidate = await readJson<Candidate>(ctx.inputPath, 'candidate.json'), report = await readJson<GateReport>(ctx.inputPath, 'gate-report.json');
-    const hash = (path: string): string => { const file = ctx.source.manifest.files.find(f => f.path === path); if (!file) throw new Error('MISSING_FILE'); return file.sha256; };
-    if (report.decision !== 'passed' || report.findings.length || report.candidateHash !== hash('candidate.json')) throw new Error('GATE_REPORT_MISMATCH');
-    return { outcome: 'completed', output: { workoutId: 'fixture-workout', paperId: candidate.paperId, studentId: candidate.studentId, total: candidate.total,
-      maxTotal: candidate.maxTotal, candidateHash: hash('candidate.json'), reportHash: hash('gate-report.json'), sourceFiles: sourcePaths.map(path => ({ path, sha256: hash(path) })) } };
+    return { outcome: 'completed', output: await publicationInput(ctx.inputPath, 'fixture-workout') };
   }); owners.set('publication-input', bridge);
   const service = new SimulatedEffectService('fixture-business-credential'), components = new ComponentRegistry(contracts.json);
   components.register(component('publish', 'effect', 'publication-json', { simulated: 'effect-receipt', applied: 'effect-receipt', 'already-applied': 'effect-receipt' }));
