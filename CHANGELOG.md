@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- 新增 Tutor 扫描件批改消费端：独立 Marker/Reviewer、可信 Gate、用户定义返修及报告/PDF 交接；已验证合成链路，实际学生/模型质量与 PR 交付待完成。
+
 新增 Tutor 报告消费端示例：已准备的扫描标注包经 Tutor 原 validator、指标投影、用户 Reporter、报告 Gate 和集成 A3 渲染器交付 PDF。复用当前文件 Workflow，保护原始来源及指标。需要显式 Tutor/Python 安装；已验证合成扫描页，尚不支持该宿主工具桥接的持久恢复，不代表完成真实学生批卷验收。
 
 新增单层 JSON Map 与固定 Fork：按稳定项目/分支身份展开，按输入索引或分支字典序汇合，wait-all 结束后校验整体输出。等待释放 Worker，子项共用角色、认证容量和持久重试预算，已接纳项恢复时不重跑。首版仅 JSON、每项单 Component、最多 62 项；不支持嵌套、文件产物或 Effect 并行。队列索引更新至 v3，没有开发 v1/v2 的自动迁移。

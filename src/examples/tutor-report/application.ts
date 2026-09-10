@@ -1,5 +1,4 @@
-import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +7,7 @@ import type { AgentExecutionDriver, ArtifactStore, FileManifest, WorkflowSnapsho
 import type { JsonValue } from '@agentflow/domain';
 import { FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
 import type { FileFunctionContext } from '@agentflow/integrations';
+import { invokeTutorTool } from '../tutor-tools/process.js';
 
 export interface ReportContext {
   readonly reportId: string;
@@ -50,33 +50,6 @@ function contracts() {
   return files;
 }
 
-/** Installed host function. Cancellation waits for process close before returning. */
-async function invoke(python: string, workspace: string, operation: string, ctx: FileFunctionContext, config: ReportContext, timeout: number) {
-  const configFile = join(ctx.workPath, 'report-context.json');
-  await writeFile(configFile, JSON.stringify(config), { mode: 0o600 });
-  return new Promise<{ outcome: string }>((accept, reject) => {
-    const child = spawn(python, [toolchain, operation, '--workspace', workspace, '--input', ctx.inputPath, '--output', ctx.outputsPath, '--config', configFile],
-      { detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: process.env.PATH, HOME: process.env.HOME, PYTHONDONTWRITEBYTECODE: '1', PYTHONUTF8: '1' } });
-    let stdout = '', exceeded = false, cancelled = false;
-    const stop = () => { if (child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') child.kill('SIGKILL'); } };
-    child.stdout.on('data', bytes => { stdout += bytes; if (stdout.length > 65536) { exceeded = true; stop(); } });
-    // Avoid returning student content in tool errors. The gate emits stable codes.
-    child.stderr.resume();
-    const deadline = setTimeout(() => { exceeded = true; stop(); }, timeout);
-    const cancellation = setInterval(() => { if (ctx.cancellation.requested()) { cancelled = true; stop(); } }, 25);
-    child.once('error', reject);
-    child.once('close', code => {
-      clearTimeout(deadline); clearInterval(cancellation);
-      if (code !== 0 || exceeded || cancelled) { reject(new Error(cancelled ? 'TUTOR_TOOL_CANCELLED' : exceeded ? 'TUTOR_TOOL_LIMIT' : 'TUTOR_TOOL_FAILED')); return; }
-      try {
-        const result = JSON.parse(stdout);
-        if (Object.keys(result).join(',') !== 'outcome' || !['completed', 'passed', 'rejected'].includes(result.outcome)) throw new Error('TUTOR_TOOL_PROTOCOL');
-        accept(result);
-      } catch { reject(new Error('TUTOR_TOOL_PROTOCOL')); }
-    });
-  });
-}
-
 /** Tutor-specific application. No core imports of Tutor code, schemas or PDF libraries. */
 export async function createTutorReportApplication<D extends AgentExecutionDriver>(root: string, setup: TutorReportSetup<D>) {
   const context = structuredClone(setup.context), reporter = structuredClone(setup.reporter), workspace = resolve(setup.tutorWorkspace), python = resolve(setup.python);
@@ -100,7 +73,7 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
   };
   files.registerFunction(component('prepare', 'transform', 'tutor-marked', { completed: 'tutor-report-input' }), async ctx => {
     await verify(ctx, originals.get(ctx.identity.runId)!);
-    return invoke(python, workspace, 'prepare', ctx, context, timeout);
+    return invokeTutorTool(toolchain, python, workspace, 'prepare', ctx, context, timeout);
   });
   files.registerAgent(component(reporter.id, 'agent', 'tutor-report-input', { completed: 'tutor-reported' }), agents, { prompt: reporter.prompt, config: reporter.config });
   files.registerFunction(component('report-gate', 'gate', 'tutor-reported', { passed: 'tutor-checked', rejected: 'tutor-checked' }), async ctx => {
@@ -108,11 +81,11 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
     if (preparation?.status !== 'accepted') throw new Error('TUTOR_PREPARATION_REQUIRED');
     const trusted = files.inspect(preparation.output, ctx.identity.runId).manifest;
     prepared.set(ctx.identity.runId, trusted); await verify(ctx, trusted);
-    return invoke(python, workspace, 'gate', ctx, context, timeout);
+    return invokeTutorTool(toolchain, python, workspace, 'gate', ctx, context, timeout);
   });
   files.registerFunction(component('render', 'transform', 'tutor-checked', { completed: 'tutor-rendered' }), async ctx => {
     await verify(ctx, prepared.get(ctx.identity.runId)!);
-    return invoke(python, workspace, 'render', ctx, context, timeout);
+    return invokeTutorTool(toolchain, python, workspace, 'render', ctx, context, timeout);
   });
   const definition = { id: 'tutor-report', start: 'prepare', maxSteps: 4, input: { kind: 'files' as const, id: 'tutor-marked' },
     outcomes: { completed: { kind: 'files' as const, id: 'tutor-rendered' }, rejected: { kind: 'files' as const, id: 'tutor-checked' } },
