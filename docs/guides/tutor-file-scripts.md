@@ -23,4 +23,4 @@ intake 复制独立输入到 outputs；Gate 读取 `/task/input`、比较原始�
 
 调用方提供实际 DockerBackend 和具备 Node 的镜像。Script 执行快照包含生成程序、参数、30 秒期限和已解析固定镜像；恢复需以当前安装和同一可信来源事实重新构造，然后完整比较。不能从检查点直接执行历史代码。宿主类型移除工具的输出差异也可能导致一致性拒绝；本轮验证宿主 Node 26、容器 node:22-bookworm-slim，未验证所有 Node 版本组合。
 
-本切片提供可持久运行的文件节点绑定，尚未改造 createGradingApplication 的整条运行入口。原始来源已提供[准备与重开接口](tutor-source-reopening.md)并接入 Script 验收；文件到 JSON 收据、发布和真实 Agent 的联合持久验收仍需接线。示例中的罐装初批/返修 Script 只用于测试，不冒充模型调用。见[验证](../validation/2026-09-10-tutor-file-scripts.md)。
+此绑定已接入独立的 [createPersistentGradingApplication](persistent-tutor-grading.md)。原始来源使用[准备与重开接口](tutor-source-reopening.md)；传入 publication.workoutId 时，passed Gate 还生成 publication.json，输出须使用 publishable-files contract，随后由指定 JSON 文件投影和 Effect 完成发布交接。原 createGradingApplication 保留普通运行入口。Script 独立验证中的罐装初批/返修只用于测试，联合持久验证中的 Agent CLI 也是协议替身，均不代表官方模型调用。见[验证](../validation/2026-09-10-tutor-file-scripts.md)。
