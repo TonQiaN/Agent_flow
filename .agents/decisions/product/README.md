@@ -33,3 +33,7 @@
 ## P-20260910-node-retries
 
 [同一 NodeTask 的有限重试与持久等待](proposed/P-20260910-node-retries.md)
+
+## P-20260910-json-parallel
+
+[单层 JSON Map/Fork 与持久汇合](proposed/P-20260910-json-parallel.md)

@@ -71,3 +71,13 @@ test('early direct recovery cannot run and duplicate old queue writers cannot re
  const app=application({clock:s.clock}),recovery=await claimWorkflowRecovery(app.compiled,'due',records);await recovery.cleanup();
  await assert.rejects(app.runtime.resumePersisted(recovery),/RETRY_NOT_DUE/);assert.equal((memory.content as any).checkpoint.attempts.length,1);await recovery.dispose();
 });
+
+test('heartbeat racing a completed retry wait does not cancel it after ownership is released',async t=>{
+ const s=await setup(t);await s.submit('heartbeat');let releaseExecution!:()=>void,releaseRead!:()=>void,readStarted!:()=>void;
+ const executing=new Promise<void>(r=>releaseExecution=r),heldRead=new Promise<void>(r=>releaseRead=r),reading=new Promise<void>(r=>readStarted=r);
+ const queue=s.queue(),original=queue.cancellationRequested.bind(queue);let reads=0;
+ queue.cancellationRequested=async claim=>{if(++reads===2){readStarted();await heldRead;}return original(claim);};
+ const running=s.worker({invoke:async()=>{await executing;return 'IMPLEMENTATION_FAILED';}}).runOnce();await reading;releaseExecution();
+ for(let i=0;i<100&&(await queue.query())[0]!.state!=='ready';i++)await new Promise(r=>setTimeout(r,2));
+ assert.equal((await queue.query())[0]!.state,'ready');releaseRead();const result=await running;assert.equal(result!.error,null);assert.equal(result!.waiting,'RETRY_WAIT');assert.equal((await s.load('heartbeat')).snapshot.cancelRequested,false);
+});
