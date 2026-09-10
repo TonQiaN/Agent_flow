@@ -19,6 +19,7 @@ src/
   apps/cli/                  命令行入口
   packages/domain/           业务类型与执行身份
   packages/engine/           执行引擎与契约
+  packages/integrations/     文件、进程、容器等环境适配
   examples/                  示例入口
   tests/e2e/                 跨模块与 CLI 测试
   tooling/                   依赖边界与测试工具

@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-10，已包含 TypeScript 执行基础切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+当前能力与未完成范围见 [文档入口](../README.md)。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -13,7 +13,8 @@ Agent_flow/
 ├── src/
 │   ├── apps/cli/                  # 当前仅 demo 命令
 │   ├── packages/domain/           # 业务类型与执行身份
-│   ├── packages/engine/           # contracts、components；无环境依赖
+│   ├── packages/engine/           # contracts、components、runner；无环境依赖
+│   ├── packages/integrations/     # Docker、文件与进程、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/e2e/                 # 跨模块/CLI 测试
 │   └── tooling/                   # 依赖边界与测试发现工具
@@ -31,7 +32,7 @@ Agent_flow/
 │   └── development/              # 与 product 相同的生命周期树
 ├── .github/
 │   ├── ISSUE_TEMPLATE/           # 功能、缺陷、研究、决策、维护五份完整表单与配置
-│   ├── workflows/check.yml       # Node 24/26 基础 CI
+│   ├── workflows/check.yml       # Node 24/26 CI，含真实 Docker 用例
 │   └── PULL_REQUEST_TEMPLATE.md  # Issue、决策增量、验收与评审交接
 ├── docs/
 │   ├── README.md

@@ -1,0 +1,8 @@
+{
+  "name": "@agentflow/integrations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "dependencies": { "@agentflow/domain": "0.0.0", "@agentflow/engine": "0.0.0" }
+}
