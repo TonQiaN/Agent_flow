@@ -21,3 +21,5 @@ CI 已配置 Linux Node 24/26 的 npm ci 与 npm run check；本地结果不代�
 限制：这是可信进程内 JSON 函数执行，未实现文件 contract、Docker、Agent、Workflow 路由、Effect、取消/超时、持久化、队列、重试或并行；输入内存复制不证明文件或安全沙箱隔离。没有运行 Tutor 真实学生资料或模型，16 项测试不能替代 #9 全部验收。后续继续合成批卷 fixture、历史候选回放及真实隔离批卷。
 
 关联：[执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)、[目录与构建决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)、[0.1.1 计划](../roadmap/0.1.1.md)。
+
+2026-09-10 合并前复验：同步默认分支 eb108cd 的主 Issue / Sub-issue 新规范，保留其模板与职责说明，只更新已存在的工程能力事实。冲突仅涉及开发指南和验证索引，生产源码未改动；重新运行 `npm run check`，16 项测试通过，无跳过。
