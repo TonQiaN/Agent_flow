@@ -146,4 +146,3 @@ export async function materializeSnapshot(storeRoot: string, snapshot: StoredSna
       throw new ArtifactError('MATERIALIZE_FAILED');
     }
   }
-
