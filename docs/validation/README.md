@@ -104,3 +104,5 @@
 [固定操作 Effect Workflow 恢复验证](2026-09-10-effect-workflow.md)。
 
 [确定性 JSON 函数绑定与恢复验证](2026-09-10-function-binding.md)。
+
+[Tutor 持久验收链路预检](2026-09-10-tutor-persistence-preflight.md)。
