@@ -24,7 +24,7 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 ## 当前限制
 
-文件函数、JSON 函数、文件到 JSON 和 Effect 的执行绑定描述尚未接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。函数部署身份仍须从实际安装取得，不能用函数 toString 证明闭包一致。
+文件函数、普通未声明确定性的 JSON 函数和文件到 JSON 的执行绑定描述尚未接入；显式登记的确定性 JSON 函数及固定操作 apply Effect 已接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。函数部署身份仍须从实际安装取得，不能用函数 toString 证明闭包一致。
 
 执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，断网脚本的恢复协调与新 Attempt 已接入；订阅认证及其他绑定仍需贯通。
 
@@ -50,3 +50,5 @@ agentflow-credential-execution/v2 保存用户 prompt/config/outcomes、实际 A
 不可变环境凭据的 Docker 定义为 agentflow-docker-execution/v3，增加只含 credentialRef/service/method 与变量名称的 privateState；没有密钥、内容摘要或源存储 generation/revision。DeepSeek 的 Agent 定义现在包含这个实际环境、固定代理镜像与代理程序摘要；同一组合保留描述，实际执行重新准备后必须一致，否则在分配容器前拒绝。恢复使用只管理绑定，无须当前凭据仍然存在。这些端口已通过 Driver/Catalog 接入[Workflow 阶段](workflow-phases.md)；单独资源能力仍不授予跨进程认领权。
 
 当前执行快照为 version 2，增加 resourcePlans。实际 executor 可提供 resourcePlan(component)，返回有序且唯一的 1–8 个 resource/operation 阶段；resource 包含实际环境定义。编译固定描述和恢复方法，快照保存独立副本；恢复须与当前安装完整一致，不能从保存计划生成执行器。未提供该能力的节点使用空映射中的缺省单资源路径。见[阶段指南](workflow-phases.md)。
+
+确定性 JSON Gate/Transform 使用实际登记的实现版本及配置描述，并通过共同恢复入口重算尚未接纳的调用。版本是安装者对代码与依赖行为的约定，不能自动证明闭包或环境一致。见[确定性函数指南](deterministic-functions.md)。

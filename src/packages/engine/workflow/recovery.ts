@@ -33,7 +33,11 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
     const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted ? attempt : null;
     const binding = active ? getPlan(compiled).bindings.get(active.node)! : null;
     if (active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases)) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
-    if (binding?.component.kind === 'effect') {
+    const recomputable = binding && ['gate', 'transform'].includes(binding.component.kind)
+      && !binding.executor.resourceDefinition && !binding.executor.restoreResource && !binding.executor.restorePhaseResource
+      && binding.executor.checkRecovery && [binding.component.inputContract, ...Object.values(binding.component.outcomes)]
+        .every(id => binding.executor.contract(id).kind === 'json');
+    if (binding && (binding.component.kind === 'effect' || recomputable)) {
       if (!binding.executor.checkRecovery || active!.resource !== null || active!.phases !== undefined) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
       await binding.executor.checkRecovery(snapshot(binding.component), snapshot(checkpoint.cursor.value), snapshot(active!.identity));
     } else if (binding && (active?.phases !== undefined ? !binding.executor.restorePhaseResource : !binding.executor.resourceDefinition || !binding.executor.restoreResource)) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');

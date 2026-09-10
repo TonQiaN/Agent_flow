@@ -102,3 +102,5 @@
 [Effect 持久日志与进程中断验证](2026-09-10-effect-journal.md)。
 
 [固定操作 Effect Workflow 恢复验证](2026-09-10-effect-workflow.md)。
+
+[确定性 JSON 函数绑定与恢复验证](2026-09-10-function-binding.md)。
