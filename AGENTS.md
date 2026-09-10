@@ -21,7 +21,7 @@ src/
   packages/engine/           执行引擎与契约
   packages/integrations/     文件、进程、容器等环境适配
   examples/                  示例入口
-  tests/e2e/                 跨模块与 CLI 测试
+  tests/                     跨模块、CLI 测试与合成测试素材
   tooling/                   依赖边界与测试工具
 .agents/decisions/            产品与开发流程取舍、生命周期及局部指令
 .github/                     Issue / PR 模板
