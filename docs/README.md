@@ -86,3 +86,5 @@
 [批卷文件 Script](guides/tutor-file-scripts.md)已接通 intake/Gate 的实际执行及中断恢复验证；整条批卷持久组合仍待接线。
 
 [批卷来源重开](guides/tutor-source-reopening.md)已复用 Run 的首个输入归档；完整批卷持久组合继续接线。
+
+[指定 JSON 文件转换](guides/json-file-projection.md)已支持持久执行与来源收据恢复；已接纳转换不重跑，普通宿主回调仍不支持持久恢复。

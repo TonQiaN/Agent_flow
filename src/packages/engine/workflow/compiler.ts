@@ -50,6 +50,7 @@ export function compileWorkflow(value: WorkflowDefinition, catalog: WorkflowCata
         ...(source.restorePhaseResource ? { restorePhaseResource: source.restorePhaseResource.bind(source) } : {}),
         ...(source.resourceDefinition ? { resourceDefinition: source.resourceDefinition.bind(source) } : {}),
         ...(source.restoreValue ? { restoreValue: source.restoreValue.bind(source) } : {}),
+        ...(source.checkpointAcceptance ? { checkpointAcceptance: source.checkpointAcceptance.bind(source) } : {}),
         ...(source.checkpointValue ? { checkpointValue: source.checkpointValue.bind(source) } : {}),
         ...(source.executionDefinition ? { executionDefinition: source.executionDefinition.bind(source) } : {}),
         ...(source.restoreResource ? { restoreResource: source.restoreResource.bind(source) } : {}) });
