@@ -1,6 +1,6 @@
 # Workflow 文件节点与 Agent 交接
 
-`FileWorkflowCatalog` 是 integrations 中的本机文件适配，实现与 JSON catalog 相同的 Workflow 执行端口。它不在编译器或调度器里添加 provider、文件系统或认证分支。当前支持可信宿主文件 Gate/Transform，以及注入的 `AgentExecutor`；确定性脚本通过 registerScript 接入（见 [脚本指南](workflow-scripts.md)），Effect 使用独立 JSON 执行适配（见 [Effect 指南](workflow-effects.md)），文件到 JSON 的消费侧转换及持久恢复尚待实现。
+`FileWorkflowCatalog` 是 integrations 中的本机文件适配，实现与 JSON catalog 相同的 Workflow 执行端口。它不在编译器或调度器里添加 provider、文件系统或认证分支。当前支持可信宿主文件 Gate/Transform，以及注入的 `AgentExecutor`；确定性脚本通过 registerScript 接入（见 [脚本指南](workflow-scripts.md)），Effect 使用独立 JSON 执行适配（见 [Effect 指南](workflow-effects.md)），文件到 JSON 的消费侧转换已通过 FileJsonWorkflowCatalog 接入，见 [Tutor 合成批卷](tutor-grading-fixture.md)；持久恢复尚待实现。
 
 ## 登记与运行
 
@@ -45,4 +45,4 @@ Agent 的跨 Gate 来源由 Workflow receipt 连接。适配器先从私有快�
 
 取消仍由 Workflow 控制；可信函数只能合作结束。已完成并接纳的步骤可能在最终 cancelled Run 的 lastAccepted 中保留，调用方同样须管理其文件生命周期。未知执行停止状态保留为 failed/EXECUTION_STOP_UNCONFIRMED。
 
-当前合成驱动测试已覆盖 Agent → Gate → Fixer → Gate，不能据此宣称真实模型批卷完成。参见 [验证记录](../validation/2026-09-09-workflow-files.md) 与 [串行控制](workflow.md)。
+合成驱动测试覆盖 Agent → Gate → Fixer → Gate；同一应用的 [真实 Codex 合成材料验收](tutor-grading-codex.md) 已独立通过，两类证据分别记录。参见 [验证记录](../validation/2026-09-09-workflow-files.md) 与 [串行控制](workflow.md)。
