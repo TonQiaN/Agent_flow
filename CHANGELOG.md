@@ -6,6 +6,8 @@
 
 ### 重要变更
 
+- 根 AGENTS.md 采用独立书写决定，整理为必要规则、真实仓库布局、docs 工作入口与团队约定；项目内每份 AGENTS.md 配套同目录 CLAUDE.md 符号链接，本轮补齐决策目录链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
+
 - 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
 
 ### 新增
