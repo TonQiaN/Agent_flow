@@ -1,6 +1,6 @@
 # 开发工作指南
 
-当前仓库具备开发流程决定、Issue / PR 模板及协作说明，尚无可运行产品。自动预检、CI/CD、测试矩阵和开发 Skill 尚未配置，真实产品流程尚未验证；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
+当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置 Node 24/26 基础 CI，自动预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
 
 ## 建立和整理 Issue
 
@@ -38,7 +38,7 @@ Issue 保存实际讨论和确认，正式决定保留自足的取舍、必要�
 
 审阅者可以先理解主 Issue 的问题、要求和完成标准，在查看实现前独立思考解决方式，再对照 PR 交付、实际采用的方案和证据给出意见。除代码问题外，也核对结果是否满足需求、决定与文档是否一致。更好方案的建议不自动成为已确认变更，阻塞反馈由负责人处理；修正后补做受影响的验证。
 
-涉及版本目标或范围时同步 [Roadmap](../roadmap/README.md)；影响使用者的实际变化写入 [CHANGELOG](../../CHANGELOG.md) 的 Unreleased。适用时点见 [版本维护指南](versioning.md)，普通 PR 不执行发布步骤。当前无统一产品测试命令，验证按本次成果与影响确定，未运行或未配置的项目如实列出。
+涉及版本目标或范围时同步 [Roadmap](../roadmap/README.md)；影响使用者的实际变化写入 [CHANGELOG](../../CHANGELOG.md) 的 Unreleased。适用时点见 [版本维护指南](versioning.md)，普通 PR 不执行发布步骤。当前基础检查命令为 `npm run check`，包含依赖边界、构建、测试类型检查及 Node 测试；更完整的集成验证按改动和验收范围确定，未运行或未配置的项目如实列出，实际结果留在 PR 或需要长期保存的 [验证记录](../validation/README.md)。
 
 ## 关联、合并与关闭
 
@@ -56,6 +56,6 @@ PR 引用本次覆盖的主 Issue 和实际存在的 Sub-issue。一个子项可
 | --- | --- |
 | 五类主 Issue 表单、空白与子项入口的实际显示核对及职责说明 | 长期使用效果 |
 | 人参与整理、预检、决定与 PR 的交接约定 | 自动状态、自动预检、决策增量门禁 |
-| 局部文档与模板验证 | 产品 CI/CD、测试矩阵、真实产品开发流程 |
+| 局部文档与模板验证、TypeScript 构建与 Node 测试、Node 24/26 CI | 完整产品集成矩阵、部署与真实产品开发流程 |
 
 本轮实现与验证见 [主 Issue 模板验证](../validation/2026-09-10-main-issue-templates.md)。[2026-09-08 验证](../validation/2026-09-08-issue-templates.md) 是旧版五表的历史证据；本轮默认分支入口已另行核对。私有仓库 required、Assignees 与默认分支的实际平台限制见 Issue 指南。Sub-issue 目前没有模板或写作推荐，本轮也未验证长期模板化收益。

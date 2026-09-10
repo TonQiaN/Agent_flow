@@ -5,6 +5,7 @@
 | 日期 | 记录 |
 | --- | --- |
 | 2026-09-10 | [根 AGENTS.md 与同目录指令链接验证](2026-09-10-root-agents.md) |
+| 2026-09-09 | [执行基础验证](2026-09-09-execution-foundation.md) |
 | 2026-09-10 | [主 Issue 模板与 Sub-issue 自主表达验证](2026-09-10-main-issue-templates.md)（含合并后实际入口核对） · [五类主 Issue 填写与边界核对](2026-09-10-main-issue-examples.md) |
 | 2026-09-08 | [Issue 模板实施验证](2026-09-08-issue-templates.md) · [12 个填写与边界演练](2026-09-08-issue-template-examples.md) |
 | 2026-09-08 | [七份 Issue 模板决定设计验证](2026-09-08-issue-template-decisions.md) |
@@ -12,4 +13,4 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-项目尚无产品运行实现，本目录当前没有产品运行测试结果。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证仅覆盖确定性 Component 基础，不包含完整 Workflow 或真实 Agent。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。

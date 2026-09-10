@@ -8,19 +8,29 @@
 
 ## Repository layout · 仓库布局
 
-当前为文档与协作骨架，尚无产品运行实现。
+当前已实现能力与未完成范围以 [文档入口](docs/README.md) 为准。
 
 ```text
 AGENTS.md                    全项目工作入口
 CLAUDE.md -> AGENTS.md        同一指令正文的 Claude 入口
+package.json                 npm workspaces 与工程命令
+package-lock.json            固定依赖版本
+src/
+  apps/cli/                  命令行入口
+  packages/domain/           业务类型与执行身份
+  packages/engine/           执行引擎与契约
+  examples/                  示例入口
+  tests/e2e/                 跨模块与 CLI 测试
+  tooling/                   依赖边界与测试工具
 .agents/decisions/            产品与开发流程取舍、生命周期及局部指令
 .github/                     Issue / PR 模板
   ISSUE_TEMPLATE/            五类主 Issue 表单与空白入口配置
   PULL_REQUEST_TEMPLATE.md   PR 交付与审查说明
+  workflows/                 基础 CI
 docs/
   README.md                  当前能力与文档入口
   architecture/              当前架构说明与待定问题
-  guides/                    使用指南；运行入口尚未建立
+  guides/                    安装、运行与接口使用
   development/               开发、Issue、文档及版本维护指南
   reference/                 仓库结构等参考
   roadmap/                   当前规划，不代表已实现
@@ -28,17 +38,16 @@ docs/
   postmortems/               永久事故复盘
 CHANGELOG.md                 实际变化与发布记录
 materials/                   宽松原始资料区
-<产品源码目录>               占位：待确定，尚未创建
-<产品测试目录>               占位：待确定，尚未创建
 ```
 
-目录或职责变化时，同步本节与 [完整结构图](docs/reference/repository-map.md)。产品运行、构建和测试命令尚未建立，落地后补充 [使用指南](docs/guides/README.md) 及入口，勿将占位当作可执行路径。
+目录或职责变化时，同步本节与 [完整结构图](docs/reference/repository-map.md)。尚未建立的入口明确标为占位，落地后及时替换；运行与安装方式见 [使用指南](docs/guides/README.md)。
 
 ## 按任务读取
 
 先从 [文档入口](docs/README.md) 确认当前能力，再读取本次任务所需说明：
 
 - 开工、预检、决策准备、PR 与验收：按 [开发工作指南](docs/development/workflow.md) 执行。
+- 源码组织、包依赖与构建测试：按 [工程指南](docs/development/code-structure.md) 执行。
 - 主 Issue 填写与 Sub-issue 分工：按 [Issue 指南](docs/development/issue-templates.md) 执行。
 - 文档和 AGENTS.md 的书写归属、修改与核对：按 [文档维护指南](docs/development/documentation.md) 执行。
 - 版本规划、范围调整、变更记录与发布：按 [版本维护指南](docs/development/versioning.md) 执行。
