@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### 重要变更
+
+- 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
+
 ### 新增
 
 - 增加与 Harness/认证解耦的 Agent 接纳层、Codex 执行驱动及进程内可信收据：绑定身份、输入输出快照与 outcome，拒绝伪造/跨 Run 前序和重复 Attempt，清理恢复不会升级原失败结果。
