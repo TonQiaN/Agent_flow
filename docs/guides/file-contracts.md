@@ -1,6 +1,6 @@
 # 文件契约与独立交接
 
-`FileContractRegistry` 位于 engine，处理文件事实和契约，不读取目录或调用 Harness。`FileArtifactStore` 位于 integrations，负责本机自动扫描、快照与校验后复制。它们可供确定性脚本与 Agent 共用，当前还未接入完整 Workflow 和可信前序记录。
+`FileContractRegistry` 位于 engine，处理文件事实和契约，不读取目录或调用 Harness。`FileArtifactStore` 位于 integrations，负责本机自动扫描、快照与校验后复制。它们供确定性脚本与 Agent 共用，已通过 [FileWorkflowCatalog](workflow-files.md)接入 Workflow 及来源收据；跨进程内容由独立[耐久归档](artifact-archive.md)保存。
 
 ```ts
 const json = new ContractRegistry();
