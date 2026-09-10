@@ -18,7 +18,7 @@ catalog.register('publish', {
 }); // 默认 dry-run
 ```
 
-示例使用合成凭据，只接入内存目标。contracts/components 须事先登记对应输入、收据和三个出口。JSON 函数、文件执行和 Effect 各自提供 catalog，宿主按 Component ID 显式组合它们；编译与运行控制不检查 provider 或业务角色。文件到 Effect JSON 输入的转换需要显式 Transform，当前消费侧桥接仍待后续合成批卷切片完成。
+示例使用合成凭据，只接入内存目标。contracts/components 须事先登记对应输入、收据和三个出口。JSON 函数、文件执行和 Effect 各自提供 catalog，宿主按 Component ID 显式组合它们；编译与运行控制不检查 provider 或业务角色。文件到 Effect JSON 输入的转换需要显式 Transform，消费侧桥接已由 FileJsonWorkflowCatalog 实现，见 [Tutor 合成批卷](tutor-grading-fixture.md)。
 
 ## 一次授权
 
@@ -45,6 +45,6 @@ Workflow 接入可在 `register` 中显式选择 `mode: 'apply'`，并安装 `ap
 
 启动前取消不调用服务。已发出的动作等待适配器返回；如果结果不确定，Workflow 保留失败和当前身份，不报告取消完成。若动作已经确认写入，随后取消的 Run 仍在 lastAccepted 中保留 applied 收据，取消不代表回滚。
 
-首期控制入口是 TypeScript 库的 compileWorkflow、WorkflowRuntime.start/query/cancel 及 Run 句柄。CLI 定义加载属于可选后续功能，不是 Issue #9 的额外验收前置。当前完整文件 Agent → Gate/Fixer → Transform → Effect 批卷样例仍待消费侧集成。
+首期控制入口是 TypeScript 库的 compileWorkflow、WorkflowRuntime.start/query/cancel 及 Run 句柄。CLI 定义加载属于可选后续功能，不是 Issue #9 的额外验收前置。文件 Agent → Gate/Fixer → Transform → Effect 批卷样例已完成消费侧集成，合成替身和真实 Codex 使用同一应用；真实业务发布仍未接入。
 
 [验证记录](../validation/2026-09-09-workflow-effects.md) · [执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
