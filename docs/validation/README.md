@@ -126,3 +126,5 @@
 - [节点有限重试与持久等待](2026-09-10-node-retries.md)
 
 - [2026-09-10 Tutor 扫描件批改与报告串接](2026-09-10-tutor-scanned-marking.md)：合成来源、复核哈希/质量、用户返修和 PDF。
+
+- [Codex 初始图片执行验证](2026-09-10-codex-input-images.md)：参数、manifest、既有 Docker 组合及真实扫描件尝试。
