@@ -37,8 +37,13 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   const requests: WorkflowValueRestoreData[] = [];
   const add = (record: WorkflowCheckpointValue, node: string, contract: { kind: string; id: string }, expected: WorkflowValueRestoreData['expected']) => {
     valid(shape(record, ['node', 'contract', 'value', 'saved']) && record.node === node && equal(record.contract, contract));
-    if (contract.kind === 'json') valid(shape(record.saved, ['schema', 'value']) && object(record.saved)
-      && record.saved['schema'] === 'agentflow-json-value/v1' && equal(record.saved['value'], record.value));
+    if (contract.kind === 'json') {
+      const provenance = expected !== null && !!plan.bindings.get(node)!.executor.checkpointAcceptance;
+      valid(object(record.saved) && equal(record.saved['value'], record.value)
+        && (provenance ? shape(record.saved, ['schema', 'value', 'provenance']) && record.saved['schema'] === 'agentflow-json-value/v2'
+          && object(record.saved['provenance']) && typeof record.saved['provenance']['schema'] === 'string' && !!record.saved['provenance']['schema']
+          : shape(record.saved, ['schema', 'value']) && record.saved['schema'] === 'agentflow-json-value/v1'));
+    }
     else valid(object(record.saved) && typeof record.saved['schema'] === 'string' && !!record.saved['schema']);
     requests.push({ runId, record, expected, execution: null });
   };
@@ -150,10 +155,10 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   };
   try {
     // Check all required capabilities before materializing any value.
-    for (const r of requests) if ((r.record.contract.kind === 'files' || r.expected !== null && getPlan(compiled).bindings.get(r.record.node)!.component.kind === 'effect') && !getPlan(compiled).bindings.get(r.record.node)!.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
+    for (const r of requests) if ((r.record.contract.kind === 'files' || r.expected !== null && (getPlan(compiled).bindings.get(r.record.node)!.component.kind === 'effect' || !!getPlan(compiled).bindings.get(r.record.node)!.executor.checkpointAcceptance)) && !getPlan(compiled).bindings.get(r.record.node)!.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
     for (const r of requests) {
       const binding = getPlan(compiled).bindings.get(r.record.node)!;
-      if (r.record.contract.kind === 'files' || r.expected !== null && binding.component.kind === 'effect') {
+      if (r.record.contract.kind === 'files' || r.expected !== null && (binding.component.kind === 'effect' || !!binding.executor.checkpointAcceptance)) {
         const handle = await binding.executor.restoreValue!(issueValueRestore({ ...r, execution: checkpoint.execution.bindings[r.record.node]! }));
         if (!handle || typeof handle.dispose !== 'function') throw new DefinitionError('INVALID_WORKFLOW_RESTORE_HANDLE');
         disposers.push(handle.dispose.bind(handle));

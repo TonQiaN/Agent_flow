@@ -110,3 +110,5 @@
 [批卷文件 Script 与中断恢复](2026-09-10-tutor-file-scripts.md)。
 
 [批卷来源归档重开验证](2026-09-10-tutor-source-reopening.md)。
+
+- [JSON 文件转换与来源恢复](2026-09-10-json-file-projection.md)：子进程中断、收据恢复、定义漂移、并发与回滚验证。

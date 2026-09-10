@@ -161,7 +161,7 @@ export class WorkflowRuntime {
         if (run.writer && !run.writer.phasesComplete(node)) return end('failed', 'WORKFLOW_PHASES_INCOMPLETE');
         // Archive actual accepted bytes before recording acceptance and its successor in one CAS.
         let saved: WorkflowCheckpointValue | undefined;
-        try { saved = await run.writer?.saveValue(node, binding.outcomes.get(result.outcome)!, result.output); }
+        try { saved = await run.writer?.saveValue(node, binding.outcomes.get(result.outcome)!, result.output, result); }
         catch { return end('failed', 'WORKFLOW_VALUE_PERSISTENCE_FAILED'); }
         if (saved) run.writer!.acceptValue(saved);
         const step = { node, result }; run.steps.push(step); run.view.lastAccepted = step; run.value = snapshot(result.output);

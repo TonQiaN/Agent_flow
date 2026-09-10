@@ -3,7 +3,7 @@ import { DefinitionError } from '../errors.js';
 import { snapshot } from './compiler.js';
 import type { WorkflowCheckpointValue } from './checkpoint.js';
 
-export interface WorkflowValueRestoreRequest { readonly kind: 'workflow_value_restore' }
+export interface WorkflowValueRestoreRequest { readonly kind: 'workflow_value_restore'; readonly contract: Readonly<{ kind: 'json' | 'files'; id: string }> }
 export interface WorkflowRestoredValue { readonly value: JsonValue; dispose(): Promise<void> }
 export interface WorkflowValueRestoreData {
   readonly runId: string;
@@ -14,7 +14,7 @@ export interface WorkflowValueRestoreData {
 const requests = new WeakMap<WorkflowValueRestoreRequest, WorkflowValueRestoreData>();
 /** Internal loader factory; not exported from the engine package. */
 export function issueValueRestore(data: WorkflowValueRestoreData): WorkflowValueRestoreRequest {
-  const request = Object.freeze({ kind: 'workflow_value_restore' as const }); requests.set(request, snapshot(data)); return request;
+  const request = Object.freeze({ kind: 'workflow_value_restore' as const, contract: Object.freeze(snapshot(data.record.contract)) }); requests.set(request, snapshot(data)); return request;
 }
 /** An installed adapter consumes a loader-issued request once. JSON copies carry no authority. */
 export function consumeWorkflowValueRestore(request: WorkflowValueRestoreRequest): WorkflowValueRestoreData {

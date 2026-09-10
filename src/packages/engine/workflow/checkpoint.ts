@@ -10,7 +10,7 @@ import { runnerLaunchStates } from '../runner/launch.js';
 import { getPlan, snapshot } from './compiler.js';
 import { snapshotWorkflowExecution } from './execution.js';
 import type { WorkflowExecutionSnapshot } from './execution.js';
-import type { CompiledWorkflow, WorkflowContract, WorkflowSnapshot } from './types.js';
+import type { CompiledWorkflow, WorkflowContract, WorkflowSnapshot, WorkflowNodeResult } from './types.js';
 
 /** A token in snapshot/cursor is usable after restart only with its corresponding saved value. */
 export interface WorkflowCheckpointValue {
@@ -54,6 +54,7 @@ export class CheckpointWriter {
     private readonly store: RunRecordStore, private readonly execution: WorkflowExecutionSnapshot) {}
   static async prepare(compiled: CompiledWorkflow, runId: string, store: RunRecordStore): Promise<CheckpointWriter> {
     for (const binding of getPlan(compiled).bindings.values()) {
+      if (binding.executor.checkpointAcceptance && !binding.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
       if ([binding.input, ...binding.outcomes.values()].some(c => c.kind === 'files') && !binding.executor.checkpointValue) throw new DefinitionError('WORKFLOW_VALUE_PERSISTENCE_UNAVAILABLE');
     }
     const writer = new CheckpointWriter(compiled, runId, store, await snapshotWorkflowExecution(compiled));
@@ -109,10 +110,16 @@ export class CheckpointWriter {
     const plan = invocationPlanFor(this.execution.resourcePlans, node), phases = this.#attempts.at(-1)?.phases;
     return !plan || phases?.length === plan.phases.length && phases.every(p => p.status === 'completed');
   }
-  async saveValue(node: string, contract: WorkflowContract, value: JsonValue): Promise<WorkflowCheckpointValue> {
+  async saveValue(node: string, contract: WorkflowContract, value: JsonValue, accepted?: Extract<WorkflowNodeResult, { status: 'accepted' }>): Promise<WorkflowCheckpointValue> {
     const binding = getPlan(this.compiled).bindings.get(node)!;
-    const saved = contract.kind === 'json' ? { schema: 'agentflow-json-value/v1', value: snapshot(value) }
+    const saved = contract.kind === 'json' ? accepted && binding.executor.checkpointAcceptance
+      ? { schema: 'agentflow-json-value/v2', value: snapshot(value), provenance: snapshot(await binding.executor.checkpointAcceptance(snapshot(accepted))) }
+      : { schema: 'agentflow-json-value/v1', value: snapshot(value) }
       : await binding.executor.checkpointValue!(snapshot(value), this.runId, contract.id);
+    if (contract.kind === 'json' && accepted && binding.executor.checkpointAcceptance) {
+      const provenance = (saved as { provenance?: JsonValue }).provenance;
+      if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance) || typeof provenance['schema'] !== 'string' || !provenance['schema']) throw new DefinitionError('INVALID_WORKFLOW_VALUE_SNAPSHOT');
+    }
     const copied = snapshot(saved);
     if (copied === null || typeof copied !== 'object' || Array.isArray(copied) || typeof copied['schema'] !== 'string' || !copied['schema']) throw new DefinitionError('INVALID_WORKFLOW_VALUE_SNAPSHOT');
     return snapshot({ node, contract, value, saved: copied });

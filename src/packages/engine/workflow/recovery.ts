@@ -35,8 +35,7 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
     if (active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases)) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
     const recomputable = binding && ['gate', 'transform'].includes(binding.component.kind)
       && !binding.executor.resourceDefinition && !binding.executor.restoreResource && !binding.executor.restorePhaseResource
-      && binding.executor.checkRecovery && [binding.component.inputContract, ...Object.values(binding.component.outcomes)]
-        .every(id => binding.executor.contract(id).kind === 'json');
+      && binding.executor.checkRecovery && Object.values(binding.component.outcomes).every(id => binding.executor.contract(id).kind === 'json');
     if (binding && (binding.component.kind === 'effect' || recomputable)) {
       if (!binding.executor.checkRecovery || active!.resource !== null || active!.phases !== undefined) throw new DefinitionError('WORKFLOW_RESOURCE_RESTORE_UNAVAILABLE');
       await binding.executor.checkRecovery(snapshot(binding.component), snapshot(checkpoint.cursor.value), snapshot(active!.identity));

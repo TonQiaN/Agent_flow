@@ -73,3 +73,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [批卷文件 Script](tutor-file-scripts.md)：复用现有 Runner 的 intake/Gate 绑定。
 
 [批卷原始来源的准备与重开](tutor-source-reopening.md)。
+
+- [指定 JSON 文件转换](json-file-projection.md)：固定读取、契约接纳、持久来源证明与恢复边界。
