@@ -150,3 +150,16 @@ test('multi-outcome uses a schema and structured final answer, never an artifact
     assert.equal(result.outcome, status === 'completed' ? 'rejected' : null);
   }
 });
+
+test('Codex initial images preserve ordering and map only safe input-relative paths', () => {
+  const inputImages = ['source/prompt-images/page-0002.jpg', 'source/prompt-images/page-0001.png'];
+  const selected = { ...task, config: { ...(task.config as object), inputImages } };
+  const plan = adapter.plan(selected);
+  assert.deepEqual(plan.argv.slice(-6), ['--image', '/task/input/source/prompt-images/page-0002.jpg', '--image', '/task/input/source/prompt-images/page-0001.png', '--', task.prompt]);
+  inputImages[0] = 'changed.jpg';
+  assert.ok(!plan.argv.includes('/task/input/changed.jpg'));
+  assert.equal(adapter.interpret(evidence([...start, completed], selected)).status, 'completed');
+  for (const paths of [['/etc/passwd.png'], ['../state/codex/auth.json'], ['source/../state/a.png'], ['a,b.png'], ['a.png','a.png'], ['a.gif'], [''], ['folder\\image.png'], ['bad\nimage.png'], ['bad\0image.png'], [null], Array(2), Array.from({ length: 65 }, (_, i) => `${i}.png`), 'a.png']) {
+    assert.throws(() => adapter.plan({ ...task, config: { ...(task.config as object), inputImages: paths } as any }), /INVALID_CODEX_INPUT_IMAGES/);
+  }
+});
