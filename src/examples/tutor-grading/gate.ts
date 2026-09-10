@@ -38,3 +38,13 @@ export async function review(context: Pick<FileFunctionContext, 'inputPath' | 'o
   await writeFile(join(context.outputsPath, 'gate-report.json'), JSON.stringify(report));
   return { outcome: report.decision };
 }
+
+/** Same publication data construction for ordinary and durable application compositions. */
+export async function publicationInput(inputPath: string, workoutId: string) {
+  const candidate = await readJson<Candidate>(inputPath, 'candidate.json'), report = await readJson<GateReport>(inputPath, 'gate-report.json');
+  const candidateHash = digest(await readFile(join(inputPath, 'candidate.json')));
+  if (report.decision !== 'passed' || report.findings.length || report.candidateHash !== candidateHash) throw new Error('GATE_REPORT_MISMATCH');
+  return { workoutId, paperId: candidate.paperId, studentId: candidate.studentId, total: candidate.total, maxTotal: candidate.maxTotal,
+    candidateHash, reportHash: digest(await readFile(join(inputPath, 'gate-report.json'))),
+    sourceFiles: await Promise.all(sourcePaths.map(async path => ({ path, sha256: digest(await readFile(join(inputPath, path))) }))) };
+}

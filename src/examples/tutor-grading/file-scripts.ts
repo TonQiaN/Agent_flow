@@ -23,15 +23,18 @@ export function gradingSourceFacts(original: GradingSourceFacts): GradingSourceF
 
 /** Actual installed program bytes become argv in the normal Script execution snapshot.
  * Rebuild from the current installation on recovery; never execute a saved program blindly. */
-export async function gradingFileScripts(original: GradingSourceFacts): Promise<GradingFileScripts> {
+export async function gradingFileScripts(original: GradingSourceFacts, publication?: { readonly workoutId: string }): Promise<GradingFileScripts> {
   const source = gradingSourceFacts(original), sourceArgument = JSON.stringify(source);
+  const workoutId = publication?.workoutId;
+  if (publication !== undefined && (typeof workoutId !== 'string' || !/^[a-z0-9-]+$/.test(workoutId))) throw new Error('INVALID_GRADING_PUBLICATION');
   const program = stripTypeScriptTypes(await readFile(new URL('./gate.ts', import.meta.url), 'utf8'));
   const intake = `import { cp } from 'node:fs/promises';
 await cp(${JSON.stringify(TASK_PATHS.input)}, ${JSON.stringify(TASK_PATHS.outputs)}, { recursive: true });
 process.stdout.write(JSON.stringify({schema:${JSON.stringify(SCRIPT_RESULT_SCHEMA)},outcome:'completed'}));`;
   const gate = `${program}
 const result = await review({inputPath:${JSON.stringify(TASK_PATHS.input)},outputsPath:${JSON.stringify(TASK_PATHS.outputs)}}, JSON.parse(process.argv[1]));
+${workoutId === undefined ? '' : `if(result.outcome === 'passed') await writeFile('/task/outputs/publication.json',JSON.stringify(await publicationInput('/task/outputs',JSON.parse(process.argv[2]))));`}
 process.stdout.write(JSON.stringify({schema:${JSON.stringify(SCRIPT_RESULT_SCHEMA)},outcome:result.outcome}));`;
   return { source, intake: { argv: ['node', '--input-type=module', '-e', intake], timeoutMs: 30_000 },
-    gate: { argv: ['node', '--input-type=module', '-e', gate, sourceArgument], timeoutMs: 30_000 } };
+    gate: { argv: ['node', '--input-type=module', '-e', gate, sourceArgument, ...(workoutId === undefined ? [] : [JSON.stringify(workoutId)])], timeoutMs: 30_000 } };
 }

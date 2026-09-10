@@ -17,3 +17,10 @@ test('grading scripts reject incomplete, duplicate and malformed original-source
   assert.throws(()=>gradingSourceFacts({files}),/INVALID_GRADING_SOURCE_FACTS/);await assert.rejects(gradingFileScripts({files}),/INVALID_GRADING_SOURCE_FACTS/);
  }
 });
+test('durable grading publication target is captured as a separate argument',async()=>{
+ const facts={files:sourcePaths.map(path=>({path,sha256:'a'.repeat(64)}))},publication={workoutId:'fixture-workout'};
+ const pending=gradingFileScripts(facts,publication);publication.workoutId='other-workout';const scripts=await pending;
+ assert.equal(JSON.parse(scripts.gate.argv[5]!),'fixture-workout');assert.match(scripts.gate.argv[3]!,/publicationInput/);
+ assert.match(scripts.gate.argv[3]!,/result.outcome === 'passed'/);assert.match(scripts.gate.argv[3]!,/process.argv\[2\]/);
+ await assert.rejects(gradingFileScripts(facts,{workoutId:'../invalid'}),/INVALID_GRADING_PUBLICATION/);
+});

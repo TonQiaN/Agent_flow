@@ -88,3 +88,5 @@
 [批卷来源重开](guides/tutor-source-reopening.md)已复用 Run 的首个输入归档；完整批卷持久组合继续接线。
 
 [指定 JSON 文件转换](guides/json-file-projection.md)已支持持久执行与来源收据恢复；已接纳转换不重跑，普通宿主回调仍不支持持久恢复。
+
+[持久批卷应用组合](guides/persistent-tutor-grading.md)已接通 Script、Agent、JSON 转换和固定 Effect 的来源与当前审批；合成真实容器验收与官方模型、真实学生验收分别记录。
