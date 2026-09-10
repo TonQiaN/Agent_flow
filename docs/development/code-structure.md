@@ -14,6 +14,7 @@
 | `src/packages/integrations/` | 文件、进程、容器等具体环境适配 |
 | 模块旁的 `*.test.ts` / `*.test.mjs` | 对应模块的单元测试 |
 | `src/tests/e2e/` | 跨模块、CLI 与运行环境集成测试 |
+| `src/tests/fixtures/` | 合成子进程等测试素材 |
 | `src/examples/` | 示例入口 |
 | `src/tooling/` | 依赖边界检查与测试发现工具 |
 

@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component、JSON contract、离线 Docker Runner、示例及工程检查。完整 Workflow、文件 contract、认证/Harness、持久化、队列、重试和并行尚未实现。**
+**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。完整 Workflow、持久化、队列、重试和并行尚未实现；首个 Codex 订阅组合已通过真实合成数字任务，真实刷新及完整 Tutor 流程尚未验收。**
 
 | 入口 | 内容 |
 | --- | --- |
