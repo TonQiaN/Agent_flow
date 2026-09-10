@@ -13,7 +13,7 @@ try {
 }
 ```
 
-使用与保存时相同的实际脚本、contract、Docker 参数及可解析到相同镜像 ID 的配置重新组装 Catalog 和 compiled。当前内置组合限于断网 Docker 脚本；描述缺失或变化会拒绝加载。编译和检查点加载不会把普通函数闭包或 Agent 配置当作已验证的执行版本。
+使用与保存时相同的实际脚本、contract、Docker 参数及可解析到相同镜像 ID 的配置重新组装 Catalog 和 compiled。当前组合还支持 CONNECT Script、具备相应能力的 Agent、确定性 JSON 函数、指定 JSON 文件投影及固定 apply Effect；描述缺失或变化会拒绝加载。编译和检查点加载不会把普通函数闭包或 Agent 配置当作已验证的执行版本。
 
 加载接受普通 v5 检查点及 agentflow-workflow-recovery/v1 恢复封套中的 v5 检查点，先严格核对版本、字段、Run、Attempt 和步骤身份、中断 Attempt 的连续编号和结果步骤关联、资源唯一性、launch 状态与资源的对应关系、已接纳输出、当前值及状态，并复用正常执行的路由计算核对历史计数与位置。非空 Runner 资源还须匹配该节点实际注册的资源环境；此处不安装旧资源或查询容器，后续具体归属和停止核对由 Runner 完成。文件记录再核对归档摘要、contract、收据身份、实际镜像及前序清单；文件内容经过摘要复核和 contract 校验后复制到新的临时 ArtifactStore。旧 fileRef 和清单 ID 保留逻辑关联，实际临时存储 ID 单独管理。复制出的文件可修改，后续物化和原归档保持不变。
 
@@ -27,7 +27,7 @@ Catalog 的 restoreValue 只消费加载器签发的一次性进程内请求。�
 
 加载恢复封套时额外核对 claimRevision、资源移除标记与活动状态的关系，`loaded.recovery` 返回 `{ claimRevision, resourceRemoved }` 的独立副本；普通记录为 null。该检查保持存储 revision 不变，不取得新 claim，也不触碰旧容器。
 
-实际不可变 API key Agent 的文件收据也已接入严格加载：从已安装 Driver 取得 Harness/版本/镜像，核对内外身份、前序引用和完整输入/输出清单；没有 Agent receipt 的公开导入接口。详见[阶段指南](workflow-phases.md)。
+实际 API key 与具备相应来源能力的订阅 Agent 文件收据均已接入严格加载：从已安装 Driver 取得 Harness/版本/镜像，核对内外身份、前序引用和完整输入/输出清单；没有 Agent receipt 的公开导入接口。详见[阶段指南](workflow-phases.md)。
 
 内置 FileArtifactStore 支持直接在存储暂存范围物化归档并完成 contract 校验，因此加载不再建立 Catalog restore 目录；同一清理句柄释放整个本次快照范围。旧存储没有此可选端口时保持原路径回退。再次保存也可直接交给归档，见[归档交接](artifact-archive.md#直接接收已物化副本)。
 
