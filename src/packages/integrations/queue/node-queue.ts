@@ -299,7 +299,11 @@ export class PersistentNodeQueue implements NodeTaskQueue {
                 return false;
             }
             if(task.children!==undefined){return this.#cancelGroup(runId);}
-            if (c.snapshot.currentIdentity !== null || c.snapshot.cancelRequested)
+            // A credential wait may retain the old Attempt after recovery already confirmed cleanup.
+            const recovery = row.content as { schema?: string; resourceRemoved?: boolean };
+            const stopped = recovery.schema === 'agentflow-workflow-recovery/v1'
+                ? recovery.resourceRemoved === true : c.snapshot.currentIdentity === null;
+            if (!stopped || c.snapshot.cancelRequested)
                 throw new DefinitionError('QUEUE_TASK_ACTIVE');
             const value = { ...structuredClone(c), snapshot: { ...c.snapshot, status: 'cancelled', cancelRequested: true, reason: 'CANCEL_REQUESTED', currentNode: null, currentIdentity: null }, cursor: { ...c.cursor, node: null } };
             delete value.snapshot.retry;
