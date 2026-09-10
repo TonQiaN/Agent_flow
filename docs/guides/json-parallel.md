@@ -39,6 +39,8 @@ parallel.register('review', {
 
 Fork 需要 2–62 个预定义分支，分支 ID 使用项目普通 identifier 规则。每个分支的输入 contract 必须与共同输入的 ID 和实际定义一致；这里不推导通用类型兼容关系。分支也可单独设置 `retry`。
 
+Map 或 Fork 分支的 `retry` 省略时不配置重试；显式提供时使用既有重试策略校验。`null`、`false`、`0`、空字符串等无效值会在登记时拒绝，不会静默当作缺省，也不会留下部分子计划。
+
 结构登记后，普通 Workflow 节点仍引用对应登记名，例如 `nodes: { analyze: { component: 'analyze' } }`，以约定 outcome 接到正常路由。所有项目 outcome 输出和汇合 contract 都必须是 JSON。文件/目录 contract、Effect、嵌套 Map/Fork、子流程及非 wait-all 策略在登记时拒绝。
 
 ## 汇合与失败

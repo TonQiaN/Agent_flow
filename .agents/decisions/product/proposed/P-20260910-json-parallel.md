@@ -4,7 +4,7 @@
 
 ## 结论与边界
 
-首版提供 Map 与固定 Fork 的结构登记接口。Map 输入为 JSON 数组，每项携带唯一非空字符串 ID，按原索引汇合；Fork 分支预先命名，按分支 ID 字典序汇合。每项只执行一个已有 Component；输入、所有 outcome 输出与汇合包均为明确引用的 JSON contract。拒绝文件产物、Effect、嵌套展开和非 wait-all 策略。
+首版提供 Map 与固定 Fork 的结构登记接口。Map 输入为 JSON 数组，每项携带唯一非空字符串 ID，按原索引汇合；Fork 分支预先命名，按分支 ID 字典序汇合。每项只执行一个已有 Component；输入、所有 outcome 输出与汇合包均为明确引用的 JSON contract。拒绝文件产物、Effect、嵌套展开和非 wait-all 策略。 子项 retry 省略才表示未配置；显式提供时完整交给既有重试校验，不能把 null、false、0 或空字符串等无效值当作缺省。任何分支配置失败都不得登记部分子计划或预留结构名称。
 
 结构节点由引擎登记与推进，不在业务 Component 内等待其他 Agent。每项以一个稳定的内部执行记录保存普通单节点 Workflow 检查点，身份由父 Run、父 NodeTask 和项目位置确定，并由父展开记录关联；它不是可独立扩展的子流程。内部记录使用同一 RunRecordStore、正常引擎、Worker、恢复和重试端口，不建立另一套业务状态库或线程池。
 

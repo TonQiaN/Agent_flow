@@ -106,7 +106,9 @@ export class DockerBackend implements ExecutionBackend {
 
   /** Nonsecret configured options only; this does not make a private/network resource restorable. */
   configurationSnapshot(): JsonValue {
-    return JSON.parse(JSON.stringify({ options: { ...this.#options, image: this.#pinnedImage ?? this.#options.image, network: this.#egressPrepared?.options ?? this.#options.network },
+    const { maxInputBytes, ...options } = this.#options;
+    // Preserve existing execution definitions when the effective input budget is unchanged.
+    return JSON.parse(JSON.stringify({ options: { ...options, ...(maxInputBytes === 256 * 1024 ** 2 ? {} : { maxInputBytes }), image: this.#pinnedImage ?? this.#options.image, network: this.#egressPrepared?.options ?? this.#options.network },
       paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
   }
 
