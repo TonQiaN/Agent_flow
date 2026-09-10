@@ -16,7 +16,7 @@ try {
 
 `claimWorkflowRecovery()` 先通过原严格加载器核对历史、实际安装定义、contract 和归档/收据，建立本次独立文件引用，再以读取的 revision 执行 CAS。成功后，同一 Run 行的内容成为 `agentflow-workflow-recovery/v1`：保留原 v5 `checkpoint`，增加本次 `claimRevision` 和 `resourceRemoved`。它不会修改原 Attempt 的业务结果、执行新节点或清除取消意图。
 
-只接受 queued/running 且没有取消意图的记录。准备、创建或启动仍为 pending 时拒绝；活动绑定缺少共同资源恢复能力或属于 Effect 时拒绝。原记录没有 Runner 资源时，资源移除条件视为无需处理；这不代表已经重启了节点。旧宿主后续的资源、操作或结果 CAS 无法覆盖新的 revision。
+只接受 queued/running 且没有取消意图的记录。准备、创建或启动仍为 pending 时拒绝；活动绑定必须具备共同资源恢复能力，或具备下述 Effect/确定性 JSON 的显式无资源恢复检查。原记录没有 Runner 资源时，资源移除条件视为无需处理；这不代表已经重启了节点。旧宿主后续的资源、操作或结果 CAS 无法覆盖新的 revision。
 
 `cleanup()` 再次确认当前 CAS 写入权，然后由该节点实际 ScriptExecutor 的共同 Runner 句柄恢复资源身份，query、确认 stop/remove、release，最后通过 CAS 保存移除完成。查询错误不是 absent，停止或目录释放失败均不记录成功。同一句柄并发 cleanup 合并执行；查询、停止或释放失败可保留句柄重试。CAS 失败或冲突关闭该句柄的写入权，应释放其文件引用，再用新的独立组合重新检查和认领。
 
@@ -26,7 +26,7 @@ try {
 
 只想检查时，使用 [loadWorkflowCheckpoint](workflow-checkpoint-loading.md)：它同时接受普通 v5 检查点和上述恢复封套，返回独立的 `checkpoint` 及 `recovery` 元数据，不认领、不写库、不查询或停止容器。
 
-已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作、认证/Effect 等其他绑定仍未整体验收。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作继续拒绝；订阅及完整 #13 仍未整体验收。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
 
 ## 继续正常执行
 
@@ -59,3 +59,5 @@ v5 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资�
 多阶段 executor 的恢复逐一经 restorePhaseResource 恢复该 Attempt 中已经保存的资源，按声明的反向顺序清理；所有资源确认移除并释放后才提交 resourceRemoved=true。部分失败保留 false，后续可重新核对已移除的资源。活动 operation 或任一 pending launch 拒绝认领；各阶段进度不增加业务 steps。详见[阶段指南](workflow-phases.md)。
 
 固定操作的 apply Effect 可通过实际操作日志执行只读恢复准入检查。pending 在 Run 认领前阻塞；已保存回执或无占位时才进入共同 CAS/正常新 Attempt 路径，唯一占位继续防止迟到宿主重复 apply，正常执行仍需当前授权。它不走 Docker 清理或恢复旧服务会话，见[Effect 指南](workflow-effects.md#固定操作的持久-workflow)。
+
+显式登记的确定性 JSON Gate/Transform 可在无资源、无阶段时通过同一入口恢复。当前安装版本及配置须完全匹配，已接纳节点保留，未接纳计算在新 Attempt 重算。原宿主可能仍在计算，迟到结果由 CAS 拒绝；此约定要求无外部副作用，见[确定性函数指南](deterministic-functions.md)。

@@ -80,3 +80,5 @@
 [Effect 持久操作日志](validation/2026-09-10-effect-journal.md)已通过真实进程中断和竞争验证，已确认回执可复用、未知操作不重发；Workflow 接线仍待完成。
 
 [Effect Workflow 恢复](validation/2026-09-10-effect-workflow.md)已接通固定操作的 apply、实际定义和日志身份比较、严格回执核对及新 Attempt；动态映射、其他绑定和完整 #13 仍待完成。
+
+[确定性 JSON 函数](guides/deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通函数、文件函数及完整 #13 仍有验收缺口。
