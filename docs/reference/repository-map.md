@@ -15,7 +15,7 @@ Agent_flow/
 │   ├── packages/domain/           # 业务类型与执行身份
 │   ├── apps/deepseek-tools/        # 容器内文件服务，使用镜像提供的 SDK
 │   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth/persistence 接口；无环境依赖
-│   ├── packages/integrations/     # Docker、CONNECT 代理、独立 Harness、私有凭据存储/绑定、SQLite 状态存储、系统时钟
+│   ├── packages/integrations/     # Docker、CONNECT 代理、三个 Harness 映射/parser、私有凭据存储/绑定、SQLite 状态存储、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
 │   └── tooling/                   # 依赖边界与测试发现工具

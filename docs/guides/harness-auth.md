@@ -64,4 +64,4 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 
 [本地认证 CLI](auth-management.md) 已提供 DeepSeek 的隐藏终端录入、单一受控文件导入、检查和本地删除；不读取环境中的偶然凭据，配置成功仅表示本地已保存。
 
-[订阅登录协调接口](subscription-login.md)提供首次配置前的管理占用和受信登录驱动端口，保留错误/未知停止的清理责任；Codex/Claude 原生登录驱动与实际登录尚未接通。
+[订阅登录协调接口](subscription-login.md)提供首次配置前的管理占用和受信登录驱动端口，保留错误/未知停止的清理责任；Codex/Claude 原生登录驱动及终端入口已接通，真实账号登录仍未验收。
