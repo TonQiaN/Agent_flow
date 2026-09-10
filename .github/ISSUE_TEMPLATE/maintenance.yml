@@ -1,11 +1,22 @@
-# 完整表单；共通字段与同步方式见 docs/development/issue-templates.md。
-name: 工程与流程维护
+# 主 Issue 完整表单；共通字段与同步方式见 docs/development/issue-templates.md。
+name: 主 Issue：工程与流程维护
 description: 要落实什么工程、文档或协作改进？
 title: "[维护] "
 body:
 - type: markdown
   attributes:
-    value: 提交后按项目流程经人参与整理、预检和确认具体范围。请设置 Assignees；表单填写不代表已经开工或验收。正文须自足，原始材料链接可选。[分类与填写指南](https://github.com/TonQiaN/Agent_flow/blob/main/docs/development/issue-templates.md)。
+    value: 本表用于主 Issue：请说清当前情况、想要的结果与必要边界，无需提前给出实现方法。请设置 Assignees，后续经人参与整理并确认具体范围。Sub-issue 的内容与形式由对应负责人自主决定，当前不提供模板或写作建议。[分类与填写指南](https://github.com/TonQiaN/Agent_flow/blob/main/docs/development/issue-templates.md)。
+- type: dropdown
+  id: domain
+  attributes:
+    label: 所属领域
+    description: 本项主要讨论团队的开发与协作方式，还是 AgentFlow 产品本身？请选择一个领域，交叉影响在范围中说明。
+    options:
+    - 开发流程
+    - 项目内容
+    multiple: false
+  validations:
+    required: true
 - type: input
   id: owner
   attributes:
@@ -17,35 +28,22 @@ body:
 - type: textarea
   id: problem
   attributes:
-    label: 当前问题与工程目标
-    description: 说明维护原因和可观察改进；适用于重构、依赖升级、文档、测试设施、开发流程与模板。
+    label: 当前情况与期望改进
+    description: 说明工程、文档或协作中出现什么问题，希望得到什么可观察的改善。
     placeholder: |-
-      当前问题：
-      本次要落实的工程结果：
-  validations:
-    required: true
-- type: textarea
-  id: change_plan
-  attributes:
-    label: 改动、兼容与验证计划
-    description: 列受影响入口、必须保持的契约、适用的迁移/回退方式和验证方法；小文档任务可注明不涉及迁移。
-    placeholder: |-
-      改动范围与当前差异：
-      保留行为 / 兼容：
-      迁移或回退（不适用可说明）：
-      验证方法：
+      当前情况与问题：
+      希望得到的改进：
   validations:
     required: true
 - type: textarea
   id: scope
   attributes:
     label: 范围与边界
-    description: 写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。
+    description: 说明本次包含和不包含什么，以及必须满足的真实约束与依据。
     placeholder: |-
       包含：
       不包含：
-      受影响模块/调用方：
-      必须保持的行为：
+      必须满足的约束及依据：
   validations:
     required: true
 - type: dropdown
@@ -64,47 +62,44 @@ body:
 - type: textarea
   id: acceptance
   attributes:
-    label: 验收标准与验证方式
-    description: 列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。
+    label: 完成后应看到的结果
+    description: 列出能判断需求已满足的结果或结论质量，不要求提前确定实现或验证方法。真实约束写清依据。
     placeholder: |-
-      - [ ] 在……条件下，观察到……；以……验证。
-      - [ ] 对应交付物……可检查，未知项……有处理结论。
+      - [ ] 在……情况下，应当看到……
+      - [ ] 交付的……能够说明／满足……
   validations:
     required: true
 - type: textarea
   id: dependencies
   attributes:
     label: 依赖与阻塞
-    description: 区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；阻塞写所需交付、解除条件与处理人，内部未知项说明何时影响下一步。
+    description: 说明影响开工或交付的外部条件与所需结果；没有依赖写“无”。相关参考和父子关系与阻塞分别表达。
     placeholder: |-
-      阻塞：无 / 具体事项或 #Issue
-      所需交付、解除条件与处理人：
-      相关参考：
-      父子关系（适用时）：
+      依赖或阻塞：无 / 具体事项
+      所需结果与相关负责人：
+      相关 Issue 或参考：
   validations:
     required: true
 - type: textarea
   id: decision_context
   attributes:
-    label: 相关决定与待决问题
-    description: 可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。
+    label: 已知约束与相关决定
+    description: 可列已确认要求、依据和已有决定，也可留下尚需澄清的问题；不要求建项时完成方案选择。
     placeholder: |-
-      已有决定 / 当前依据：
-      本次可能修订的问题：
-      已知分歧或新证据：
+      已确认要求及依据：
+      相关决定：
+      仍需澄清的问题：
   validations:
     required: false
 - type: textarea
   id: handoff
   attributes:
     label: 整理与续接记录
-    description: 创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。
+    description: 创建时可留空，后续记录实际确认、进展和关联位置。只写真实发生的情况，已有授权不重复询问。
     placeholder: |-
-      当前阶段 / 已完成：
-      主责与实际参与分工：
-      已确认范围、确认人/日期/依据：
-      待决或阻塞与处理人：
-      实际基线、证据位置及未验证部分：
-      下一步 / 交接位置：
+      已确认范围与依据：
+      已完成 / 未完成：
+      实际参与者与关联交付：
+      当前阻塞：
   validations:
     required: false
