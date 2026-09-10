@@ -1,6 +1,6 @@
 # Agent 一次接纳与可信执行收据
 
-`AgentExecutor` 位于 engine，协调一个 Attempt 的文件输入、受信执行驱动、结果接纳和内存收据登记。它不分配业务节点、不选择后续路由，也不代替未来 Workflow 的 Component 定义与编译。当前切片用 JSON 文件携带业务结构化内容，尚无通用内存 JSON Agent 输出协议。
+`AgentExecutor` 位于 engine，协调一个 Attempt 的文件输入、受信执行驱动、结果接纳和内存收据登记。它不分配业务节点、不选择后续路由，也不代替 Workflow 的 Component 定义与编译。当前切片用 JSON 文件携带业务结构化内容，尚无通用内存 JSON Agent 输出协议。
 
 宿主传入 `FileContractRegistry`、可替换 `ArtifactStore` 与显式安装的 `AgentExecutionDriver`。驱动负责验证配置、将指定快照物化为独立输入并调用实际执行环境；不能从 Workflow 文档注入任意函数来声称执行成功。`CodexAgentDriver` 位于 integrations，连接已有订阅 Runner 与文件存储，Profile、认证和 Docker 配置不进入 engine。
 
@@ -39,6 +39,6 @@ try {
 
 同一 executor 内以 Run/NodeTask/Attempt ID 预留一次执行，失败也不允许重用同一 Attempt；重试须提供新 Attempt ID。多个 Run 可独立执行。`releaseOutput(receiptId)` 显式释放产物快照但保留历史事实，之后不能再用该产物启动任务。宿主负责何时结束消费者对快照的使用，不提供并发释放与使用的引用计数保证。
 
-这些收据通过进程内私有登记表建立可信来源，不是数字签名或可离线验证的证书；尚无跨进程持久化、恢复与导入接口。宿主和显式安装的驱动、存储是信任边界，不声称抵抗同权限恶意宿主。确定性 Component、Effect 及完整 Workflow 的统一接入仍在后续切片完成。
+这些收据通过进程内私有登记表建立可信来源，不是数字签名或可离线验证的证书；AgentExecutor 不提供公开收据导入接口；Workflow 通过[严格加载器](workflow-checkpoint-loading.md)与实际 File Catalog 核对耐久来源记录并恢复文件引用。宿主和显式安装的驱动、存储是信任边界，不声称抵抗同权限恶意宿主。确定性 Component、Effect 与 Agent 经各自 Catalog 接入同一 Workflow，业务路由仍由用户定义。
 
 [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-agent-acceptance.md)

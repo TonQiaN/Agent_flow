@@ -22,7 +22,7 @@ Runner 从 `@agentflow/engine` 导出；DockerBackend 与 systemClock 从 `@agen
 | /task/state | 私有 HOME 与 Harness 原始记录；不是业务 outputs |
 | /task/config | 只读非秘密配置边界；Invocation.configFiles 按相对名称注入文本 |
 
-输入来源必须是调用方控制的静止目录快照。复制拒绝符号链接及非普通文件，检查读取期间文件变化；上限为 4096 文件、8192 目录/文件条目、64 层及 256 MiB。它不提供对抗宿主其他进程恶意并发换目录的安全边界。输出树校验尚待后续 contract 收集器，当前不提供工作区磁盘配额。
+输入来源必须是调用方控制的静止目录快照。复制拒绝符号链接及非普通文件，检查读取期间文件变化；上限为 4096 文件、8192 目录/文件条目、64 层及 256 MiB。它不提供对抗宿主其他进程恶意并发换目录的安全边界。输出树由后续文件 contract 收集器校验，Runner 不代替契约接纳；当前不提供工作区磁盘配额。
 
 非秘密 `configFiles: [{name, content}]` 每次创建新文件，最多 16 个、每个 UTF-8 文本 64 KiB，相对路径最多 256 字符/8 层。拒绝绝对路径、越界、重名、父子文件冲突；配置不能从容器修改。秘密不放在此 JSON 描述中；宿主可通过独立 PrivateStateBinding 接入私有工作副本，见 [执行凭据绑定](harness-auth.md#执行凭据绑定)。
 
@@ -38,7 +38,7 @@ stdout/stderr 流式写入私有 raw 文件，默认各 1 MiB；超过上限继�
 
 invocation.recordFiles 可声明最多 16 个 state 内相对文件：`{ id: 'events', path: 'events.jsonl', maxBytes: 1048576 }`。每个最大 1 MiB，禁止越界、符号链接和非普通文件；stdout/stderr 是保留 ID。缺失、截断、读取失败单独可见。raw 记录可能包含敏感业务内容，只供私有诊断或 Adapter 解析，不能当作普通 outputs 发布。
 
-执行后先保留 raw 文件，再删除容器；outputs 和整个私有工作区继续存在。接收方完成校验、复制或接纳以后调用 runner.release(result.resource)，才删除工作区；重复 release 幂等。容器删除失败、停止未确认或私有凭据绑定尚未完成收尾时 release 拒绝。需要手工修复时使用结果内 resource.id 定位本次资源；本版本不提供进程崩溃后的恢复协调器。
+执行后先保留 raw 文件，再删除容器；outputs 和整个私有工作区继续存在。接收方完成校验、复制或接纳以后调用 runner.release(result.resource)，才删除工作区；重复 release 幂等。容器删除失败、停止未确认或私有凭据绑定尚未完成收尾时 release 拒绝。需要手工修复时使用结果内 resource.id 定位本次资源；进程崩溃后的认领与恢复由独立的 [Workflow 恢复协调](workflow-recovery.md)调用 Runner 资源端口完成。
 
 完整需求和未覆盖项见 [#12](https://github.com/TonQiaN/Agent_flow/issues/12)；设计边界见 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)。
 
