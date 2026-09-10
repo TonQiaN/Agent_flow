@@ -24,3 +24,5 @@ CI Node 24/26 已加入 Docker pull 与真实用例开关。具体 PR head 的�
 本次只验收离线脚本切片，Refs #12。认证绑定、受限 endpoint 网络、三个真实 Harness、业务文件 contract、Workflow、崩溃恢复和最终 Tutor 批卷尚未由这些测试验证；整项保持开放。工作区没有磁盘配额，宿主输入来源要求是可信静止快照。
 
 关联：[Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)、[使用指南](../guides/runner.md)、[0.1.1 计划](../roadmap/0.1.1.md)。
+
+2026-09-10 合并前复验：PR #17 已合入 main，本层同步 d9278d4 并把 PR base 改为 main。生产源码保持 396cf05 的相同内容；`AGENTFLOW_DOCKER_TESTS=1 npm run check` 再次通过全部 32 项测试，无跳过，其中包括五组真实 Docker 场景。

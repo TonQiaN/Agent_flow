@@ -33,6 +33,7 @@
 | 2026-09-09 | [Harness / 认证接口与私有存储验证](2026-09-09-harness-auth-primitives.md) |
 | 2026-09-09 | [Docker Runner 脚本验证](2026-09-09-docker-runner.md) |
 | 2026-09-09 | [执行基础验证](2026-09-09-execution-foundation.md) |
+| 2026-09-10 | [主 Issue 模板与 Sub-issue 自主表达验证](2026-09-10-main-issue-templates.md)（含合并后实际入口核对） · [五类主 Issue 填写与边界核对](2026-09-10-main-issue-examples.md) |
 | 2026-09-08 | [Issue 模板实施验证](2026-09-08-issue-templates.md) · [12 个填写与边界演练](2026-09-08-issue-template-examples.md) |
 | 2026-09-08 | [七份 Issue 模板决定设计验证](2026-09-08-issue-template-decisions.md) |
 | 2026-09-08 | [版本管理骨架验证](2026-09-08-version-management.md) |
@@ -65,7 +66,7 @@
 
 - [断网脚本执行绑定及阶段复盘](2026-09-10-script-execution-binding.md)：实际镜像冻结、标签删除后执行及后续 checkpoint 主线。
 
-- [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：launcher 退出而后代持有管道的确定性反例、专属进程组终止与真实文件隔离回归。
+- [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：专属进程组停止、管道关闭与确定性故障反例。
 
 [共享 Workflow 检查点](2026-09-10-workflow-checkpoints.md)：提交顺序、取消落盘、写入故障与真实宿主 SIGKILL 后的归档读取。
 
