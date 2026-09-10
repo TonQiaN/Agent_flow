@@ -20,4 +20,4 @@ Workflow 编译器只通过 catalog 解析定义、实现和契约；运行控�
 
 integrations/execution/credential-runner 和 credential-agent-driver 复用版本预检、执行/凭据收尾和 Agent 文件交接。独立配方选择订阅长租约或静态 key 快照，以及 stdout/具名会话证据；provider 不进入 engine/Docker 条件分支。DeepSeek 容器资产由 apps/deepseek-tools 的固定命令打包，再由受信宿主显式交给执行入口，库不反向加载应用源码。见 [DeepSeek 执行说明](../guides/deepseek-adapter.md)。
 
-engine/persistence 提供 RunRecordStore 与 revision 错误契约，integrations/persistence 使用私有 SQLite/WAL 实现完整记录的 CAS。存储端口不调用执行或认证模块；Workflow checkpoint、耐久产物与重启恢复尚未接入，详见 [当前存储能力](../guides/run-record-store.md)。
+engine/persistence 提供 RunRecordStore 与 revision 错误契约，integrations/persistence 使用私有 SQLite/WAL 实现完整记录的 CAS。存储端口不调用执行或认证模块；Workflow 检查点负责接纳与路由事实，独立文件归档负责耐久产物，恢复协调经共同 Runner 核对旧资源后进入正常新 Attempt。详见 [存储](../guides/run-record-store.md)和[恢复](../guides/workflow-recovery.md)。

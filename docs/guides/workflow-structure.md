@@ -1,6 +1,6 @@
 # Workflow 结构与契约快照
 
-`snapshotWorkflowStructure(compiled)` 从真正编译过的受信计划导出版本化结构；`assertWorkflowStructureMatches(compiled, saved)` 核对已保存结构与当前计划是否一致。它们是 #13 的结构核对基础，尚未提供 Run 恢复入口。
+`snapshotWorkflowStructure(compiled)` 从真正编译过的受信计划导出版本化结构；`assertWorkflowStructureMatches(compiled, saved)` 核对已保存结构与当前计划是否一致。它们为 [Workflow 检查点与恢复](workflow-recovery.md)提供结构核对，本身不执行恢复。
 
 ```ts
 import { compileWorkflow, snapshotWorkflowStructure, assertWorkflowStructureMatches } from '@agentflow/engine';
@@ -25,8 +25,8 @@ assertWorkflowStructureMatches(compiled, structure);
 
 ## 证明范围
 
-结构一致只证明计划结构、Component 元数据及实际注册的契约相同。Component 的 implementation 字符串并不能证明函数闭包或部署代码相同；快照尚未包含 Agent 用户说明、行为配置、具体 Harness/模型/镜像、脚本环境、认证 Profile 或非秘密连接身份。后续执行绑定描述必须由对应真实绑定生成，不能让调用者手写一份描述代替事实。
+结构一致只证明计划结构、Component 元数据及实际注册的契约相同。Component 的 implementation 字符串并不能证明函数闭包或部署代码相同；结构快照不包含 Agent 用户说明、行为配置、具体 Harness/模型/镜像、脚本环境、认证 Profile 或非秘密连接身份；这些信息由独立的[执行绑定快照](workflow-execution-snapshot.md)从实际安装生成，不能让调用者手写一份描述代替事实。
 
-当前也没有 Attempt 历史、输入/产物引用接纳、取消意图、旧 Runner query/stop 或 Effect unknown 恢复。结构匹配不能单独授权重跑节点、认定旧执行停止或发起外部动作。
+Attempt 历史、输入/产物接纳、取消意图、旧 Runner query/stop 和 Effect unknown 的核对由检查点及恢复协调负责。结构匹配不能单独授权重跑节点、认定旧执行停止或发起外部动作。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证](../validation/2026-09-10-workflow-structure.md) · [Run 记录存储](run-record-store.md)
