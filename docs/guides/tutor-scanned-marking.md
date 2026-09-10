@@ -49,3 +49,9 @@ node --import tsx src/examples/tutor-marking/demo.ts /absolute/new-output-direct
 批改和报告的 `maxSourceBytes` 默认均为 128 MiB；本机存储与 Docker 输入复制另有独立预算，学生组合按来源加 128 MiB 余量显式配置。通用 FileArtifactStore 和 DockerBackend 默认仍为 256 MiB，各自最高 1 GiB；单文件和 JSON 限额仍有效。原持久归档仍为 256 MiB，不能把本例成功当作大文件持久恢复证据。来源契约有效也不代表评分正确，完整学生结果见后续验收记录。
 
 可选 AGENTFLOW_MARKING_PRIOR_DRAFT 指向调用方明确选择的三份未接纳候选目录。入口在新任务包内保存 source/prior-candidate，只接受新 Marker 的正常完成和全部 Gate，不复用旧收据。入口同时从显式 Tutor 安装复制纯业务 validator 与其两个依赖，供 Agent 运行 source/self-check/check.py；该自检明确不签发宿主收据，宿主仍执行原安装的校验器。所有辅助材料只加入新任务包，原准备包保持不变。
+
+可选 source/reference-images/ 提供调用方渲染的官方 PDF 页面，入口在学生附件之后按文件名顺序追加，并在任务说明中区分来源角色；剩余来源图像可保留在 source/reference-pages/ 供按需查看。数学符号应以原 PDF 视觉证据为准，不能单凭 pdftotext。source/review-notes.md 可记录需核对的作者观察，模型须对照来源独立验证，不是预填分数或通过结论。
+
+可选 `AGENTFLOW_SUBMISSION_CONFIRMATION` 指向明确用户确认的 JSON 绝对路径，包含实际 `confirmedAt` 和 `text`。新批改通过全部 Gate 后，入口对该份候选记录精确 SHA256 和 MISSING item IDs，交给报告消费端原有完整提交投影校验；没有该配置就不补零。文件须由调用方在获得真实用户确认后提供，入口不自行询问或推定用户同意。
+
+已完成一份16张真实学生作答的 Codex 分阶段验收，含独立复核、全部 Gate、18页 PDF 及原件一致性；从失败草稿修正批改、随后单独重跑报告，不能宣称空白冷启动一次通过。详见 [多页学生验收](../validation/2026-09-10-tutor-student-input.md)。

@@ -155,7 +155,10 @@ test('Codex initial images preserve ordering and map only safe input-relative pa
   const inputImages = ['source/prompt-images/page-0002.jpg', 'source/prompt-images/page-0001.png'];
   const selected = { ...task, config: { ...(task.config as object), inputImages } };
   const plan = adapter.plan(selected);
-  assert.deepEqual(plan.argv.slice(-6), ['--image', '/task/input/source/prompt-images/page-0002.jpg', '--image', '/task/input/source/prompt-images/page-0001.png', '--', task.prompt]);
+  assert.deepEqual(plan.argv.slice(-5), ['--image', '/task/input/source/prompt-images/page-0002.jpg', '/task/input/source/prompt-images/page-0001.png', '--', task.prompt]);
+  const maximum = adapter.plan({ ...task, config: { ...(task.config as object), inputImages: Array.from({ length: 64 }, (_, i) => `${i}.png`) } });
+  assert.ok(maximum.argv.length <= 128);
+  assert.equal(maximum.argv.filter(arg => arg === '--image').length, 1);
   inputImages[0] = 'changed.jpg';
   assert.ok(!plan.argv.includes('/task/input/changed.jpg'));
   assert.equal(adapter.interpret(evidence([...start, completed], selected)).status, 'completed');

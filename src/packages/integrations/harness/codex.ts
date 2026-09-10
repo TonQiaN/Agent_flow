@@ -42,7 +42,9 @@ export class CodexAdapter implements HarnessAdapter {
       configFiles.push({ name: 'outcome.schema.json', content: JSON.stringify({ type: 'object', properties: { outcome: { type: 'string', enum: [...task.outcomes] } }, required: ['outcome'], additionalProperties: false }) });
       argv.push('--output-schema', `${TASK_PATHS.config}/outcome.schema.json`);
     }
-    for (const image of images) argv.push('--image', `${TASK_PATHS.input}/${image}`);
+    // Codex accepts one variadic image option, as used by Tutor's vision entrypoint.
+    // Repeating the flag could exceed Runner's 128-argument budget for valid image lists.
+    if (images.length) argv.push('--image', ...images.map(image => `${TASK_PATHS.input}/${image}`));
     // The separator prevents a user-owned prompt beginning with '-' from becoming an option.
     argv.push('--', task.prompt);
     return { harness: this.id, version: CODEX_VERSION, identity: identityOf(task.identity), argv: Object.freeze(argv), cwd: TASK_PATHS.work,

@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。PR 交付尚未完成；真实刷新和真实学生批卷尚未验收；真实 Codex 已从未接纳草稿完成一题合成扫描件的批改、独立复核、报告与 PDF。**
+**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。PR 交付尚未完成；真实刷新尚未验收；真实 Codex 已完成一题合成扫描件，并从草稿修正和单独报告续跑完成一份16页真实学生作答的批改、独立复核及18页 PDF。详情见学生验收记录，未证明空白冷启动一次成功。**
 
 | 入口 | 内容 |
 | --- | --- |
@@ -33,7 +33,7 @@
 
 - [节点有限重试](guides/node-retries.md)：用户策略、跨重启累计预算、等待与取消。
 - [JSON Map 与固定 Fork](guides/json-parallel.md)：有序汇合、wait-all、共享容量、部分恢复与可运行示例。
-- [Tutor 报告消费端](guides/tutor-report-consumer.md)：复用已安装 Tutor 标注校验、指标、报告 Gate 与 A3 渲染器；已通过合成扫描页，真实模型/学生验收待完成。
+- [Tutor 报告消费端](guides/tutor-report-consumer.md)：复用已安装 Tutor 标注校验、指标、报告 Gate 与 A3 渲染器；已通过合成扫描页，已完成一份真实 Codex 学生样本的分阶段验收。
 
 - [Tutor 扫描件批改](guides/tutor-scanned-marking.md)：已接通复杂契约的 Marker/Reviewer、用户返修与报告串接；合成验证不代替真实阅卷验收。
 

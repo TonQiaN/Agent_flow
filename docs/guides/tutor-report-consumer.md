@@ -70,3 +70,13 @@ node --import tsx src/examples/tutor-report/demo.ts /new/output/directory
 Python 工具作为受信任宿主文件函数执行；解释器及程序位置来自显式安装配置，Agent 不能选择可执行代码。超时或取消向本次子进程组发送终止信号，等待进程关闭后返回，失败输出不会被接纳。输出日志有界，公开失败仅保留稳定错误码。此桥接没有新增持久执行定义或失联恢复端口，当前不能通过 `startPersisted` 将整条报告流程当作可恢复流程；需要该能力时须接入真实 Runner/Script 或独立可恢复宿主工具，而非伪造执行快照。
 
 实际结果及未覆盖项见 [消费端验收](../validation/2026-09-10-tutor-report-consumer.md)，取舍见 [Component 决策](../../.agents/decisions/product/README.md#p-20260909-component-execution)。
+
+## 已确认完整提交中的缺失作答
+
+遇到 MISSING 空分值时，默认仍不能生成总分报告。用户明确确认照片完整后，调用方可传入 `submissionCompleteness`，字段沿用 Tutor `report-submission-completeness-v1`：本例以 context.reportId 作为 job_id，绑定原始候选精确字节 SHA256、实际确认时间/文字和精确 missing_item_ids。该配置在应用创建时快照化，不能从 Agent 输出中获得授权。
+
+宿主复用已安装 backend 的 `project_confirmed_submission`，只把符合条件的 MISSING 项投影为0；原候选保留空分值、缺失状态及无证据事实。确认和内部投影保存在 report-source/input，供 Reporter 准确说明。指标和 PDF 使用同一投影；Gate 保护整个准备树，渲染前重新计算并核对投影。其他未解决的空分值仍拒绝；不伪造证据框、评分标准或复核收据。
+
+## 只运行真实报告
+
+`src/examples/tutor-report/real.ts` 使用显式 `AGENTFLOW_REPORT_SOURCE`（仅 source/candidate 的已标注包）、`AGENTFLOW_REPORT_CONTEXT`、`TUTOR_WORKSPACE`、`TUTOR_PYTHON`、来源/节点预算及 Codex 执行配置，单独调用正常的4节点报告 Workflow。上游实际通过的批改/复核证据由调用方保存，不能把本入口结构校验当成已经阅卷。可选 `AGENTFLOW_REPORT_COMPLETENESS` 是已绑定原候选的完整确认对象；可选 `AGENTFLOW_REPORT_PRIOR_DRAFT` 是未接纳报告 JSON，仅加入新 source 副本供模型核对当前指标并重新绑定。入口与整条批改验收共用私有执行证据记录器，不导入旧可信收据或改变宿主原包。

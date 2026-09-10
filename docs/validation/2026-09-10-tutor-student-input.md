@@ -30,10 +30,26 @@
 
 第二次真实整卷 Marker 正常完成，355.41 秒、退出 0、Codex 0.153.4 / gpt-5.6-sol low；覆盖全部 35 个最小评分项（中途自述 31，最终文件已纠正）。但模型将候选写入 outputs/source/candidate，正式输出契约缺少三个顶层 candidate 文件，故 OUTPUT_CONTRACT_FAILED、未调用 Reviewer/Reporter，全部执行和输入资源释放。离线复用旧 Tutor validator 又检出重复页区域；模型自己的 schema 自检不能代替业务验收。
 
-消费端明确三份候选的绝对位置，新增显式未接纳草稿输入，并将原 Tutor 纯 validator 及依赖作为沙箱辅助自检工具。其结果明确 host_gate_receipt=false；真正 Gate 仍运行宿主已安装的原代码并核对实际执行收据。辅助工具已对此前有效合成结果验证通过；没有宿主代写学生分数或证据框。第三次从原材料和未接纳草稿发起新 Marker，正在运行。
+消费端明确三份候选的绝对位置，新增显式未接纳草稿输入，并将原 Tutor 纯 validator 及依赖作为沙箱辅助自检工具。其结果明确 host_gate_receipt=false；真正 Gate 仍运行宿主已安装的原代码并核对实际执行收据。辅助工具已对此前有效合成结果验证通过；没有宿主代写学生分数或证据框。第三次从原材料和未接纳草稿发起新 Marker，222.45 秒正常完成，候选 Gate 通过；独立 Reviewer 164.53 秒正常完成，Final Gate 通过，5 个批改节点成功。但报告 prepare 因 MISSING 空分值失败，没有调用 Reporter，未生成学生 PDF；evidenceComplete 和 cleanupComplete 均为 true。这不是端到端成功。
 
-仍需实际候选 Gate、独立复核、报告 Gate、PDF 逐页检查和评分质量核对。运行中间自述不代替完整执行事实。
+作者语义核对发现 PDF 文本提取丢失数学根号，导致已通过结构 Gate 的 Reviewer 给出错误反馈。这证明 schema 和运行终态不能代替评分质量验收。另有7个小题未找到作答；用户已明确确认16张照片包含全部作答，可按 Tutor 原有完整提交机制仅在报告投影中将这些缺失项计0。
+
+先读 Tutor report_completeness.py、report_runner.py 与其绑定/拒绝测试，再接入原投影函数。新增8项实际 Tutor 报告流程测试全部通过：4项已有正常/拒绝/来源篡改/超时，加上确认完整提交、无确认、错误候选哈希与篡改投影。确认配置在创建时捕获；原候选字节不变，报告视图保留 MISSING 和空证据，不伪造 Agent 的评分。
+
+追加官方页面时，58张有效图片被 Adapter 展开成重复参数，超过 Runner 的128参数限制，AGENT_START_FAILED；该次未返回执行句柄且 cleanupComplete=false，保留失败记录。按 Tutor codex-vision-entrypoint.sh 和实际 Codex 0.153.4 help 的变长 --image 参数修正；11项 Adapter/图片前置验证通过，64图片参数数目已在限制内。没有放宽 Runner 限额。实际 Codex CLI 离线测试通过4种启动场景，其中一项带64张合成小图片，均产生 thread.started/turn.started 后在无网环境按时停止；这不是模型验收。另一轮以16张学生图像加26页相关官方图像发起实际批改，全部42页官方图像仍保留在来源中。Marker 274.23 秒、Reviewer 241.78 秒均正常完成，5节点及全部批改 Gate 通过，修正根号题并复核跨页推导；题干占位已替换为实际内容。缺失确认已绑定新候选，指标准备通过；Reporter 173.45秒正常完成，但将 report-source 移至 trusted/report-source，输出契约拒绝，未执行报告 Gate/渲染。原批改仍然通过，全部实际句柄释放，整轮 passed=false。离线旧 Tutor 报告内容 validator 验证这份草稿通过，但不签发可信 Gate。按原 Analyst 规范明确角色目录，单独运行新的报告 Workflow，保留已通过批改及未接纳报告草稿；不重复阅卷。该模型执行启动于参数修复之前，使用42附件；修复后的64附件由独立真实 CLI 离线测试覆盖。
+
+最终报告单独续跑已完成：新 Reporter 175.12秒正常退出，4节点（准备、报告、Gate、渲染）全部接纳，正式报告 Gate 通过。PDF 为18页 A3 横向，22,556,577字节，SHA256 `018341a6ac555468f50c5e54bf49235368797141976d813825b51fd8ff9ea220`。18页全部渲染并逐页查看，概览、16页学生作答及分析无报告文字裁切或批注重叠。原模板的练习区域保持空白；本次未接练习检索。
 
 FileArtifactArchive 仍保留原 256 MiB；这条宿主工具消费链未声明持久 Worker 恢复。真实 Claude/DeepSeek 矩阵与远端 PR 交付也未由本次测试覆盖。
 
 [扫描件使用指南](../guides/tutor-scanned-marking.md) · [执行模型决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+
+本轮最终 `npm run check` 整体通过：407项普通测试全部通过；默认 E2E 17通过、188按环境跳过。另显式开启的8项 Tutor 报告流程、11项 Adapter/附件检查、1项含4次真实 CLI 离线启动的测试全部通过；构建、测试类型、依赖边界及760个本地文档链接通过。
+
+提取共用证据记录器后，显式 Tutor 的共享完整验收回归通过（24秒），保持合成分类、真实 Gate/报告/PDF 及清理行为。
+
+## 最终验收结论
+
+一份真实整卷已通过实际 Codex Marker、独立 Reviewer、Reporter、全部确定性 Gate 和 PDF。逐项核对5节点批改及4节点报告的接纳状态、3次正常 Harness/容器终态与释放记录；原16张照片 SHA256 全部不变，报告中的3份 candidate 文件与通过 Final Gate 的上游字节完全一致，所有既有 source 文件保持一致。确认严格绑定最终候选，7个 MISSING 仍为空分和空证据，只有报告投影视图计0，全部35项得分/满分求和一致；报告指标与报告候选、报告 Gate 哈希均匹配。实际分数及完整执行/质量记录仅存私有验收目录。
+
+作者结合官方页面图像检查了根号、跨页系数比较与三角推导；旧候选评分缺陷由真实 Marker/Reviewer 修正，未由宿主改写学生分数。此验收是从未接纳草稿修正批改后单独续跑报告，并非空白冷启动一次通过；它证实该样本可走通，不构成模型评分准确率基准，也不代表其他真实模型、生产发布、持久 Worker 或全部 PR 交付完成。

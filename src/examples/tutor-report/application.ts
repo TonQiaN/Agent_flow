@@ -20,12 +20,23 @@ export interface ReportContext {
   readonly authority: string;
   readonly jurisdiction: string;
 }
+/** Explicit human confirmation, validated by the installed Tutor contract and projector. */
+export interface SubmissionCompleteness {
+  readonly schema_version: 1;
+  readonly job_id: string;
+  readonly candidate_sha256: string;
+  readonly confirmed_at: string;
+  readonly confirmation_text: string;
+  readonly submission_complete: true;
+  readonly missing_item_ids: readonly string[];
+}
 export interface TutorReportSetup<D extends AgentExecutionDriver> {
   /** Explicit installed code and interpreter. Never taken from a report or Agent output. */
   readonly tutorWorkspace: string;
   readonly python: string;
   readonly context: ReportContext;
   readonly source: string;
+  readonly submissionCompleteness?: SubmissionCompleteness;
   readonly reporter: { readonly id: string; readonly prompt: string; readonly config: JsonValue };
   readonly driver: (artifacts: ArtifactStore) => D;
   readonly toolTimeoutMs?: number;
@@ -54,7 +65,7 @@ function contracts(maxSourceBytes: number) {
 
 /** Tutor-specific application. No core imports of Tutor code, schemas or PDF libraries. */
 export async function createTutorReportApplication<D extends AgentExecutionDriver>(root: string, setup: TutorReportSetup<D>) {
-  const context = structuredClone(setup.context), reporter = structuredClone(setup.reporter), workspace = resolve(setup.tutorWorkspace), python = resolve(setup.python);
+  const context = structuredClone({ ...setup.context, ...(setup.submissionCompleteness === undefined ? {} : { submissionCompleteness: setup.submissionCompleteness }) }), reporter = structuredClone(setup.reporter), workspace = resolve(setup.tutorWorkspace), python = resolve(setup.python);
   const timeout = setup.toolTimeoutMs ?? 120000;
   if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 600000 || ['prepare', 'report-gate', 'render'].includes(reporter.id)) throw new Error('INVALID_TUTOR_REPORT_SETUP');
   await mkdir(root, { recursive: true, mode: 0o700 });
