@@ -21,4 +21,4 @@ functions.registerDeterministic('increment', increment, { amount: 1 });
 
 恢复只适用于无 Runner 资源、无阶段的 JSON Gate/Transform。已经接纳的节点、outcome 和输出直接保留；尚未接纳的计算在同一 NodeTask 的新 Attempt 中重算，即使上次已计算出结果但尚未提交。CAS 阻止原宿主迟到结果覆盖新记录；它不能停止仍在计算的宿主函数，这正是该模式要求无外部副作用的原因。计算重做不增加业务步骤或用户路由次数。
 
-文件函数的目录写入和文件到 JSON 转换尚未获得此恢复绑定，不能套用这个无资源约定。订阅恢复及完整 #13 验收仍未完成。实现与真实中断证据见 [验证](../validation/2026-09-10-function-binding.md)。
+任意宿主文件函数的目录写入不能套用这个无资源约定。指定 JSON 文件的内置读取已通过独立的[文件投影绑定](json-file-projection.md)支持恢复；Agent 的[订阅资源恢复](subscription-resource-recovery.md)使用自己的资源清理及凭据收尾机制。完整 #13 交付审查仍在进行。函数实现与真实中断证据见 [验证](../validation/2026-09-10-function-binding.md)。
