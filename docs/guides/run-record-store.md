@@ -1,6 +1,6 @@
 # 本地 Run 记录存储
 
-`RunRecordStore` 是 engine 的状态保存端口，`SqliteRunRecordStore` 是 integrations 的首个实现。它保存一个 Run 的 JSON 内容和 revision；已由 [Workflow 检查点](workflow-checkpoints.md)接入正常执行，但不会核对/停止旧容器或恢复节点。完整 #13 仍待实现。
+`RunRecordStore` 是 engine 的状态保存端口，`SqliteRunRecordStore` 是 integrations 的首个实现。它保存一个 Run 的 JSON 内容和 revision；已由 [Workflow 检查点](workflow-checkpoints.md)接入正常执行，但不会核对/停止旧容器或恢复节点。节点恢复由独立的 [Workflow 恢复协调](workflow-recovery.md)提供；#13 首版作者验收已具备，完整 PR 交付仍待完成。
 
 ```ts
 import { SqliteRunRecordStore } from '@agentflow/integrations';
@@ -32,8 +32,8 @@ try {
 
 内部 JSON 的快照 schema、Attempt 历史、定义/配置及认证引用边界由引擎负责。本端口不会扫描任意 JSON 猜测 token；宿主不得传入认证材料。只有 Profile 引用与非秘密身份可进入运行快照。当前没有 node-list、调度器、后台恢复、数据库导出或远端同步入口。
 
-CAS 和数据库事务只保护状态更新，不能证明文件产物已经耐久保存、旧执行已停止或外部 Effect 未发生。后续必须先耐久保存并校验输入/产物，再提交接纳及后续调度事实；恢复使用共同 Runner query/stop 接口，再进入同一引擎执行/路由。不能用读取到一行记录作为整个 Run 可恢复的证明。
+CAS 和数据库事务只保护状态更新，不能证明文件产物已经耐久保存、旧执行已停止或外部 Effect 未发生。当前检查点写入先耐久保存并校验输入/产物，再提交接纳及后继位置；恢复协调使用共同 Runner query/stop 接口，再进入同一引擎执行/路由。不能用读取到一行记录作为整个 Run 可恢复的证明。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [存储验证](../validation/2026-09-09-run-record-store.md)
 
-[耐久文件归档](artifact-archive.md)已有独立实现，可先保存文件再提交引用；尚未自动接入引擎。
+[耐久文件归档](artifact-archive.md)已由 Workflow 检查点接入：先保存文件，再通过本存储端口提交引用。
