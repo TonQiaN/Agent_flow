@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "src/packages/domain" },
+    { "path": "src/packages/engine" },
+    { "path": "src/apps/cli" }
+  ]
+}

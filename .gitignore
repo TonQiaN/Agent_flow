@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.local/
+.loopx/
+.codex/goals/
+.env
+.env.*
+!.env.example

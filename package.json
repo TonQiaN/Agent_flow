@@ -1,0 +1,20 @@
+{
+  "name": "agentflow-workspace",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "workspaces": ["src/apps/*", "src/packages/*"],
+  "scripts": {
+    "build": "tsc -b",
+    "check:boundaries": "node src/tooling/check-boundaries.mjs",
+    "typecheck:tests": "tsc -p tsconfig.tests.json",
+    "test": "npm run build && npm run typecheck:tests && node src/tooling/run-tests.mjs",
+    "check": "npm run check:boundaries && npm test",
+    "demo": "npm run build && node src/apps/cli/dist/index.js demo"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.0",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  }
+}
