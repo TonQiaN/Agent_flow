@@ -16,7 +16,7 @@ import { systemClock } from '../system-clock.js';
 export interface CredentialRedactor { remember(content: string): void; redact(text: string): string }
 /** Internal trusted host composition, not a workflow configuration or plugin-loading API. */
 export type CredentialRecipe<P extends CredentialIdentity> = CredentialRecipeBase<P> & (
-  { readonly binding: 'exclusive' | 'snapshot'; readonly stateFile: string; readonly secretEnvironment?: never }
+  { readonly binding: 'exclusive'; readonly stateFile: string; readonly secretEnvironment?: never }
   | { readonly binding: 'environment'; readonly secretEnvironmentKeys: readonly string[]; readonly secretEnvironment: (content: string) => Readonly<Record<string, string>>; readonly stateFile?: never }
 );
 interface CredentialRecipeBase<P extends CredentialIdentity> {
@@ -219,7 +219,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       ? new SubscriptionResourceBinding(this.#store as CredentialStore & ExecutionCredentialStore, credential, this.#recipe.stateFile, this.#recipe.stateEnvironment(plan), task.identity, content => redactor.remember(content))
       : this.#recipe.binding === 'environment'
       ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.#recipe.secretEnvironment, 0, content => redactor.remember(content))
-      : await (this.#recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
+      : await FileExecutionCredentialBinding.acquire(
         this.#store, { identity: task.identity, credential, stateFile: this.#recipe.stateFile, environment: this.#recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
