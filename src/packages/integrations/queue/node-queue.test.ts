@@ -236,7 +236,8 @@ test('a real delayed process cannot commit after another worker takes over and a
         old.kill('SIGKILL'); await exited; });
     assert.equal(((await once(old, 'message'))[0] as any).event, 'before-commit');
     await systemClock.sleep(350);
-    const next = new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'new', ['json'], 300);
+    // Only the abandoned worker must expire; use the normal lease for the recovering worker.
+    const next = new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'new', ['json']);
     const adopted = await next.runOnce();
     assert.equal(adopted!.error, null);
     assert.equal(adopted!.claim.recovering, true);
