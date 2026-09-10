@@ -116,3 +116,5 @@
 - [完整批卷持久组合](2026-09-10-persistent-tutor-grading.md)：真实容器的 Agent、Gate、转换与发布中断联合验证。
 
 [订阅资源恢复](2026-09-10-subscription-resource-recovery.md)；[Issue #13 验收对照](2026-09-10-issue13-acceptance.md)。
+
+[单机队列与 Worker 验证](2026-09-10-node-queue.md)：多进程容量竞争、实际迟到写入与 Docker 失联恢复；认证源联合验收仍待完成。

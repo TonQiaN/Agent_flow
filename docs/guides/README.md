@@ -79,3 +79,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [持久批卷应用组合](persistent-tutor-grading.md)：显式启动/重开、用户返修、来源链与当前发布策略。
 
 [订阅资源恢复](subscription-resource-recovery.md)：来源归属、停止后刷新收尾与持久 Agent 组合。
+
+[单机 NodeTask 队列与 Worker](node-queue.md)：程序入口、共享容量、归属检查与恢复边界。

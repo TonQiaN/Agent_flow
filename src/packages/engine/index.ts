@@ -32,7 +32,7 @@ export type { EffectWorkflowBinding } from './workflow/effects.js';
 export { copyJson as snapshotJson } from './json.js';
 
 export { RunStoreError } from './persistence/types.js';
-export type { RunRecord, RunRecordStore } from './persistence/types.js';
+export type { RunRecord, RunRecordStore, AtomicRunRecordStore } from './persistence/types.js';
 export type { ArtifactArchive, ArtifactArchiveReference, ArchivedArtifact } from './persistence/artifacts.js';
 export { snapshotWorkflowStructure, assertWorkflowStructureMatches } from './workflow/structure.js';
 export type { WorkflowContractDefinition, WorkflowStoredContract, WorkflowStructureSnapshot } from './workflow/structure.js';
@@ -56,3 +56,8 @@ export type { WorkflowRecoveryProgress } from './workflow/recovery-record.js';
 export type { InvocationResourcePlan, InvocationPhaseDefinition, InvocationPhaseCheckpoint, InvocationPhaseSink, InvocationPhaseHandle } from './workflow/phases.js';
 
 export type { EffectRecord, EffectRecordStore } from './persistence/effects.js';
+
+export type { NodeRequirements, QueueConfiguration, NodeTaskClaim, QueuedNodeTask, NodeTaskQueue } from './queue/types.js';
+export { validateQueueConfiguration, waitingReason, credentialCapacityKey } from './queue/policy.js';
+export { NodeWorker } from './queue/worker.js';
+export type { NodeWorkerHost, NodeWorkerResult } from './queue/worker.js';

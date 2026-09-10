@@ -25,3 +25,7 @@
 ## P-20260905-initial-direction
 
 [启动会议的产品方向提炼候选](proposed/P-20260905-initial-direction.md)
+
+## P-20260910-node-queue
+
+[按 NodeTask 调度及原子归属校验](proposed/P-20260910-node-queue.md)
