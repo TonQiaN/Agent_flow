@@ -1,6 +1,6 @@
 # Workflow 通用执行阶段
 
-受信 executor 可通过 `resourcePlan(component)` 声明有限的有序阶段；`resource` 阶段持有一个共同 Runner 资源，`operation` 阶段标记宿主操作。Engine 不解释认证、业务说明或模型协议。当前内置 Script 保留单资源接口；不可变环境 API key 的 Agent Driver/Catalog 已接入，当前以 DeepSeek 合成协议验证。
+受信 executor 可通过 `resourcePlan(component)` 声明有限的有序阶段；`resource` 阶段持有一个共同 Runner 资源，`operation` 阶段标记宿主操作。Engine 不解释认证、业务说明或模型协议。当前内置 Script 保留单资源接口；不可变环境 API key 和配合 FileCredentialStore 的订阅 Agent Driver/Catalog 已接入，分别以 DeepSeek、Codex/Claude 合成协议验证。
 
 声明必须来自当前安装代码，包含 schema `agentflow-invocation-resources/v1`、唯一阶段 ID、kind，以及 resource 阶段的实际 execution 描述。计划为 1–8 个阶段，进入后必须全部完成才能接纳业务成功。它随实际执行快照 version 2 保存和核对，改变顺序、类型或环境会拒绝加载。该计划不是新增业务节点或可反序列化的执行程序。
 
@@ -16,11 +16,11 @@
 
 ## 实际 Agent 组合
 
-沿用普通 FileWorkflowCatalog.registerAgent、AgentExecutor 和 Driver；准备 archive、store 后使用相同 startPersisted/claimWorkflowRecovery/resumePersisted。CredentialAgentDriver 的声明顺序是 version 资源、credential 宿主操作、execution 资源。版本成功且释放后才完成 version；获取前保存 credential active，源短租约释放后才完成该操作；execution 仍由共同 Runner 保存实际资源和 launch。输出由正常 AgentExecutor 接纳、捕获为快照，再释放执行目录并完成 execution，Catalog 随后返回成功。
+沿用普通 FileWorkflowCatalog.registerAgent、AgentExecutor 和 Driver；准备 archive、store 后使用相同 startPersisted/claimWorkflowRecovery/resumePersisted。不可变环境 API key 的 CredentialAgentDriver 声明 version 资源、credential 宿主操作、execution 资源；订阅源实现 ExecutionCredentialStore 时，声明 version、execution 两个资源阶段，凭据占用在后者 prepare 内取得。版本成功且释放后才完成 version。API key 获取前保存 credential active，源短租约释放后才完成该操作；execution 由共同 Runner 保存实际资源和 launch。输出由正常 AgentExecutor 接纳、捕获为快照，再释放执行目录并完成 execution，Catalog 随后返回成功。
 
-获取前 CAS 失败不会访问凭据；获取完成的 CAS 失败会放弃内存绑定，不分配执行资源。若宿主在获取操作内中断，记录保持不确定，自动认领拒绝。Codex/Claude 订阅 Driver 当前资源计划为 null，实际定义仍可比较，持久启动继续拒绝。恢复管理旧资源不访问凭据；只有进入新的正常 Attempt 才重新获取当前凭据。
+API key 获取前 CAS 失败不会访问凭据；获取完成的 CAS 失败会放弃内存绑定，不分配执行资源。若宿主在获取操作内中断，记录保持不确定，自动认领拒绝。Codex/Claude 仅在来源缺少 ExecutionCredentialStore 时返回 null 资源计划并拒绝持久启动。不可变 API key 的旧资源恢复不访问来源；订阅旧资源在确认移除后由源存储核对归属、收尾刷新并释放占用。新的正常 Attempt 使用新资源重新取得当前凭据，见[订阅规则](subscription-resource-recovery.md)。
 
-严格文件加载同时核对外层前序引用、归档清单和内层 Agent 收据的身份、组件、outcome、Harness、版本及实际镜像。内层输入可有独立快照 ID，但文件内容必须与前序清单完全一致；输出清单须与归档一致。File Catalog 使用源文件调用 Agent，因此内层 predecessor 必须为 null。收据不会导入新 AgentExecutor 的进程内映射，也不会重跑旧模型或重做业务接纳。见[实际组合验证](../validation/2026-09-10-agent-workflow.md)。
+严格文件加载同时核对外层前序引用、归档清单和内层 Agent 收据的身份、组件、outcome、Harness、版本及实际镜像。内层输入可有独立快照 ID，但文件内容必须与前序清单完全一致；输出清单须与归档一致。File Catalog 通过源文件或同存储快照传入输入，不传 Agent receiptId，因此内层 predecessor 必须为 null。收据不会导入新 AgentExecutor 的进程内映射，也不会重跑旧模型或重做业务接纳。见[实际组合验证](../validation/2026-09-10-agent-workflow.md)。
 
 探针不再创建外部空输入目录，Driver 输入直接在 Runner 已登记目录内物化；正常与恢复 release 统一收尾，见[输入物化](runner-owned-input.md)。其他宿主临时目录仍待处理。
 
