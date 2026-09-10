@@ -1,6 +1,6 @@
 # 耐久文件归档
 
-`ArtifactArchive` 是 engine 的耐久文件端口，`FileArtifactArchive` 是 integrations 的本地实现。它与临时 `ArtifactStore` 分开：归档不提供 `release`，因此执行句柄的清理不会删除 Run 恢复需要的文件。已通过 [Workflow 检查点](workflow-checkpoints.md)接入正常脚本流程；完整节点恢复仍待实现。
+`ArtifactArchive` 是 engine 的耐久文件端口，`FileArtifactArchive` 是 integrations 的本地实现。它与临时 `ArtifactStore` 分开：归档不提供 `release`，因此执行句柄的清理不会删除 Run 恢复需要的文件。已通过 [Workflow 检查点](workflow-checkpoints.md)接入正常文件流程，并由[恢复协调](workflow-recovery.md)用于节点边界恢复。
 
 ```ts
 import { FileArtifactArchive, SqliteRunRecordStore } from '@agentflow/integrations';
@@ -49,8 +49,8 @@ const restored = await temporary.captureMaterialized({
 
 Catalog 在目标支持该端口时省掉自己的 checkpoint/restore 临时目录。旧端口实现使用原路径回退；两种路径都核对归档/恢复清单与原逻辑记录。来源仍由实际存储的 materialize 逐文件核对摘要，同一存储根内的重叠物化继续拒绝。崩溃时未发布暂存和旧进程临时快照仍可能保留，本接口没有扫描回收能力。
 
-## 尚未接入
+## 职责与清理边界
 
-当前 Run 恢复协调、定义/输入一致性、Attempt 历史、接纳与后继创建的一致性、旧 Runner query/stop 和 Effect unknown 均未由此接口实现。现有 AgentExecutor 仍使用临时 ArtifactStore，后续由引擎在接纳提交前显式归档。未发布 staging 和未引用归档暂时保留；首期没有 delete/list/迁移/去重/自动 GC。
+Run 恢复协调、定义/输入一致性、Attempt 历史、接纳与后继位置、旧 Runner query/stop 和 Effect unknown 由各自模块负责。AgentExecutor 使用临时 ArtifactStore；Workflow 在接纳提交前通过实际文件 Catalog 显式归档，加载时再从归档重建临时引用。未发布 staging 和未引用归档暂时保留；首期没有 delete/list/迁移/去重/自动 GC。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [归档验证](../validation/2026-09-10-artifact-archive.md) · [Run 记录存储](run-record-store.md)
