@@ -78,3 +78,22 @@ test('DeepSeek filesystem seam: versions, read-only, byte limits, raw environmen
     else process.stderr.write(`Retained DeepSeek test evidence: ${root}\n`);
   }
 });
+
+test('DeepSeek filesystem cancellation closes descendant-held pipes before resolving', { skip: !image, timeout: 30000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'af-deepseek-tree-cancel-')); let removable = false;
+  try {
+    const input = join(root, 'input'); await mkdir(input);
+    const files = await Promise.all(['tool-isolate', 'fs-service', 'fs-worker', 'sdk', 'tool-space'].map(async name => ({ name: `deepseek-policy/${name}.mjs`,
+      content: await readFile(new URL(`../../apps/deepseek-tools/${name}.mjs`, import.meta.url), 'utf8') })));
+    const runner = new Runner(new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: image!, network: 'none', sandbox: 'nested-userns-v1', memoryMiB: 1024 }), systemClock);
+    const result = await runner.run({ identity: { runId: 'deepseek', nodeTaskId: 'tree-cancel', attemptId: 'isolated', attemptNumber: 1 }, inputSource: input, timeoutMs: 10000,
+      invocation: { argv: ['node', '/task/config/cancel.mjs'], configFiles: [...files,
+        { name: 'cancel.mjs', content: await readFile(new URL('../fixtures/deepseek-fs-cancel.mjs', import.meta.url), 'utf8') }] } });
+    await writeFile(join(root, 'runner-result.json'), JSON.stringify(result, null, 2), { mode: 0o600 });
+    assert.equal(result.stop, 'confirmed'); assert.equal(result.cleanup, 'removed');
+    assert.equal(result.phase, 'exited', root); assert.equal(result.exitCode, 0, await readFile(result.capture!.stderr.path, 'utf8'));
+    assert.equal(await readFile(result.capture!.stdout.path, 'utf8'), 'isolated_fs_tree_cancel_verified\n'); removable = true;
+  } finally {
+    if (removable) await rm(root, { recursive: true, force: true }); else process.stderr.write(`Retained tree cancellation evidence: ${root}\n`);
+  }
+});
