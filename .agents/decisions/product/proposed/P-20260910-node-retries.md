@@ -6,7 +6,7 @@
 
 节点可声明最大尝试次数、允许错误类别和固定间隔，次数包含首次执行。无策略时不自动重试已失败执行；#13 的显式中断恢复仍可调用，已有恢复历史不丢失。有策略的节点，其恢复新 Attempt 同样受该 NodeTask 的累计预算限制，不重新开始局部计数循环。业务 outcome 和返修路由保持 #9 的正常语义，重入节点产生新的 NodeTask。
 
-首期类别对齐可信宿主结构化错误码：timeout、execution_failure、interrupted。只映射当前确切的执行码，不解析 Agent 自由文本，不把契约错误、取消、认证配置错误或未知 Effect 结果归入临时错误。配置拒绝未知类别和无效参数；以后增加可信错误接口时再扩展映射。
+首期类别对齐可信宿主结构化错误码：timeout、execution_failure、interrupted。只映射当前确切的执行码，不解析 Agent 自由文本，不把契约错误、取消、认证配置错误或未知 Effect 结果归入临时错误。配置拒绝未知类别和无效参数；以后增加可信错误接口时再扩展映射。 文件 Workflow Catalog 依据实际 Runner 的 timed_out 事实统一返回 EXECUTION_TIMEOUT；这项错误码规范化也适用于未配置重试的普通调用。此前 Script / Agent 分别可能返回 SCRIPT_EXECUTION_FAILED / EXECUTION_NOT_SUCCESSFUL，其他失败码及默认一次执行保持不变。错误事实归一化留在执行适配层，策略仍只消费结构化码，不向 Adapter 或 Runner 注入重试配置。
 
 Attempt 开始前的持久写入登记身份；源等待与未成功领取不进入 Attempt。启动不确定仍先按 #13 核对，不能凭未见成功就退还预算。重试失败结果、类别及原始决定/到期时间属于同一 Run 的 Attempt 历史，原定输入保持在正常游标，失败输出不接纳。等待状态与队列索引在同一条件提交中保存；等待不占 Worker 或共享执行容量，到期仍受角色和认证限制。
 
