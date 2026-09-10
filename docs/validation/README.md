@@ -1,5 +1,7 @@
 # 验证记录
 
+- [Tutor 报告消费端](2026-09-10-tutor-report-consumer.md)：真实业务 validator/renderer、合成扫描页及三页 A3 PDF。
+
 - [JSON Map/Fork 作者验收](2026-09-10-json-parallel.md)：有序汇合、共享容量、部分恢复与真实 Docker 隔离。
 
 - [Codex 临时元数据权限与启动](2026-09-09-codex-startup.md)
