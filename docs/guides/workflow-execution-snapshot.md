@@ -1,6 +1,6 @@
 # Workflow 执行绑定快照
 
-`snapshotWorkflowExecution(compiled)` 组合已编译结构与各节点实际执行器给出的绑定描述；`assertWorkflowExecutionMatches(compiled, saved)` 对当前安装重新取得的描述进行完整内容核对。当前内置实现支持 Docker Script（断网或 CONNECT）和实际 Agent 执行定义；断网脚本已接入[恢复](workflow-recovery.md)，不可变 API key Agent 已接入阶段恢复，订阅仍待接通。
+`snapshotWorkflowExecution(compiled)` 组合已编译结构与各节点实际执行器给出的绑定描述；`assertWorkflowExecutionMatches(compiled, saved)` 对当前安装重新取得的描述进行完整内容核对。当前内置实现支持 Docker Script（断网或 CONNECT）和实际 Agent 执行定义；断网脚本已接入[恢复](workflow-recovery.md)，不可变 API key 和具备 ExecutionCredentialStore 来源的订阅 Agent 均已接入[阶段恢复](workflow-phases.md)。
 
 ```ts
 import { snapshotWorkflowExecution, assertWorkflowExecutionMatches } from '@agentflow/engine';
@@ -24,9 +24,9 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 ## 当前限制
 
-文件函数、普通未声明确定性的 JSON 函数和文件到 JSON 的执行绑定描述尚未接入；显式登记的确定性 JSON 函数及固定操作 apply Effect 已接入。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。函数部署身份仍须从实际安装取得，不能用函数 toString 证明闭包一致。
+任意宿主文件函数、普通未声明确定性的 JSON 函数和文件到 JSON 回调不支持持久执行描述；显式登记的确定性 JSON 函数、内置[指定 JSON 文件投影](json-file-projection.md)及固定操作 apply Effect 已支持。结构快照支持这些类型不等于执行快照也支持；任一节点缺少执行描述时整体导出失败。函数部署身份仍须从实际安装取得，不能用函数 toString 证明闭包一致。
 
-执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，断网脚本的恢复协调与新 Attempt 已接入；订阅认证及其他绑定仍需贯通。
+执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，恢复协调与新 Attempt 支持的实际绑定及边界见[恢复指南](workflow-recovery.md)。
 
 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证及复盘](../validation/2026-09-10-script-execution-binding.md) · [结构快照](workflow-structure.md)
 
@@ -38,7 +38,7 @@ agentflow-credential-execution/v2 保存用户 prompt/config/outcomes、实际 A
 
 读取定义只查询本地镜像元数据，不启动版本探针、分配执行目录、访问凭据存储、获取租约或调用模型。实际运行仍执行原生版本验证后才取凭据；定义中的预期版本不能冒充实际探针通过。Profile 的 credentialRef/service/method/endpoint 等非秘密配置参与比较，凭据 generation/revision/token/key 不进入描述，正常刷新不会使定义变化。用户业务 prompt/config 仍会作为运行定义保存，描述器不承担任意业务文本的秘密识别。
 
-同一 Runner 的并发定义请求共享镜像解析；返回值独立。已开始运行而尚未冻结定义时拒绝事后首次描述。DockerBackend.configurationSnapshot 只导出已校验的非秘密配置，不授予网络或私有资源恢复能力；其 definition 支持不可变环境绑定的 v3 资源描述，仍拒绝缺少身份/收尾证据的其他私有绑定；无私有绑定的 CONNECT 已有独立资源恢复。不可变 API key Agent 可声明真实阶段计划并持久启动；订阅 Agent 返回 null 计划，继续在写库/执行前拒绝。定义可比较本身并不证明可恢复。见[验证](../validation/2026-09-10-agent-execution-binding.md)。
+同一 Runner 的并发定义请求共享镜像解析；返回值独立。已开始运行而尚未冻结定义时拒绝事后首次描述。DockerBackend.configurationSnapshot 只导出已校验的非秘密配置，不授予网络或私有资源恢复能力；其 definition 支持不可变环境绑定的 v3 资源描述，仍拒绝缺少身份/收尾证据的其他私有绑定；无私有绑定的 CONNECT 已有独立资源恢复。不可变 API key Agent 声明版本资源、凭据获取操作及执行资源三个阶段；实现 ExecutionCredentialStore 的订阅来源声明版本及执行两个资源阶段。缺少该订阅能力时返回 null 计划，在持久写库/执行前拒绝。定义可比较本身并不证明可恢复。见[验证](../validation/2026-09-10-agent-execution-binding.md)。
 
 ## CONNECT 脚本环境
 
