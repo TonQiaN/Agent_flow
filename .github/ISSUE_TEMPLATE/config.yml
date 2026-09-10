@@ -1,1 +1,2 @@
-blank_issues_enabled: false
+# 主 Issue 使用五类表单；Sub-issue 可通过空白入口自主创建。
+blank_issues_enabled: true
