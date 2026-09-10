@@ -28,6 +28,12 @@ function checkpoint(content: JsonValue, runId: string): WorkflowCheckpoint {
         throw new DefinitionError('INVALID_QUEUE_RUN');
     return value;
 }
+/** Historical identities remain after recovery; only confirmed cleanup allows immediate cancellation. */
+function stoppedForCancellation(content: JsonValue, value: WorkflowCheckpoint): boolean {
+    const recovery = content as { schema?: string; resourceRemoved?: boolean };
+    return recovery.schema === 'agentflow-workflow-recovery/v1'
+        ? recovery.resourceRemoved === true : value.snapshot.currentIdentity === null;
+}
 /** Single deployment namespace over the same atomic record store. Only references are duplicated. */
 export class PersistentNodeQueue implements NodeTaskQueue {
     readonly #configuration: QueueConfiguration;
@@ -275,7 +281,7 @@ export class PersistentNodeQueue implements NodeTaskQueue {
                 if(task.owner!==null){task.cancelRequested=true;continue;}
                 const child=await this.store.read(runKey(task.runId));if(!child)throw new DefinitionError('INVALID_QUEUE_RUN');
                 const source=checkpoint(child.content,task.runId);
-                if(source.snapshot.currentIdentity!==null)throw new DefinitionError('QUEUE_TASK_ACTIVE');
+                if(!stoppedForCancellation(child.content,source))throw new DefinitionError('QUEUE_TASK_ACTIVE');
                 const cancelled={...structuredClone(source),snapshot:{...source.snapshot,status:'cancelled',cancelRequested:true,reason:'CANCEL_REQUESTED',currentNode:null,currentIdentity:null},cursor:{...source.cursor,node:null}};
                 delete cancelled.snapshot.retry;task.state='done';task.reason='CANCEL_REQUESTED';
                 checks.push({runId:runKey(task.runId),revision:child.revision});writes.push({runId:runKey(task.runId),content:asJson(cancelled)});
@@ -299,11 +305,7 @@ export class PersistentNodeQueue implements NodeTaskQueue {
                 return false;
             }
             if(task.children!==undefined){return this.#cancelGroup(runId);}
-            // A credential wait may retain the old Attempt after recovery already confirmed cleanup.
-            const recovery = row.content as { schema?: string; resourceRemoved?: boolean };
-            const stopped = recovery.schema === 'agentflow-workflow-recovery/v1'
-                ? recovery.resourceRemoved === true : c.snapshot.currentIdentity === null;
-            if (!stopped || c.snapshot.cancelRequested)
+            if (!stoppedForCancellation(row.content, c) || c.snapshot.cancelRequested)
                 throw new DefinitionError('QUEUE_TASK_ACTIVE');
             const value = { ...structuredClone(c), snapshot: { ...c.snapshot, status: 'cancelled', cancelRequested: true, reason: 'CANCEL_REQUESTED', currentNode: null, currentIdentity: null }, cursor: { ...c.cursor, node: null } };
             delete value.snapshot.retry;
