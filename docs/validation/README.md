@@ -108,3 +108,5 @@
 [Tutor 持久验收链路预检](2026-09-10-tutor-persistence-preflight.md)。
 
 [批卷文件 Script 与中断恢复](2026-09-10-tutor-file-scripts.md)。
+
+[批卷来源归档重开验证](2026-09-10-tutor-source-reopening.md)。

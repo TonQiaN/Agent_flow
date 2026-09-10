@@ -4,10 +4,19 @@ import { ScriptExecutor, WorkflowRuntime, compileWorkflow, loadWorkflowCheckpoin
 import { DockerBackend, FileArtifactStore, FileArtifactArchive, FileWorkflowCatalog, SqliteRunRecordStore, systemClock } from '@agentflow/integrations';
 import { gradingFileScripts } from '../../examples/tutor-grading/file-scripts.ts';
 import { gradingContracts } from '../../examples/tutor-grading/contracts.ts';
+import { prepareGradingSource, readGradingSource } from '../../examples/tutor-grading/source.ts';
 const [root,operation,variant='wrong',interrupt='no']=process.argv.slice(2);
 const contracts=gradingContracts(),artifacts=new FileArtifactStore(join(root,'temporary'),contracts.files),archive=new FileArtifactArchive(join(root,'archive'),contracts.files);
 const files=new FileWorkflowCatalog(contracts.files,artifacts,join(root,'nodes'),archive),records=await SqliteRunRecordStore.open(join(root,'runs'));
-const scripts=await gradingFileScripts(JSON.parse(await readFile(join(root,'facts.json'),'utf8'))),started=[],restored=[];
+let prepared;
+const source=operation==='run'?(prepared=await prepareGradingSource(files,'run',join(root,'source'))).source:await readGradingSource('run',records,archive);
+const scripts=await gradingFileScripts(source),started=[],restored=[];
+if(operation==='source-drift')scripts.gate.argv[4]=JSON.stringify({files:source.files.map(f=>({...f,sha256:'f'.repeat(64)}))});
+if(operation==='run'&&interrupt==='queued'){
+ const create=records.create.bind(records);records.create=async(...args)=>{
+  const result=await create(...args);process.send({point:'source-saved'},()=>process.kill(process.pid,'SIGKILL'));await new Promise(()=>{});return result;
+ };
+}
 if(operation==='run'&&interrupt==='yes'){
  const cas=records.compareAndSwap.bind(records);records.compareAndSwap=async(...args)=>{
   const record=await cas(...args),attempt=args[2].attempts?.at(-1);
@@ -41,8 +50,8 @@ const flow=compileWorkflow({id:'tutor-file-scripts',start:'intake',input:value,o
 let run,recovery,loaded,input,snapshot;
 try{
  if(operation==='load'){loaded=await loadWorkflowCheckpoint(flow,'run',records);snapshot=loaded.checkpoint.snapshot;}
- else if(operation==='resume'){recovery=await claimWorkflowRecovery(flow,'run',records);await recovery.cleanup();run=await new WorkflowRuntime().resumePersisted(recovery);snapshot=await run.completion;}
- else{input=await files.prepareInput('run',join(root,'source'),'source-files');run=await new WorkflowRuntime().startPersisted(flow,'run',input,records);snapshot=await run.completion;}
+ else if(['resume','source-drift'].includes(operation)){recovery=await claimWorkflowRecovery(flow,'run',records);await recovery.cleanup();run=await new WorkflowRuntime().resumePersisted(recovery);snapshot=await run.completion;}
+ else{input=prepared.input;run=await new WorkflowRuntime().startPersisted(flow,'run',input,records);snapshot=await run.completion;}
  let report=null,output=null;
  if(snapshot.lastAccepted?.result.status==='accepted'&&snapshot.lastAccepted.node==='gate'){
   const destination=join(root,`inspect-${process.pid}`);await files.materialize(snapshot.lastAccepted.result.output,'run',destination);report=JSON.parse(await readFile(join(destination,'gate-report.json'),'utf8'));output=JSON.parse(await readFile(join(destination,'candidate.json'),'utf8'));

@@ -84,3 +84,5 @@
 [确定性 JSON 函数](guides/deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通函数、文件函数及完整 #13 仍有验收缺口。
 
 [批卷文件 Script](guides/tutor-file-scripts.md)已接通 intake/Gate 的实际执行及中断恢复验证；整条批卷持久组合仍待接线。
+
+[批卷来源重开](guides/tutor-source-reopening.md)已复用 Run 的首个输入归档；完整批卷持久组合继续接线。
