@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-08 文档管理与版本管理骨架。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。Roadmap 版本文件按实际规划创建，不预建空目录。
+状态：2026-09-10 文档与协作骨架，尚无产品运行实现。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。Roadmap 版本文件按实际规划创建，不预建空目录。
 
 ```text
 Agent_flow/
@@ -11,6 +11,7 @@ Agent_flow/
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
+│   ├── CLAUDE.md -> AGENTS.md      # 共用同目录指令正文
 │   ├── TEMPLATE.md
 │   ├── product/
 │   │   ├── README.md              # 稳定 ID → 正文位置
@@ -42,5 +43,7 @@ Agent_flow/
 ```
 
 正式开发以 Issue 为工作起点，按对应决定及当前说明执行。原始资料可由研究任务提炼进决定，但正式决定不依赖原始资料路径；原始区内部结构不在本图管理。
+
+产品源码、测试目录及运行命令尚未建立；根入口的对应条目使用“待确定、尚未创建”的占位，未选择具体路径。目录、职责或开发入口变化时，负责该改动的开发者同步本图、根 AGENTS.md 的简图与相关使用指南。
 
 [生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
