@@ -49,3 +49,18 @@ test('Effect loading validates actual service, operation, journal identity and a
  }}finally {await store.compareAndSwap('run',(await store.read('run'))!.revision,original!.content);store.close();}
  assert.equal((await complete(root,'load')).error,undefined);assert.equal((await writes(root)).length,2);
 });
+
+test('configured retry preserves real Effect journal protection and reuses receipts with current approval',{timeout:15000},async t=>{
+ for(const point of ['after-effect','after-receipt']){
+  const root=await fixture(t),p=child(root,point,'retry');assert.equal((await p.message()).point,point);assert.deepEqual(await p.exited,[null,'SIGKILL']);
+  const before=await record(root),first=await complete(root,'recover','retry');
+  if(point==='after-effect'){
+   assert.equal(first.error,'EFFECT_RESULT_UNKNOWN');assert.deepEqual(first.record,before);assert.equal((await complete(root,'recover','retry')).error,'EFFECT_RESULT_UNKNOWN');
+  }else{
+   assert.equal(first.result.status,'retry_wait');assert.equal(first.record.content.attempts[1].retry.result.code,'ATTEMPT_INTERRUPTED');
+   const final=await complete(root,'recover','retry');assert.equal(final.result.status,'succeeded');assert.equal(final.result.steps[1].result.outcome,'already-applied');
+   assert.deepEqual(final.approvals.map((i:any)=>i.attemptNumber),[2]);assert.deepEqual(final.calls,[]);
+  }
+  assert.equal((await writes(root)).length,2);
+ }
+});

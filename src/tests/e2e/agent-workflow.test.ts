@@ -122,3 +122,16 @@ for(const provider of ['codex','claude'])test(`queued ${provider} subscription t
   db.close();await rm(root,{recursive:true,force:true});
  }
 });
+
+test('queued actual Agent retry releases source, preserves A and uses a fresh Attempt for B',{skip:!enabled,timeout:70000},async()=>{
+ const f=await setup();try{
+  await finish(child(f.root,'queue-prepare','retry'));const a=await finish(child(f.root,'queue-once','retry'));assert.equal(a.result.snapshot.steps.length,1);
+  const first=await finish(child(f.root,'queue-once','retry'));assert.equal(first.result.error,null);assert.equal(first.result.waiting,'RETRY_WAIT');assert.equal(first.result.snapshot.retry.attemptNumber,1);
+  assert.deepEqual(first.result.snapshot.steps,a.result.snapshot.steps);assert.deepEqual(await readdir(join(f.root,'attempts')),[]);
+  const lease=await f.source.acquireManagement(credential);await lease.release();
+  const second=await finish(child(f.root,'queue-once','retry'));assert.equal(second.result.error,null);assert.equal(second.result.snapshot.status,'failed');
+  assert.equal(second.record.content.attempts.length,3);assert.equal(second.record.content.attempts[2].identity.attemptNumber,2);assert.equal(second.record.content.attempts[2].identity.nodeTaskId,'task-2');
+  assert.deepEqual(second.result.snapshot.steps[0],a.result.snapshot.steps[0]);assert.equal(second.record.content.values.length,2);assert.deepEqual(await readdir(join(f.root,'attempts')),[]);
+  assert.equal((await finish(child(f.root,'queue-once','retry'))).result,null);
+ }finally{await rm(f.root,{recursive:true,force:true});}
+});
