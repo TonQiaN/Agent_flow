@@ -21,3 +21,5 @@
 最终配置的真实单出口和多出口分别复跑通过：Codex 0.153.4 / gpt-5.6-sol，退出 0，正常 Harness 终态、收尾成功、completed / rejected 收据、sum=6 JSON 契约和摘要交接成立，输入副本有变化但 JSON 等价、宿主原件未变，工作区/产物与租约释放。使用原授权专用凭据及两官方域名，revision 保持 1，未发生真实刷新。真实 OAuth 刷新、其他 Harness、Workflow 及 Tutor 端到端仍单独验收。
 
 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) · [接纳验证](2026-09-09-agent-acceptance.md)
+
+2026-09-10 合并前复验：PR #17/#18 已合并，本层同步 main eddeb41 并保留最新主 Issue / Sub-issue 规范与 Blackbox 优先调查要求。生产源码与 961e77a 相同；启用 Docker、受控联网和同一实际 Codex 镜像的 `npm run check` 再次通过 92 项，零失败、零跳过。此次没有调用真实账号或模型，真实单/多出口仍引用上文相同实现的验收事实，真实刷新仍未触发。
