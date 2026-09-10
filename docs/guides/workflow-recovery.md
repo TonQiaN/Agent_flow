@@ -1,6 +1,6 @@
 # Workflow 恢复执行
 
-当前内置支持相同定义、契约和实际镜像的无私有认证 Script Workflow（断网或 CONNECT），以及不可变环境 API key 的 Agent Workflow（DeepSeek 合成验证，见[阶段指南](workflow-phases.md)）。重新组装独立的 Catalog、ScriptExecutor 和 DockerBackend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
+当前内置支持相同定义、契约和实际镜像的无私有认证 Script Workflow（断网或 CONNECT）、不可变环境 API key 的 Agent Workflow，以及配合 FileCredentialStore 的 Codex/Claude 订阅 Workflow。Agent 恢复目前使用合成协议验证，官方账号恢复尚未验收，见[阶段指南](workflow-phases.md)和[订阅恢复](subscription-resource-recovery.md)。重新组装独立的 Catalog、执行器与 backend，并使用原受信 Run 存储及耐久归档；仍持有相同文件 token 的 Catalog 不能重复加载。不要把模型提供的 JSON 包装成存储输入。
 
 ```ts
 import { claimWorkflowRecovery } from '@agentflow/engine';
@@ -18,7 +18,7 @@ try {
 
 只接受 queued/running 且没有取消意图的记录。准备、创建或启动仍为 pending 时拒绝；活动绑定必须具备共同资源恢复能力，或具备下述 Effect/确定性 JSON 的显式无资源恢复检查。原记录没有 Runner 资源时，资源移除条件视为无需处理；这不代表已经重启了节点。旧宿主后续的资源、操作或结果 CAS 无法覆盖新的 revision。
 
-`cleanup()` 再次确认当前 CAS 写入权，然后由该节点实际 ScriptExecutor 的共同 Runner 句柄恢复资源身份，query、确认 stop/remove、release，最后通过 CAS 保存移除完成。查询错误不是 absent，停止或目录释放失败均不记录成功。同一句柄并发 cleanup 合并执行；查询、停止或释放失败可保留句柄重试。CAS 失败或冲突关闭该句柄的写入权，应释放其文件引用，再用新的独立组合重新检查和认领。
+`cleanup()` 再次确认当前 CAS 写入权，然后由该节点实际执行器的资源恢复端口取得共同 Runner 句柄，query、确认 stop/remove、release，最后通过 CAS 保存移除完成。多阶段 Agent 经各自阶段的恢复端口处理。查询错误不是 absent，停止或目录释放失败均不记录成功。同一句柄并发 cleanup 合并执行；查询、停止或释放失败可保留句柄重试。CAS 失败或冲突关闭该句柄的写入权，应释放其文件引用，再用新的独立组合重新检查和认领。
 
 恢复者自身崩溃后，可以再次调用认领接口，对当前 revision 建立新的 claim。已提交的资源移除确认保留，未提交则重新经共同接口核对。两个恢复者竞争同一 revision 时仅一个能提交；后续接管会使旧句柄的迟到写入失败。已经发出的清理操作只针对不可复用的旧资源身份，不赋予旧句柄新建 Attempt 的权限。
 
