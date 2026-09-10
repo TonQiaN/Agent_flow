@@ -1,3 +1,5 @@
+import { getPlan } from '../workflow/compiler.js';
+import { canonicalJson, copyJson } from '../json.js';
 import { isIdentifier } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import type { RunRecordStore } from '../persistence/types.js';
@@ -7,11 +9,12 @@ import type { WorkflowRecoveryHandle } from '../workflow/recovery.js';
 import { WorkflowRuntime } from '../workflow/runtime.js';
 import type { WorkflowResumedRunHandle } from '../workflow/runtime.js';
 import type { CompiledWorkflow, WorkflowSnapshot } from '../workflow/types.js';
-import type { NodeTaskQueue, NodeTaskClaim } from './types.js';
+import type { NodeTaskQueue, NodeTaskClaim, NodeCredentialAdmission } from './types.js';
 export interface NodeWorkerHost {
-    open(runId: string, records: RunRecordStore): Promise<{
+    open(runId: string, records: RunRecordStore, claim: NodeTaskClaim): Promise<{
         compiled: CompiledWorkflow;
         runtime: WorkflowRuntime;
+        admission?: NodeCredentialAdmission;
         dispose?(snapshot?: WorkflowSnapshot): Promise<void>;
     }>;
 }
@@ -19,6 +22,7 @@ export interface NodeWorkerResult {
     readonly claim: NodeTaskClaim;
     readonly snapshot: WorkflowSnapshot | null;
     readonly error: string | null;
+    readonly waiting?: string;
 }
 /** One Attempt per claim. Application composition, routing and resource implementation stay outside. */
 export class NodeWorker {
@@ -74,15 +78,33 @@ export class NodeWorker {
                 }
             })();
             const records = this.queue.bind(claim);
-            opened = await this.host.open(claim.runId, records);
+            opened = await this.host.open(claim.runId, records, claim);
             if (lost)
                 throw new DefinitionError('QUEUE_CLAIM_LOST');
+            const node = getPlan(opened.compiled).bindings.get(claim.node);
+            if (!node) throw new DefinitionError('QUEUE_NODE_BINDING_MISMATCH');
+            const actual = node.executor.dispatchBinding?.(node.component);
+            if (node.component.kind === 'agent' && !actual) throw new DefinitionError('QUEUE_AGENT_BINDING_UNAVAILABLE');
+            if (actual) {
+                if (actual.harness !== claim.requirements.harness || !claim.requirements.credential
+                    || canonicalJson(copyJson(actual.credential)) !== canonicalJson(copyJson(claim.requirements.credential))
+                    || actual.capacity !== null && (claim.credentialCapacity === null || claim.credentialCapacity > actual.capacity))
+                    throw new DefinitionError('QUEUE_NODE_BINDING_MISMATCH');
+                if (!opened.admission || actual.admissionToken !== claim.token) throw new DefinitionError('QUEUE_CREDENTIAL_ADMISSION_REQUIRED');
+            }
+
             recovery = await claimWorkflowRecovery(opened.compiled, claim.runId, records);
             await recovery.cleanup();
+            if (opened.admission && !await opened.admission.acquire()) {
+                await opened.admission.release();
+                await this.queue.waitForCredential(selected);
+                return { claim, snapshot: null, error: null, waiting: 'CREDENTIAL_SOURCE_BUSY' };
+            }
             this.#active = await opened.runtime.resumePersistedNode(recovery);
             if (this.#cancel)
                 await this.#active.cancel();
             snapshot = await this.#active.completion;
+            await opened.admission?.release();
             const task = (await this.queue.query()).find(t => t.key === selected.key);
             if (task?.state !== 'done') {
                 await this.queue.block(selected, 'WORKER_RESULT_UNCONFIRMED');
@@ -92,6 +114,7 @@ export class NodeWorker {
         }
         catch (e) {
             const code = e instanceof DefinitionError ? e.code : 'WORKER_EXECUTION_FAILED';
+            await opened?.admission?.release().catch(() => {});
             if (claim)
                 await this.queue.block(claim, code).catch(() => { });
             if (!claim)

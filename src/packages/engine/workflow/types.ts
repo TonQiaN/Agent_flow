@@ -1,3 +1,4 @@
+import type { AgentDispatchBinding } from '../auth/types.js';
 import type { InvocationResourcePlan, InvocationPhaseSink } from './phases.js';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { WorkflowContractDefinition } from './structure.js';
@@ -28,6 +29,7 @@ export type WorkflowNodeResult = { readonly identity: ExecutionIdentity; readonl
 /** Installed trusted code. A settled accepted result guarantees execution ended. */
 export interface WorkflowNodeExecutor {
   validate(component: ComponentDefinition): void;
+  dispatchBinding?(component: ComponentDefinition): AgentDispatchBinding | undefined;
   contract(id: string): WorkflowContract;
   /** Actual registered definitions; optional for legacy executors, required for a structure snapshot. */
   contractDefinition?(id: string): WorkflowContractDefinition;

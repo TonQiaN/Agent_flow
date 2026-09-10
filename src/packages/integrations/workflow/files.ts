@@ -116,6 +116,10 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     const ids = [...new Set(definition.rules.flatMap(rule => rule.jsonContract === undefined ? [] : [rule.jsonContract]))].sort();
     return { kind: 'files', id, definition, jsonContracts: Object.fromEntries(ids.map(ref => [ref, this.contracts.json.definition(ref)])) };
   }
+  dispatchBinding(component: ComponentDefinition) {
+    this.validate(component); const binding = this.#bindings.get(component.id)!;
+    return binding.kind === 'agent' ? binding.executor.dispatchBinding() : undefined;
+  }
   async executionDefinition(component: ComponentDefinition): Promise<JsonValue> {
     this.validate(component); const binding = this.#bindings.get(component.id)!;
     if (binding.kind === 'agent') return binding.executor.definitionSnapshot({ componentId: component.id,

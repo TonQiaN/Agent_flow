@@ -44,3 +44,14 @@ export interface CredentialRecoveryResult {
 export interface CredentialRecoveryStore extends CredentialStore {
   recover(identity: CredentialIdentity, waitMs?: number): Promise<CredentialRecoveryResult>;
 }
+
+/** Non-secret dispatch constraints exposed by the actual installed Driver/Profile. */
+export interface AgentDispatchBinding {
+  /** Current host pre-execution reservation; never part of the durable execution definition. */
+  readonly admissionToken?: string;
+  readonly harness: string;
+  readonly credential: CredentialIdentity;
+  readonly capacity: number | null;
+}
+
+export interface AdmittedCredentialStore extends CredentialStore { admissionToken(): string }
