@@ -32,7 +32,7 @@ export interface ExecutionCredentialStore {
   /** undefined means the current host proves no copy was prepared; null is missing/invalid recovery content. */
   finishExecution(identity: CredentialIdentity, resource: string, content: string | null | undefined): Promise<ExecutionCredentialFinalization>;
 }
-interface ExecutionOwner { nonce: string; pid: number; execution: string; credential: CredentialMetadata }
+interface ExecutionOwner { nonce: string; pid: number; execution: string; credential: CredentialMetadata; admission?: string }
 type SecretReader = (expected: CredentialMetadata) => Promise<string>;
 type SecretCommitter = (expected: CredentialMetadata, content: string) => Promise<CredentialMetadata>;
 const LIMIT = 1024 * 1024;
@@ -314,12 +314,19 @@ export class FileCredentialStore implements CredentialManagementStore, Credentia
     if (!/^af-[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(resource)) throw new CredentialError('INVALID_CREDENTIAL_EXECUTION');
     return join(this.#root, `.execution-${identity.credentialRef}-${resource}.json`);
   }
-  async #executionOperation<T>(identity: CredentialIdentity, operation: () => Promise<T>): Promise<T> {
+  async #executionOperation<T>(identity: CredentialIdentity, operation: () => Promise<T>, waitMs = 1000): Promise<T> {
     return safe(async () => {
       await this.#rootReady();
       const guard = join(this.#root, `.${identity.credentialRef}.execution-operation.lock`);
-      try { await mkdir(guard, { mode: 0o700 }); }
-      catch (error) { if (nodeError(error, 'EEXIST')) throw new CredentialError('CREDENTIAL_OPERATION_BUSY'); throw error; }
+      const deadline = performance.now() + waitMs;
+      for (;;) {
+        try { await mkdir(guard, { mode: 0o700 }); break; }
+        catch (error) {
+          if (!nodeError(error, 'EEXIST')) throw error;
+          if (performance.now() >= deadline) throw new CredentialError('CREDENTIAL_OPERATION_BUSY');
+          await delay(Math.min(10, Math.max(1, deadline - performance.now())));
+        }
+      }
       // A killed operation retains this guard. Never infer transaction completion from PID death.
       try { return await operation(); } finally { await rm(guard, { recursive: true }); }
     });
@@ -331,7 +338,10 @@ export class FileCredentialStore implements CredentialManagementStore, Credentia
       if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== process.getuid!() || (info.mode & 0o777) !== 0o700) throw new CredentialError('UNSAFE_CREDENTIAL_LOCK');
     } catch (error) { if (nodeError(error, 'ENOENT')) return null; throw error; }
     const owner = JSON.parse(await readPrivate(join(directory, 'owner.json'), 4096)) as ExecutionOwner;
-    if (!owner || Object.keys(owner).sort().join(',') !== 'credential,execution,nonce,pid' || typeof owner.nonce !== 'string'
+    if (owner && Object.keys(owner).sort().join(',') === 'admission,credential,nonce,pid' && typeof owner.admission === 'string') {
+      await this.#admissionOwner(identity, owner.admission); return null;
+    }
+    if (!owner || !['credential,execution,nonce,pid', 'admission,credential,execution,nonce,pid'].includes(Object.keys(owner).sort().join(',')) || typeof owner.nonce !== 'string'
       || !/^[a-f0-9-]{36}$/.test(owner.nonce) || !owner.credential
       || Object.keys(owner.credential).sort().join(',') !== 'credentialRef,generation,method,remoteStatus,revision,service'
       || owner.credential.credentialRef !== identity.credentialRef || owner.credential.service !== identity.service || owner.credential.method !== identity.method
@@ -352,11 +362,85 @@ export class FileCredentialStore implements CredentialManagementStore, Credentia
         || !Number.isSafeInteger(value.credential.revision) || value.credential.revision < 1)) throw new CredentialError('CORRUPT_CREDENTIAL_EXECUTION_RESULT');
     return value;
   }
-  async acquireExecution(identity: CredentialIdentity, resource: string): Promise<{ metadata: CredentialMetadata; readSecret(): Promise<string> }> {
+  #admissionPath(identity: CredentialIdentity, token: string): string {
+    this.#codec(identity);
+    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(token)) throw new CredentialError('INVALID_CREDENTIAL_ADMISSION');
+    return join(this.#root, `.admission-${identity.credentialRef}-${token}.json`);
+  }
+  async #admissionClosed(identity: CredentialIdentity, token: string): Promise<boolean> {
+    let raw: string;
+    try { raw = await readPrivate(this.#admissionPath(identity, token), 128); }
+    catch (error) { if (nodeError(error, 'ENOENT')) return false; throw error; }
+    if (raw !== '{"closed":true}') throw new CredentialError('CORRUPT_CREDENTIAL_ADMISSION');
+    return true;
+  }
+  async #admissionOwner(identity: CredentialIdentity, token: string): Promise<{ nonce: string; pid: number; admission: string; credential: CredentialMetadata }> {
+    if (await this.#admissionClosed(identity, token)) throw new CredentialError('CREDENTIAL_ADMISSION_CLOSED');
+    const directory = join(this.#root, `${identity.credentialRef}.lock`), info = await lstat(directory);
+    if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== process.getuid!() || (info.mode & 0o777) !== 0o700) throw new CredentialError('UNSAFE_CREDENTIAL_LOCK');
+    const owner = JSON.parse(await readPrivate(join(directory, 'owner.json'), 4096));
+    if (!owner || Object.keys(owner).sort().join(',') !== 'admission,credential,nonce,pid' || owner.admission !== token) throw new CredentialError('CREDENTIAL_ADMISSION_LOST');
+    const current = await this.#read(identity);
+    if (!current || JSON.stringify(metadata(current)) !== JSON.stringify(owner.credential)) throw new CredentialError('CREDENTIAL_REVISION_CONFLICT');
+    return owner;
+  }
+  /** Source-owned pre-Attempt reservation. It reads metadata only and never waits while holding a queue slot. */
+  async acquireAdmission(identity: CredentialIdentity, token: string): Promise<boolean> {
+    const selected = Object.freeze({ ...identity }); this.#admissionPath(selected, token);
+    try { return await this.#executionOperation(selected, async () => {
+      if (await this.#admissionClosed(selected, token)) throw new CredentialError('CREDENTIAL_ADMISSION_CLOSED');
+      const lock = await this.#lock(selected, 0);
+      try {
+        const current = await this.#read(selected);
+        if (!current) throw new CredentialError('CREDENTIAL_NOT_CONFIGURED');
+        const ownerPath = join(this.#root, `${selected.credentialRef}.lock`, 'owner.json');
+        const owner = JSON.parse(await readPrivate(ownerPath, 1024));
+        await this.#atomicWrite(ownerPath, JSON.stringify({ ...owner, admission: token, credential: metadata(current) }));
+        const directory = await open(join(this.#root, `${selected.credentialRef}.lock`), constants.O_RDONLY);
+        try { await directory.sync(); } finally { await directory.close(); }
+        return true;
+      } catch (error) { await lock.release(); throw error; }
+    }, 0); } catch (error) {
+      if (error instanceof CredentialError && ['CREDENTIAL_BUSY', 'CREDENTIAL_OPERATION_BUSY'].includes(error.code)) return false;
+      throw error;
+    }
+  }
+  /** Used by immutable key transports. Releasing the snapshot seals this admission against late reuse. */
+  async readAdmission(identity: CredentialIdentity, token: string): Promise<CredentialLease> {
+    const selected = Object.freeze({ ...identity });
+    const owner = await this.#executionOperation(selected, () => this.#admissionOwner(selected, token));
+    const expected = Object.freeze({ ...owner.credential });
+    return Object.freeze({ metadata: expected,
+      readSecret: () => this.#executionOperation(selected, async () => {
+        await this.#admissionOwner(selected, token); return (await this.#read(selected))!.payload;
+      }),
+      commitSecret: async () => { throw new CredentialError('CREDENTIAL_ADMISSION_READ_ONLY'); },
+      release: () => this.releaseAdmission(selected, token),
+    });
+  }
+  /** Seal even an unacquired old token before releasing a pre-execution reservation. */
+  async releaseAdmission(identity: CredentialIdentity, token: string): Promise<void> {
+    const selected = Object.freeze({ ...identity }), path = this.#admissionPath(selected, token);
+    await this.#executionOperation(selected, async () => {
+      const directory = join(this.#root, `${selected.credentialRef}.lock`);
+      let owner: { admission?: string; execution?: string } | null = null;
+      try {
+        const info = await lstat(directory);
+        if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== process.getuid!() || (info.mode & 0o777) !== 0o700) throw new CredentialError('UNSAFE_CREDENTIAL_LOCK');
+        owner = JSON.parse(await readPrivate(join(directory, 'owner.json'), 4096));
+      }
+      catch (error) { if (!nodeError(error, 'ENOENT')) throw error; }
+      if (owner?.admission === token && owner.execution && !await this.#executionClosed(this.#executionPath(selected, owner.execution), selected)) throw new CredentialError('CREDENTIAL_ADMISSION_EXECUTING');
+      if (!await this.#admissionClosed(selected, token)) await this.#atomicWrite(path, '{"closed":true}');
+      if (owner?.admission === token) { await rm(directory, { recursive: true }); await this.#syncDirectory(); }
+    });
+  }
+  async acquireExecution(identity: CredentialIdentity, resource: string, admission?: string): Promise<{ metadata: CredentialMetadata; readSecret(): Promise<string> }> {
     const selected = Object.freeze({ ...identity }), closed = this.#executionPath(selected, resource);
     return this.#executionOperation(selected, async () => {
       if (await this.#executionClosed(closed, selected)) throw new CredentialError('CREDENTIAL_EXECUTION_CLOSED');
-      const lock = await this.#lock(selected, 0);
+      if (admission) await this.#admissionOwner(selected, admission);
+      const lock = admission ? null : await this.#lock(selected, 0);
       let stored: StoredCredential;
       try {
         const value = await this.#read(selected);
@@ -367,7 +451,7 @@ export class FileCredentialStore implements CredentialManagementStore, Credentia
         await this.#atomicWrite(ownerPath, JSON.stringify({ ...owner, execution: resource, credential: metadata(stored) }));
         const directory = await open(join(this.#root, `${selected.credentialRef}.lock`), constants.O_RDONLY);
         try { await directory.sync(); } finally { await directory.close(); }
-      } catch (error) { await lock.release(); throw error; }
+      } catch (error) { await lock?.release(); throw error; }
       const expected = metadata(stored);
       return Object.freeze({ metadata: expected, readSecret: () => this.#executionOperation(selected, async () => {
         if (await this.#executionClosed(closed, selected)) throw new CredentialError('CREDENTIAL_EXECUTION_CLOSED');

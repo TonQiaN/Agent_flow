@@ -1,3 +1,5 @@
+import { FileCredentialStore } from '../auth/file-store.js';
+import { createQueueCredentialAdmission } from './credential-admission.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -255,4 +257,41 @@ test('duplicate adoption cannot advance the same node twice or alter the stored 
     await assert.rejects(queue.bind(result.claim).compareAndSwap('a', row.revision, row.content), /QUEUE_CLAIM_LOST/);
     assert.deepEqual(await queue.records().read('a'), row);
     assert.deepEqual((await queue.query()).map(t => t.state), ['done', 'ready']);
+});
+
+for(const mismatch of ['harness','identity','capacity'])test(`actual dispatch ${mismatch} mismatch is rejected before an Attempt`,async t=>{
+ const{store}=await setup(t), config=structuredClone(configuration);
+ config.workflows.shared.a.harness=mismatch==='harness'?'different-agent':'fixture-agent';
+ if(mismatch==='capacity')config.credentials[0].capacity=2;
+ const queue=new PersistentNodeQueue(store,config);await submit(queue,'a');
+ const binding={harness:'fixture-agent',credential:{credentialRef:'shared',service:'fixture',method:'api-key'},capacity:1};
+ if(mismatch==='identity')binding.credential.credentialRef='foreign';
+ const worker=new NodeWorker(queue,{open:async()=>application('shared',async()=>{},binding)},systemClock,'worker',['json'],300);
+ assert.equal((await worker.runOnce())!.error,'QUEUE_NODE_BINDING_MISMATCH');
+ const row=(await queue.records().read('a'))!;assert.equal((row.content as any).attempts.length,0);assert.equal((await queue.query())[0]!.owner,null);
+});
+
+test('source-busy dispatch skips to another credential without a failed Attempt',async t=>{
+ const {root,queue}=await setup(t);await submit(queue,'a');await submit(queue,'b','other');
+ const source=new FileCredentialStore(join(root,'credentials'),[{service:'fixture',method:'api-key',validate:s=>s==='fixture-secret'}]);
+ const shared={credentialRef:'shared',service:'fixture',method:'api-key'},other={...shared,credentialRef:'other'};
+ for(const identity of [shared,other])await source.configure(identity,{content:'fixture-secret'});
+ const management=await source.acquireManagement(shared);
+ const worker=new NodeWorker(queue,{open:async(runId,_records,claim)=>{
+  const reservation=createQueueCredentialAdmission(source,claim);
+  const app=application(runId==='a'?'shared':'other',async()=>{const lease=await reservation.credentials.acquire(claim.requirements.credential!);assert.equal(await lease.readSecret(),'fixture-secret');await lease.release();});
+  return{...app,admission:reservation.admission};
+ }},systemClock,'worker',['json'],300);
+ try{
+  const waiting=await worker.runOnce();assert.equal(waiting!.waiting,'CREDENTIAL_SOURCE_BUSY');assert.equal(waiting!.error,null);
+  assert.equal(((await queue.records().read('a'))!.content as any).checkpoint.attempts.length,0);
+  const allowed=await worker.runOnce();assert.equal(allowed!.claim.runId,'b');assert.equal(allowed!.error,null);assert.equal(allowed!.snapshot!.steps.length,1);
+ }finally{await management.release();}
+});
+
+test('a correct Profile with an unadmitted source cannot start an Attempt',async t=>{
+ const{store}=await setup(t),config=structuredClone(configuration);config.workflows.shared.a.harness='fixture-agent';const queue=new PersistentNodeQueue(store,config);await submit(queue,'a');
+ const binding={harness:'fixture-agent',credential:{credentialRef:'shared',service:'fixture',method:'api-key'},capacity:1};
+ const worker=new NodeWorker(queue,{open:async()=>({...application('shared',async()=>{},binding),admission:{acquire:async()=>{throw new Error('MUST_NOT_ACQUIRE');},release:async()=>{}}})},systemClock,'worker',['json'],300);
+ assert.equal((await worker.runOnce())!.error,'QUEUE_CREDENTIAL_ADMISSION_REQUIRED');assert.equal(((await queue.records().read('a'))!.content as any).attempts.length,0);
 });

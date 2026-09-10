@@ -60,3 +60,5 @@ export type { CredentialVersionResourceCheckpoint, CredentialVersionResourceSink
 
 export { SqliteEffectRecordStore } from './persistence/effect-store.js';
 export { PersistentNodeQueue } from './queue/node-queue.js';
+
+export { createQueueCredentialAdmission } from './queue/credential-admission.js';

@@ -1,14 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isIdentifier } from '@agentflow/domain';
 import type { JsonValue } from '@agentflow/domain';
-import { canonicalJson, snapshotJson, RunStoreError, DefinitionError, validateQueueConfiguration, waitingReason } from '@agentflow/engine';
+import { canonicalJson, snapshotJson, RunStoreError, DefinitionError, validateQueueConfiguration, waitingReason, credentialCapacityKey } from '@agentflow/engine';
 import type { AtomicRunRecordStore, RunRecord, RunRecordStore, Clock, QueueConfiguration, QueuedNodeTask, NodeTaskQueue, NodeTaskClaim, WorkflowCheckpoint } from '@agentflow/engine';
 import { systemClock } from '../system-clock.js';
 type Task = {
     -readonly [K in keyof QueuedNodeTask]: QueuedNodeTask[K];
 };
 interface Index {
-    schema: 'agentflow-node-queue/v1';
+    schema: 'agentflow-node-queue/v2';
     configuration: QueueConfiguration;
     next: number;
     tasks: Task[];
@@ -38,13 +38,14 @@ export class PersistentNodeQueue implements NodeTaskQueue {
     }> {
         const record = await this.store.read(indexId);
         if (!record)
-            return { record, index: { schema: 'agentflow-node-queue/v1', configuration: this.#configuration, next: 1, tasks: [] } };
+            return { record, index: { schema: 'agentflow-node-queue/v2', configuration: this.#configuration, next: 1, tasks: [] } };
         const index = record.content as unknown as Index;
-        if (index?.schema !== 'agentflow-node-queue/v1' || !equal(index.configuration, this.#configuration) || !Array.isArray(index.tasks) || !Number.isSafeInteger(index.next) || index.next < 1)
+        if (index?.schema !== 'agentflow-node-queue/v2' || !equal(index.configuration, this.#configuration) || !Array.isArray(index.tasks) || !Number.isSafeInteger(index.next) || index.next < 1)
             throw new DefinitionError('QUEUE_CONFIGURATION_OR_STATE_MISMATCH');
         if (index.tasks.length > 2048 || index.next !== index.tasks.length + 1 || new Set(index.tasks.map(t => t.key)).size !== index.tasks.length
-            || index.tasks.some((t, i) => !t || Object.keys(t).sort().join(',') !== 'key,node,nodeTaskId,owner,reason,requirements,runId,sequence,state,workflowId'
-                || t.sequence !== i + 1 || !isIdentifier(t.runId) || !isIdentifier(t.workflowId) || !isIdentifier(t.node) || !/^task-[1-9][0-9]*$/.test(t.nodeTaskId)
+            || index.tasks.some((t, i) => !t || Object.keys(t).sort().join(',') !== 'admissionTokens,key,node,nodeTaskId,notBefore,owner,reason,requirements,runId,sequence,state,workflowId'
+                || !Array.isArray(t.admissionTokens) || t.admissionTokens.length > 64 || new Set(t.admissionTokens).size !== t.admissionTokens.length || !t.admissionTokens.every(v => /^[-a-f0-9]{36}$/.test(v))
+                || !Number.isFinite(t.notBefore) || t.notBefore < 0 || t.sequence !== i + 1 || !isIdentifier(t.runId) || !isIdentifier(t.workflowId) || !isIdentifier(t.node) || !/^task-[1-9][0-9]*$/.test(t.nodeTaskId)
                 || !Number.isSafeInteger(Number(t.nodeTaskId.slice(5))) || !['ready', 'leased', 'blocked', 'done'].includes(t.state) || t.key !== `${t.runId}/${t.nodeTaskId}`
                 || t.reason !== null && !isIdentifier(t.reason) || t.state === 'ready' && t.owner !== null || t.state === 'leased' && t.owner === null
                 || t.owner !== null && (!t.owner || Object.keys(t.owner).sort().join(',') !== 'deadline,token,worker' || !isIdentifier(t.owner.worker)
@@ -88,7 +89,7 @@ export class PersistentNodeQueue implements NodeTaskQueue {
             return;
         if (index.tasks.length >= 2048)
             throw new DefinitionError('QUEUE_TASK_LIMIT');
-        index.tasks.push({ key, sequence: index.next++, runId, workflowId: workflow, nodeTaskId, node, requirements: this.#configuration.workflows[workflow]![node]!, state: 'ready', owner: null, reason: null });
+        index.tasks.push({ key, sequence: index.next++, runId, workflowId: workflow, nodeTaskId, node, requirements: this.#configuration.workflows[workflow]![node]!, state: 'ready', owner: null, reason: null, admissionTokens: [], notBefore: 0 });
     }
     #owned(index: Index, claim: NodeTaskClaim, requireLive = true): Task {
         const task = index.tasks.find(t => t.key === claim.key);
@@ -142,17 +143,20 @@ export class PersistentNodeQueue implements NodeTaskQueue {
                     if (!allowed.includes(task.requirements.capability))
                         continue;
                 }
-                else if (task.state !== 'ready')
+                else if (task.state !== 'ready' || task.notBefore > now)
                     continue;
                 else {
                     task.reason = waitingReason(task, index.tasks, index.configuration, allowed);
                     if (task.reason)
                         continue;
                 }
+                if (task.admissionTokens.length >= 64) { task.state = 'blocked'; task.reason = 'QUEUE_ADMISSION_LIMIT'; continue; }
                 task.state = 'leased';
                 task.reason = null;
                 task.owner = { worker, token: randomUUID(), deadline: now + leaseMs };
-                return { key: task.key, runId: task.runId, nodeTaskId: task.nodeTaskId, node: task.node, worker, token: task.owner.token, recovering };
+                task.admissionTokens = [...task.admissionTokens, task.owner.token];
+                return { key: task.key, runId: task.runId, nodeTaskId: task.nodeTaskId, node: task.node, worker, token: task.owner.token, recovering, admissionTokens: [...task.admissionTokens], requirements: structuredClone(task.requirements),
+                  credentialCapacity: task.requirements.credential ? index.configuration.credentials.find(c => credentialCapacityKey(c.identity) === credentialCapacityKey(task.requirements.credential!))!.capacity : null };
             }
             return null;
         });
@@ -189,6 +193,23 @@ export class PersistentNodeQueue implements NodeTaskQueue {
                 if (!(e instanceof RunStoreError) || e.code !== 'RUN_REVISION_CONFLICT')
                     throw e;
             }
+        }
+        throw new DefinitionError('QUEUE_CONTENTION');
+    }
+    async waitForCredential(claim: NodeTaskClaim): Promise<void> {
+        for (let n = 0; n < 32; n++) {
+            const { record, index } = await this.#index(), task = this.#owned(index, claim);
+            const row = await this.store.read(runKey(claim.runId));
+            if (!row) throw new DefinitionError('INVALID_QUEUE_RUN');
+            const raw = row.content as { schema?: string; resourceRemoved?: boolean }, c = checkpoint(row.content, claim.runId);
+            const last = c.attempts.at(-1);
+            if (raw.schema === 'agentflow-workflow-recovery/v1' ? raw.resourceRemoved !== true : c.snapshot.currentIdentity !== null || last?.resultStep === null)
+                throw new DefinitionError('QUEUE_TASK_ACTIVE');
+            task.state = 'ready'; task.owner = null; task.reason = 'CREDENTIAL_SOURCE_BUSY'; task.notBefore = this.clock.now() + 1000;
+            // Caller has durably sealed every token before making this node dispatchable again.
+            task.admissionTokens = [];
+            try { await this.store.commitRecords([{ runId: indexId, revision: record!.revision }, { runId: runKey(claim.runId), revision: row.revision }], [{ runId: indexId, content: asJson(index) }]); return; }
+            catch (error) { if (!(error instanceof RunStoreError) || error.code !== 'RUN_REVISION_CONFLICT') throw error; }
         }
         throw new DefinitionError('QUEUE_CONTENTION');
     }

@@ -99,6 +99,12 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     })();
     try { return await this.#imagesPending; } finally { this.#imagesPending = undefined; }
   }
+  dispatchBinding(rawProfile: P) {
+    const profile = this.#recipe.profile(structuredClone(rawProfile)) as P & { capacity: number | null };
+    const admitted = this.#store as CredentialStore & { admissionToken?: () => string };
+    return { harness: this.#recipe.adapter().id, credential: this.#credential(profile), capacity: profile.capacity,
+      ...(admitted.admissionToken ? { admissionToken: admitted.admissionToken() } : {}) };
+  }
   #credential(profile: P): CredentialIdentity { return { credentialRef: profile.credentialRef, service: profile.service, method: profile.method }; }
   credentialAcquisitionIsResourceOwned(): boolean {
     const source = this.#store as CredentialStore & Partial<ExecutionCredentialStore>;

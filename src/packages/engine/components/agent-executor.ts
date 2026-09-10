@@ -1,3 +1,4 @@
+import type { AgentDispatchBinding } from '../auth/types.js';
 import type { InvocationResourcePlan, InvocationPhaseSink } from '../runner/phases.js';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
@@ -23,6 +24,7 @@ export interface AgentExecutionHandle {
 /** Explicitly installed trusted application code, never a function supplied by a workflow document. */
 export interface AgentExecutionDriver {
   readonly harness: string;
+  dispatchBinding?(): AgentDispatchBinding;
   validate(task: HarnessTask): void;
   /** Actual installed execution definition; no credential reads or node execution. */
   definitionSnapshot?(task: HarnessTask): Promise<JsonValue>;
@@ -95,6 +97,8 @@ export class AgentExecutor {
 
   /** Reuse is safe only for the identical installed store with a descriptor capability. */
   canReuseSnapshot(store: ArtifactStore): boolean { return store === this.artifacts && typeof store.inspect === 'function'; }
+
+  dispatchBinding(): AgentDispatchBinding | undefined { return this.driver.dispatchBinding ? clone(this.driver.dispatchBinding()) : undefined; }
 
   receipt(id: string): ExecutionReceipt {
     const receipt = this.#receipts.get(id); if (!receipt) throw new DefinitionError('UNKNOWN_EXECUTION_RECEIPT');

@@ -4,6 +4,7 @@ export interface NodeRequirements {
     readonly role: string;
     readonly capability: string;
     readonly credential?: CredentialIdentity;
+    readonly harness?: string;
 }
 export interface QueueConfiguration {
     readonly roles: Readonly<Record<string, number>>;
@@ -21,6 +22,9 @@ export interface NodeTaskClaim {
     readonly worker: string;
     readonly token: string;
     readonly recovering: boolean;
+    readonly admissionTokens: readonly string[];
+    readonly requirements: NodeRequirements;
+    readonly credentialCapacity: number | null;
 }
 export interface QueuedNodeTask {
     readonly key: string;
@@ -31,6 +35,8 @@ export interface QueuedNodeTask {
     readonly node: string;
     readonly requirements: NodeRequirements;
     readonly state: 'ready' | 'leased' | 'blocked' | 'done';
+    readonly admissionTokens: readonly string[];
+    readonly notBefore: number;
     readonly owner: {
         readonly worker: string;
         readonly token: string;
@@ -46,5 +52,12 @@ export interface NodeTaskQueue {
     bind(claim: NodeTaskClaim): RunRecordStore;
     block(claim: NodeTaskClaim, reason: string): Promise<void>;
     retryRecovery(key: string): Promise<void>;
+    waitForCredential(claim: NodeTaskClaim): Promise<void>;
     cancelReady(runId: string): Promise<boolean>;
+}
+
+/** Host capability: acquire before an Attempt, finalize only after normal resource cleanup. */
+export interface NodeCredentialAdmission {
+  acquire(): Promise<boolean>;
+  release(): Promise<void>;
 }

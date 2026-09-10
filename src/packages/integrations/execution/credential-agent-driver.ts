@@ -17,6 +17,7 @@ export class CredentialAgentDriver<P extends CredentialIdentity> implements Agen
       || !Number.isSafeInteger(options.timeoutMs) || options.timeoutMs < 1 || options.timeoutMs > 86_400_000) throw new Error('INVALID_SUBSCRIPTION_DRIVER');
     this.#options = Object.freeze({ ...options });
   }
+  dispatchBinding() { return this.runtime.dispatchBinding(this.#profile); }
   validate(task: HarnessTask): void { this.adapter.plan(task); }
   async definitionSnapshot(task: HarnessTask): Promise<JsonValue> {
     this.validate(task);

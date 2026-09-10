@@ -61,3 +61,6 @@ export type { NodeRequirements, QueueConfiguration, NodeTaskClaim, QueuedNodeTas
 export { validateQueueConfiguration, waitingReason, credentialCapacityKey } from './queue/policy.js';
 export { NodeWorker } from './queue/worker.js';
 export type { NodeWorkerHost, NodeWorkerResult } from './queue/worker.js';
+
+export type { AgentDispatchBinding, AdmittedCredentialStore } from './auth/types.js';
+export type { NodeCredentialAdmission } from './queue/types.js';

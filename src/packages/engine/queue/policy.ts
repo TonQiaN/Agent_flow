@@ -26,7 +26,8 @@ export function validateQueueConfiguration(input: QueueConfiguration): QueueConf
         if (!isIdentifier(workflow) || !object(nodes) || !Object.keys(nodes).length)
             throw new DefinitionError('INVALID_QUEUE_CONFIGURATION');
         for (const [node, r] of Object.entries(nodes))
-            if (!isIdentifier(node) || !object(r) || Object.keys(r).some(k => !['role', 'capability', 'credential'].includes(k))
+            if (!isIdentifier(node) || !object(r) || Object.keys(r).some(k => !['role', 'capability', 'credential', 'harness'].includes(k))
+                || r.harness !== undefined && !isIdentifier(r.harness)
                 || !isIdentifier(r.role) || !Object.hasOwn(value.roles, r.role) || !isIdentifier(r.capability) || r.credential !== undefined && !credentials.has(credentialCapacityKey(r.credential)))
                 throw new DefinitionError('INVALID_QUEUE_CONFIGURATION');
     }
