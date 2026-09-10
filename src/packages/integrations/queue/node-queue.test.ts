@@ -296,3 +296,59 @@ test('a correct Profile with an unadmitted source cannot start an Attempt',async
  const worker=new NodeWorker(queue,{open:async()=>({...application('shared',async()=>{},binding),admission:{acquire:async()=>{throw new Error('MUST_NOT_ACQUIRE');},release:async()=>{}}})},systemClock,'worker',['json'],300);
  assert.equal((await worker.runOnce())!.error,'QUEUE_CREDENTIAL_ADMISSION_REQUIRED');assert.equal(((await queue.records().read('a'))!.content as any).attempts.length,0);
 });
+
+for (const competingClaim of [false, true]) test(`recovered credential wait cancellation is atomic; competing claim=${competingClaim}`, { timeout: 15000 }, async t => {
+    const { root, queue, store } = await setup(t);
+    await submit(queue, 'a');
+    const old = child(root, 'old', 'hold');
+    t.after(async () => {
+        if (old.process.exitCode === null && old.process.signalCode === null) old.process.kill('SIGKILL');
+        await old.exited;
+    });
+    assert.equal((await old.next()).identity.nodeTaskId, 'task-1');
+    old.process.kill('SIGKILL');
+    assert.deepEqual(await old.exited, [null, 'SIGKILL']);
+    await systemClock.sleep(1600);
+    const recovery = new NodeWorker(queue, { open: async () => ({
+        ...application('shared'), admission: { acquire: async () => false, release: async () => {} },
+    }) }, systemClock, 'recovery', ['json']);
+    assert.equal((await recovery.runOnce())!.waiting, 'CREDENTIAL_SOURCE_BUSY');
+    const before = (await queue.records().read('a'))!.content as any;
+    assert.equal(before.resourceRemoved, true);
+    assert.equal(before.checkpoint.attempts.length, 1);
+    assert.equal((await queue.query())[0]!.state, 'ready');
+    assert.equal((await queue.query())[0]!.owner, null);
+    if (competingClaim) {
+        await systemClock.sleep(1100); // Make the queued credential wait eligible again.
+        const commit = store.commitRecords.bind(store);
+        let beforeCommit!: () => void, allowCommit!: () => void;
+        const paused = new Promise<void>(resolve => beforeCommit = resolve);
+        const proceed = new Promise<void>(resolve => allowCommit = resolve);
+        store.commitRecords = async (checks, writes) => {
+            if (writes.some(write => (write.content as any).snapshot?.status === 'cancelled')) {
+                beforeCommit(); await proceed;
+            }
+            return commit(checks, writes);
+        };
+        const cancellation = queue.cancelReady('a');
+        const rejected = assert.rejects(cancellation, /QUEUE_TASK_ACTIVE/);
+        await paused;
+        try {
+            const claim = await queue.claim('competing', ['json'], 30000);
+            assert.equal(claim!.nodeTaskId, 'task-1');
+        } finally { allowCommit(); }
+        await rejected;
+        assert.deepEqual((await queue.records().read('a'))!.content, before);
+        assert.equal((await queue.query())[0]!.state, 'leased');
+        return;
+    }
+    assert.equal(await queue.cancelReady('a'), true);
+    const loaded = await loadWorkflowCheckpoint(application('shared').compiled, 'a', queue.records());
+    try {
+        assert.equal(loaded.checkpoint.snapshot.status, 'cancelled');
+        assert.equal(loaded.checkpoint.snapshot.cancelRequested, true);
+        assert.deepEqual(loaded.checkpoint.attempts, before.checkpoint.attempts);
+    } finally { await loaded.dispose(); }
+    assert.equal(await queue.claim('next', ['json'], 30000), null);
+    assert.equal((await queue.query()).length, 1);
+});
