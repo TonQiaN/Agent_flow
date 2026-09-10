@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component 与 JSON contract 基础、CLI 示例及工程检查。完整 Workflow、文件交付、Docker/Harness、持久化、队列、重试和并行尚未实现。**
+**当前状态：可运行确定性 Component、JSON contract、离线 Docker Runner、示例及工程检查。完整 Workflow、文件 contract、认证/Harness、持久化、队列、重试和并行尚未实现。**
 
 | 入口 | 内容 |
 | --- | --- |

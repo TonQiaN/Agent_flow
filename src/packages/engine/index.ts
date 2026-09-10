@@ -5,3 +5,6 @@ export { ComponentRegistry, FunctionRegistry } from './components/registry.js';
 export type { ComponentFunction } from './components/registry.js';
 export { ComponentExecutor } from './components/executor.js';
 export type { ExecutionResult, ExecutionFailureCode } from './components/executor.js';
+export { Runner } from './runner/runner.js';
+export { TASK_PATHS } from './runner/types.js';
+export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, ExecutionBackend, ExecutionResource, Observation, RawCapture, CapturedFile } from './runner/types.js';

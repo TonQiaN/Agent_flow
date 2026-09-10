@@ -3,6 +3,7 @@
   "references": [
     { "path": "src/packages/domain" },
     { "path": "src/packages/engine" },
+    { "path": "src/packages/integrations" },
     { "path": "src/apps/cli" }
   ]
 }
