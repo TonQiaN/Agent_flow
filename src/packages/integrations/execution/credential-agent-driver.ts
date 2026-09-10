@@ -30,7 +30,8 @@ export class CredentialAgentDriver<P extends CredentialIdentity> implements Agen
     const probe = await this.runtime.versionProbeDefinition() as { backend: JsonValue };
     return { schema: 'agentflow-invocation-resources/v1', phases: [
       { id: 'version', kind: 'resource', execution: probe.backend },
-      { id: 'credential', kind: 'operation' }, { id: 'execution', kind: 'resource', execution } ] };
+      ...(this.runtime.credentialAcquisitionIsResourceOwned() ? [] : [{ id: 'credential', kind: 'operation' as const }]),
+      { id: 'execution', kind: 'resource', execution } ] };
   }
   async restorePhaseResource(task: HarnessTask, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
     this.validate(task);
@@ -52,7 +53,7 @@ export class CredentialAgentDriver<P extends CredentialIdentity> implements Agen
       const snapshotId = input.id;
       execution = await this.runtime.run({ task, profile: this.#profile, inputSource: null, timeoutMs: this.#options.timeoutMs }, cancellation, phases ? {
         version: { save: record => version!.resource!.save(record.runner), launch: state => version!.resource!.launch!(state), complete: () => version!.complete() },
-        acquisition: { enter: async () => { acquisition = await phases.enter('credential'); }, complete: async () => { await acquisition!.complete(); } },
+        ...(this.runtime.credentialAcquisitionIsResourceOwned() ? {} : { acquisition: { enter: async () => { acquisition = await phases.enter('credential'); }, complete: async () => { await acquisition!.complete(); } } }),
         execution: { save: async record => { executionPhase = await phases.enter('execution'); await executionPhase.resource!.save(record); },
           launch: state => executionPhase!.resource!.launch!(state) },
       } : undefined, { materialize: destination => this.artifacts.materialize(snapshotId, destination) });

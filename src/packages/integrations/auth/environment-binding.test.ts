@@ -91,10 +91,10 @@ test('immutable environment recovery description omits key versions and manageme
     const restored = EnvironmentExecutionCredentialBinding.recoveryBinding(credential, ['DEEPSEEK_API_KEY']);
     assert.deepEqual(restored.resourceDefinition!(), definition);
     await assert.rejects(restored.beforeRelease({ id: 'resource' }), /BINDING_EXECUTION_MISMATCH/);
-    await restored.restoreResource!({ id: 'resource' });
+    await restored.restoreResource!({ id: 'resource' }, root);
     await assert.rejects(restored.prepare({ id: 'resource' }, root), /RECOVERY_BINDING_CANNOT_EXECUTE/);
     assert.throws(() => restored.secretEnvironment!({ id: 'resource' }), /RECOVERY_BINDING_CANNOT_EXECUTE/);
-    await assert.rejects(restored.restoreResource!({ id: 'resource' }), /BINDING_ALREADY_USED/);
+    await assert.rejects(restored.restoreResource!({ id: 'resource' }, root), /BINDING_ALREADY_USED/);
     await assert.rejects(restored.beforeRelease({ id: 'other' }), /BINDING_EXECUTION_MISMATCH/);
     await restored.beforeRelease({ id: 'resource' });
     await assert.rejects(binding.restoreResource({ id: 'resource' }), /RECOVERY_BINDING_REQUIRED/);

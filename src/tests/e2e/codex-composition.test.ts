@@ -62,7 +62,7 @@ test('Codex composition: synthetic executable exercises version, binding, refres
       try {
         const result = execution.result;
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);
-        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential.revision, 2); assert.deepEqual(result.diagnostics, []);
+        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential?.revision, 2); assert.deepEqual(result.diagnostics, []);
         assert.equal(result.runner.capture!.imageId, definition.environment.options.image);
         assert.equal(result.runner.capture!.network!.proxyImageId, definition.environment.options.network.proxyImage);
         assert.deepEqual(await runtime.definitionSnapshot(definitionTask, profile, 10000), definition);

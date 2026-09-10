@@ -12,6 +12,7 @@ export class ClaudeSubscriptionRunner extends CredentialHarnessRunner<ClaudeSubs
   constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }) {
     super(store, options, {
       binding: 'exclusive',
+      resourceEnvironment: { CLAUDE_CONFIG_DIR: '/task/state/claude' },
       systemConfigMounts: [{ name: 'claude-managed.json', target: '/etc/claude-code/managed-settings.json' }],
       version: CLAUDE_VERSION, hosts: CLAUDE_SUBSCRIPTION_HOSTS, stateFile: 'claude/.credentials.json', versionCommand: ['claude', '--version'],
       adapter: () => new ClaudeAdapter(), profile: claudeSubscriptionProfile, redactor: () => new ClaudeCredentialRedactor(),

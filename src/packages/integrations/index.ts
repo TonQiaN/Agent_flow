@@ -6,7 +6,7 @@ export type { DockerEgressOptions } from './docker/egress.js';
 export { systemClock } from './system-clock.js';
 export { CodexAdapter, CODEX_VERSION } from './harness/codex.js';
 export { FileCredentialStore, CredentialError } from './auth/file-store.js';
-export type { CredentialCodec } from './auth/file-store.js';
+export type { CredentialCodec, ExecutionCredentialStore, ExecutionCredentialFinalization } from './auth/file-store.js';
 export { FileExecutionCredentialBinding } from './auth/execution-binding.js';
 export type { CredentialBindingOptions, BindingFinalization } from './auth/execution-binding.js';
 export { CodexSubscriptionCodec, CodexCredentialRedactor, codexSubscriptionProfile, CODEX_SUBSCRIPTION_HOSTS } from './auth/codex-subscription.js';

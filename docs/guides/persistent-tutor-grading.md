@@ -40,6 +40,6 @@ Effect 已保存可靠回执时，新 Attempt 复用回执，外部服务不重�
 
 ## 验证范围
 
-已用真实 Docker、实际不可变 API key Driver/Adapter/Runner、SQLite、文件归档和本地持久发布替身进行合成批卷及中断验收。Agent CLI 是协议替身，不是官方模型；没有向 Tutor 数据库写入。订阅 Driver 的持久恢复仍未接通，实际学生卷、报告和 PDF 也未完成最终验收。
+已用真实 Docker、实际不可变 API key Driver/Adapter/Runner、SQLite、文件归档和本地持久发布替身进行合成批卷及中断验收。Agent CLI 是协议替身，不是官方模型；没有向 Tutor 数据库写入。Codex/Claude 订阅 Driver 也已通过同一组合的合成刷新与中断恢复，见[订阅恢复](subscription-resource-recovery.md)；实际学生卷、报告和 PDF 未完成最终验收。
 
 [完整组合验证](../validation/2026-09-10-persistent-tutor-grading.md) · [指定 JSON 转换](json-file-projection.md) · [来源重开](tutor-source-reopening.md)

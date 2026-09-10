@@ -26,7 +26,7 @@ try {
 
 只想检查时，使用 [loadWorkflowCheckpoint](workflow-checkpoint-loading.md)：它同时接受普通 v5 检查点和上述恢复封套，返回独立的 `checkpoint` 及 `recovery` 元数据，不认领、不写库、不查询或停止容器。
 
-已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作继续拒绝；订阅及完整 #13 仍未整体验收。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作继续拒绝；订阅恢复和 #13 作者验收见[当前对照](../validation/2026-09-10-issue13-acceptance.md)，PR 交付仍待完成。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
 
 ## 继续正常执行
 
@@ -54,7 +54,7 @@ v5 的 attempts 增加 interrupted。中断的旧 Attempt 保留原身份、资�
 
 只支持当前可核对的实际执行绑定；v1/v2/v3/v4 是未发布的试验格式，拒绝自动迁移。完整证据和剩余缺口见[新 Attempt 验证](../validation/2026-09-10-workflow-resume.md)。
 
-无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；不可变 API key 的 Agent 阶段与文件收据已贯通；订阅占用仍未接通。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。
+无私有认证的 CONNECT Script 也可通过同一入口恢复。确认旧任务容器、代理、内外网络全部移除后，才提交 resourceRemoved 并创建新 Attempt；联网模式已通过一次/连续两次宿主 SIGKILL 的 A 保留、B 恢复验证。未知 pending 操作仍拒绝自动接管；不可变 API key 的 Agent 阶段与文件收据已贯通；订阅占用已接通[资源归属与停止后收尾](subscription-resource-recovery.md)。见[联网恢复](../validation/2026-09-10-network-resource-recovery.md)。
 
 多阶段 executor 的恢复逐一经 restorePhaseResource 恢复该 Attempt 中已经保存的资源，按声明的反向顺序清理；所有资源确认移除并释放后才提交 resourceRemoved=true。部分失败保留 false，后续可重新核对已移除的资源。活动 operation 或任一 pending launch 拒绝认领；各阶段进度不增加业务 steps。详见[阶段指南](workflow-phases.md)。
 

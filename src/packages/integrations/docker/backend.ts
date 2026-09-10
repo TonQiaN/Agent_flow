@@ -157,7 +157,7 @@ export class DockerBackend implements ExecutionBackend {
     this.#restoring.set(record.resourceId, record.directory);
     try {
       await verifyResourceDirectory(record);
-      await this.#binding?.restoreResource?.({ id: record.resourceId });
+      await this.#binding?.restoreResource?.({ id: record.resourceId }, join(record.directory, 'state'));
       // No filesystem allocation and no container operation. Only later common query/stop observes it.
       this.#resources.set(record.resourceId, { directory: record.directory, name: record.resourceId, imageId: this.#pinnedImage!, removed: false, checkpoint: record, restored: true,
         ...(this.#options.network === 'none' ? {} : { egress: new DockerEgress(record.resourceId, record.directory, this.#options.network,
