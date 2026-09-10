@@ -4,7 +4,9 @@
 
 ## 建立和整理 Issue
 
-当前有功能、缺陷、研究、决策、维护五份完整表单。具体选类、八项共通信息、专用字段、交付与验收、Assignees 设置、网页和 CLI/API 同等填写方式，见 [Issue 分类与填写指南](issue-templates.md)。七份决定通过 [分类](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 与 [共通规范](../../.agents/decisions/development/README.md#d-20260908-issue-template-common) 入口查阅；本指南继续说明阶段和交接。
+当前有功能、缺陷、研究、决策、维护五份完整表单，每份都用“所属领域”区分开发流程与项目内容。具体选类、九项共通信息、专用字段、交付与验收、Assignees 设置、网页和 CLI/API 同等填写方式，见 [Issue 分类与填写指南](issue-templates.md)。七份决定通过 [分类](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 与 [共通规范](../../.agents/decisions/development/README.md#d-20260908-issue-template-common) 入口查阅；本指南继续说明阶段和交接。
+
+制定者先说明当前情况、期望结果和真实约束。尚不清楚怎样实现不影响建项；实施者与 AI 在目标内探索方法。Issue 正文不填写实现、研究或测试计划，验收写完成后应看到的结果。形成的技术取舍进入对应决定，实际方法与验证证据进入 PR 或验证记录，Issue 保留确认和产物定位。
 
 研究和决策允许只交付自足的正式决定；若已承诺模板、代码或指南，仍须逐项完成。否定研究结论可以验收，缺少必要证据或预算耗尽不能直接算完成。负责人在正文写一名人类主责，并另设真实 Assignees；原始资料链接不能替代正文事实。填写演练和实际入口检查的范围见 [实施验证](../validation/2026-09-08-issue-templates.md)。
 

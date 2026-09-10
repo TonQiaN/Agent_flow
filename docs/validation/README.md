@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-10 | [Issue 领域与结果表达改版验证](2026-09-10-issue-domain.md) |
 | 2026-09-08 | [Issue 模板实施验证](2026-09-08-issue-templates.md) · [12 个填写与边界演练](2026-09-08-issue-template-examples.md) |
 | 2026-09-08 | [七份 Issue 模板决定设计验证](2026-09-08-issue-template-decisions.md) |
 | 2026-09-08 | [版本管理骨架验证](2026-09-08-version-management.md) |

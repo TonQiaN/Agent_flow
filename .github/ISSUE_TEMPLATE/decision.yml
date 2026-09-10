@@ -5,7 +5,18 @@ title: "[决策] "
 body:
 - type: markdown
   attributes:
-    value: 提交后按项目流程经人参与整理、预检和确认具体范围。请设置 Assignees；表单填写不代表已经开工或验收。正文须自足，原始材料链接可选。[分类与填写指南](https://github.com/TonQiaN/Agent_flow/blob/main/docs/development/issue-templates.md)。
+    value: 请说清当前情况、想要的结果与必要边界，具体方法由执行者选择。请设置 Assignees，并按项目流程整理和核对需求。[分类与填写指南](https://github.com/TonQiaN/Agent_flow/blob/main/docs/development/issue-templates.md)。
+- type: dropdown
+  id: domain
+  attributes:
+    label: 所属领域
+    description: 开发流程：团队开发、协作与维护方法；项目内容：AgentFlow 产品本身的能力、实现与使用说明。按主要验收对象单选；跨领域影响写入“范围与边界”。
+    options:
+    - 开发流程
+    - 项目内容
+    multiple: false
+  validations:
+    required: true
 - type: input
   id: owner
   attributes:
@@ -17,54 +28,30 @@ body:
 - type: textarea
   id: problem
   attributes:
-    label: 需要敲定的问题与适用范围
-    description: 说明为何现在要决定、影响谁，以及哪些要求已有明确确认。
+    label: 当前情况与需要作出的选择
+    description: 说明为什么现在需要作出选择，以及该选择应解决什么问题；无需先提供候选方案或推荐结论。
     placeholder: |-
-      要选择什么：
-      已有确认 / 约束：
-      本次仍待选择：
-  validations:
-    required: true
-- type: textarea
-  id: options
-  attributes:
-    label: 候选方案与比较依据
-    description: 比较真实存在的方案、代价和不改变现状的后果；已有否决理由优先引用。若仅有一种合理候选，解释原因，不编造替代方案。
-    placeholder: |-
-      方案及收益 / 代价：
-      已有事实与证据限度：
-      推荐及理由（未确认即建议）：
-  validations:
-    required: true
-- type: textarea
-  id: impact
-  attributes:
-    label: 影响、落实与重开条件
-    description: 说明对接口、文档、用户或开发流程的影响、实施交接，以及什么新事实值得重新讨论；决定被采纳不等于产品已实现。
-    placeholder: |-
-      影响范围 / 保留边界：
-      落实去向（可待登记，不虚构 Issue 号）：
-      是否还有必要研究：
-      重开条件：
+      当前情况与影响：
+      需要作出什么选择：
+      希望选择带来什么结果：
   validations:
     required: true
 - type: textarea
   id: scope
   attributes:
     label: 范围与边界
-    description: 写明本次交付切片、受影响模块/接口、保留行为与非目标；将必要事实写在正文，原始材料链接自愿提供。
+    description: 说明目标范围、非目标和已有的必要约束及依据；不在这里预设技术选型、内部结构或执行步骤。
     placeholder: |-
-      包含：
-      不包含：
-      受影响模块/调用方：
-      必须保持的行为：
+      本次希望解决的范围：
+      本次不包含的目标：
+      必须满足的已有约束及原因（如有）：
   validations:
     required: true
 - type: dropdown
   id: deliverables
   attributes:
     label: 预期交付物
-    description: 可多选。每项在验收中指出具体内容/位置；选择“决策”不代表其他已承诺产物可省略。
+    description: 可多选，说明希望收到什么成果；不必提前指定实现文件路径或内部结构，已承诺的成果仍需完成。
     options:
     - 正式决策正文
     - 实现文件（代码 / 配置 / 模板）
@@ -76,47 +63,44 @@ body:
 - type: textarea
   id: acceptance
   attributes:
-    label: 验收标准与验证方式
-    description: 列可检查的结果、方法和必要边界，不预填“通过”。研究/决策可以不运行产品测试；实际结果在执行后回填。
+    label: 完成后应看到的结果
+    description: 写具体场景下应出现的结果，或希望得到的回答及其质量；不预设实现、研究或测试方法，不用执行过步骤代替目标达成。
     placeholder: |-
-      - [ ] 在……条件下，观察到……；以……验证。
-      - [ ] 对应交付物……可检查，未知项……有处理结论。
+      - [ ] 在……情况下，使用者能够…… / 结果表现为……。
+      - [ ] 对于……问题，结论说明……及仍存在的限制。
   validations:
     required: true
 - type: textarea
   id: dependencies
   attributes:
     label: 依赖与阻塞
-    description: 区分阻塞、相关参考和父子拆分。没有外部依赖写“无”；阻塞写所需交付、解除条件与处理人，内部未知项说明何时影响下一步。
+    description: 只列已知依赖、缺少的条件及责任归属；区分阻塞与参考。没有已知依赖写“无”，未知项如实说明。
     placeholder: |-
-      阻塞：无 / 具体事项或 #Issue
-      所需交付、解除条件与处理人：
-      相关参考：
-      父子关系（适用时）：
+      已知阻塞或缺少的条件：无 / 具体事项
+      需要谁提供什么：
+      相关参考或父子 Issue（如有）：
   validations:
     required: true
 - type: textarea
   id: decision_context
   attributes:
-    label: 相关决定与待决问题
-    description: 可先列候选稳定 ID 与问题，不要求创建时已完成决定。实施前按项目规则核对现行正文、alternatives/rejected；同一问题优先修订原文。
+    label: 已知约束与相关决定
+    description: 按需补充已有明确要求、依据或相关决定，以及仍需澄清的需求；不要求建项时列出候选方案或作出技术选择。
     placeholder: |-
-      已有决定 / 当前依据：
-      本次可能修订的问题：
-      已知分歧或新证据：
+      已有明确要求与依据：
+      相关决定（如有）：
+      仍需澄清的需求问题：
   validations:
     required: false
 - type: textarea
   id: handoff
   attributes:
     label: 整理与续接记录
-    description: 创建时可留空，开始工作、实质变更或交接时补充。保持短摘要；具体确认与验证必须如实，空白不等于批准，已有授权不重复询问。
+    description: 创建时可留空；后续简记需求确认、实际进展和产物定位，不填写执行计划。已有授权不重复询问，实际完成情况如实记录。
     placeholder: |-
-      当前阶段 / 已完成：
-      主责与实际参与分工：
-      已确认范围、确认人/日期/依据：
-      待决或阻塞与处理人：
-      实际基线、证据位置及未验证部分：
-      下一步 / 交接位置：
+      已确认的需求范围、参与者与依据：
+      已完成 / 未完成的结果：
+      待澄清问题与责任人：
+      相关决定、产物或验收记录：
   validations:
     required: false

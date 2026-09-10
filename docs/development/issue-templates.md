@@ -1,92 +1,100 @@
 # Issue 分类与填写指南
 
-当前有五份完整表单，位于 `.github/ISSUE_TEMPLATE/`，手工维护。分类理由见 [分类决定](../../.agents/decisions/development/README.md#d-20260908-issue-classification)，字段与同步取舍见 [共通规范](../../.agents/decisions/development/README.md#d-20260908-issue-template-common)。本页说明实际用法；阶段、确认与 PR 操作仍按 [开发工作指南](workflow.md)。
+五份完整表单位于 `.github/ISSUE_TEMPLATE/`，手工维护。[分类决定](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 说明所属领域和主类型，[共通规范](../../.agents/decisions/development/README.md#d-20260908-issue-template-common) 说明字段职责；开发阶段、确认与 PR 操作见 [工作指南](workflow.md)。
+
+## 先说明当前情况与期望结果
+
+制定者说明谁在什么情况下遇到什么问题、带来什么影响，以及到底希望得到什么结果。只填与本项有关的事实、目标和必要边界；不需要先想好怎样实现。
+
+实现者可以与 AI 一起探索达到目标的方法。Issue 正文不预设技术选型、内部结构、实现步骤、研究路线或测试方案，也没有可选的“建议实现”栏。已存在的兼容、权限、资源等真实约束仍可说明，并写清依据；早期技术想法不能自动成为需求。
+
+验收描述完成后应看到什么。例如，回放需求可以写“停在结果返回前的时间点时，审阅者看不到未来输出”，不必要求先选定存储模型、回放算法或测试工具。研究与决策可以要求结论有依据、限制清楚、可供人判断，但不用预设执行者应怎样取得这些结果。
+
+具体取舍由执行者在工作中形成，必要内容进入对应决定；实际方法和证据进入 PR 或验证记录。Issue 保存需求澄清、实际进展、确认及产物定位。
+
+## 选择所属领域
+
+每份表单的第一个输入是“所属领域”，从两项中单选，没有预选答案。
+
+| 所属领域 | 主要作用对象 | 示例 |
+| --- | --- | --- |
+| 开发流程 | 团队开发、协作和维护项目的方法与约定 | AGENTS.md 写法研究；Issue 模板改进；版本维护机制 |
+| 项目内容 | AgentFlow 产品本身的目标、能力、契约、实现或使用说明 | Harness Adapter；产品节点隔离研究；产品使用指南 |
+
+领域与主要类型分别选择。#20 是开发流程中的研究，产品节点隔离也可以是研究；#21 是开发流程中的维护，产品指南修订也可以是维护。文档、Prompt 或代码的文件类型不能替代作用对象判断。
+
+跨领域工作按主要验收结果选一个领域，在范围中补充另一领域的影响。两个结果可以独立验收且拆分有价值时再拆项；目标不清楚时先澄清。领域保存在正文，不会自动设置 Labels、Issue Types 或切换 PR 流程。
 
 ## 选择主要类型
 
-按本项最后承诺交付什么选择一类。工作性质和交付物分开，选“研究”或“决策”不表示免除已承诺的实现。
+按最后承诺的主要结果选择一类，不按工作阶段或实现载体选类。
 
-| 完成时主要回答的问题 | 表单与标题前缀 | 对应例子 |
+| 主要完成目标 | 表单 / 标题前缀 | 提示与专用信息 / 输入块数 |
 | --- | --- | --- |
-| 新增或改变什么产品能力？ | [功能与行为改进](../../.github/ISSUE_TEMPLATE/feature.yml) · `[功能]` | 实现只读的外围时间回放；新增节点 skill 配置 |
-| 什么已约定的行为失效，如何恢复？ | [缺陷与回归修复](../../.github/ISSUE_TEMPLATE/bug.yml) · `[缺陷]` | 假设已有回放，退回结果返回前仍泄露未来输出 |
-| 哪个未知事实需要证据才能判断？ | [研究与证据验证](../../.github/ISSUE_TEMPLATE/research.yml) · `[研究]` | 验证指定 DSH 版本的节点插件隔离是否可行 |
-| 团队现在需要选定什么及其边界？ | [方案与决策讨论](../../.github/ISSUE_TEMPLATE/decision.yml) · `[决策]` | 确认 high level 范围，仅交付自足的正式决定 |
-| 要落实什么工程、文档或协作改进？ | [工程与流程维护](../../.github/ISSUE_TEMPLATE/maintenance.yml) · `[维护]` | Issue #6 交付模板；版本维护指南、依赖升级 |
+| 新增或改变产品能力 | [功能](../../.github/ISSUE_TEMPLATE/feature.yml) / `[功能]` | 当前场景与期望能力；九项共通信息 / 9 |
+| 恢复已约定但失效的行为 | [缺陷](../../.github/ISSUE_TEMPLATE/bug.yml) / `[缺陷]` | 实际与期望行为；另保留 reproduction、environment / 11 |
+| 回答未知问题，形成有依据的结论 | [研究](../../.github/ISSUE_TEMPLATE/research.yml) / `[研究]` | 当前情况与希望弄清的问题；九项共通信息 / 9 |
+| 为明确的问题形成选择与边界 | [决策](../../.github/ISSUE_TEMPLATE/decision.yml) / `[决策]` | 当前情况与需要作出的选择；九项共通信息 / 9 |
+| 改善工程、文档或协作现状 | [维护](../../.github/ISSUE_TEMPLATE/maintenance.yml) / `[维护]` | 当前情况与期望改进；九项共通信息 / 9 |
 
-产品例子是填写演练，当前仓库尚无对应可运行产品。原三份路径保留，新增 research.yml 和 decision.yml；config.yml 继续关闭常规空白入口。首版不设置类别标签、组织级 Issue Types 或固定 Assignees。
+缺陷的复现步骤、已有输入和环境是描述问题的事实，不是修复方法。尚未复现或存在未知条件时如实说明，不预填根因。五类差异的依据分别见 [功能](../../.agents/decisions/development/README.md#d-20260908-issue-template-feature)、[缺陷](../../.agents/decisions/development/README.md#d-20260908-issue-template-bug)、[研究](../../.agents/decisions/development/README.md#d-20260908-issue-template-research)、[决策](../../.agents/decisions/development/README.md#d-20260908-issue-template-decision)、[维护](../../.agents/decisions/development/README.md#d-20260908-issue-template-maintenance)。
 
-交叉情形可这样判断：
+必要研究和讨论可以在同项完成，不按每次 AI 会话、分支或 PR 自动拆项。父项仍按主要结果分类，父子关系与阻塞分别说明；当前没有 Epic 第六类、必选类别标签或组织级类型。
 
-- 改 Prompt 来新增行为是功能；修复现行输出契约是缺陷；改善开发指令是维护。文件类型、Harness、模块和优先级不单独决定主类。
-- Issue #6 包含研究、讨论和实现，但最终要交付可用模板，因此一直是维护。只有研究能独立验收、由不同主责独立交付或成为必要阻塞时，才考虑拆项。
-- 父项仍按主要结果分类，在依赖字段区分父子与阻塞；不增加 Epic 第六类，不按每个 AI 会话、PR 或阶段自动新建 Issue。
-- 暂未复现不改称“已修复”；取消、重复、延期说明原因与去向。开放聊天或同项交接优先留在已有沟通或 Issue，不强制独立建项。
+## 填写共通信息
 
-## 填写共通信息与类别补充
-
-每份表单都包含以下八项职责。创建必填表示应提供的信息；未知事实如实标记，必要阻塞在实施前处理，不能用“待定”冒充已就绪。
-
-| ID | 如何填写 | 时点 |
+| ID | 应提供的信息 | 时点 |
 | --- | --- | --- |
-| `owner` | 一名人类主责的 GitHub 用户名；协作者写分工，另设置真实 Assignees | 创建时 |
-| `problem` | 为什么做、要完成什么；标题和提示按类别变化 | 创建时 |
-| `scope` | 包含、排除、受影响模块/接口和须保留的行为 | 创建时 |
-| `deliverables` | 多选实际交付物，在范围或验收中说清具体内容、位置 | 创建时 |
-| `acceptance` | 可观察结果、验证方法及必要反例；执行后补实际结果 | 创建时先写标准 |
-| `dependencies` | 无，或所需交付、解除条件、处理人；区分参考和父子关系 | 创建时 |
-| `decision_context` | 现行决定 ID、待决问题与已知分歧，可在预检补齐 | 按阶段补充 |
-| `handoff` | 基线、已做/未做、实际参与者、确认范围及依据、阻塞和下一步 | 开工、实质变化或交接时 |
+| `domain` | 开发流程或项目内容，按主要对象单选 | 创建时 |
+| `owner` | 一名人类主责的 GitHub 用户名，另设置真实 Assignees | 创建时 |
+| `problem` | 当前情况、影响和期望结果；标题与提示按类型变化 | 创建时 |
+| `scope` | 希望解决的范围、非目标、真实约束及依据 | 创建时 |
+| `deliverables` | 希望收到什么成果；不强制提前指定实现路径或内部结构 | 创建时 |
+| `acceptance` | 完成后应看到的结果、问题回答或结论质量 | 创建时先写期望 |
+| `dependencies` | 已知依赖、缺少的条件与责任归属；没有写“无”，未知如实说明 | 创建时 |
+| `decision_context` | 已知要求及相关决定、仍待澄清的需求 | 按需补充 |
+| `handoff` | 需求确认、实际进展及产物定位，不填写执行计划 | 开工、变化或交接时 |
 
-交付物提供四个可组合选项：正式决策正文、实现文件（代码 / 配置 / 模板）、当前说明或使用指南、研究 / 验证记录。取消选择不能暗中撤销已确认的验收承诺；实质调整仍记录原因和确认范围。原始材料链接可选，正文须自足，不强制粘贴聊天、全部工具版本或内部 agent 轨迹。
+顺序为 domain → owner → problem → 类别专用事实字段 → scope → deliverables → acceptance → dependencies → decision_context → handoff。除 problem 按类别改写，其余八项共通字段在五表中的控件、标题、提示和必填意图相同。
 
-类别专用字段紧跟 problem，其余七项共通字段在五表中的控件、标题、提示和必填意图完全一致。
+交付物可组合。研究或决策可以只交正式决定，但正文应足以支持结论；若还承诺模板、指南或代码，不能只写完决定就关闭。范围变动说明原因和确认，取消勾选不等于撤销已承诺的成果。原始资料链接可选，正文保持自足，不要求整段聊天、全部工具版本或 agent 内部轨迹。
 
-| 类别 / 输入块数 | problem 标题及专用字段 | 填写重点与差异决定 |
-| --- | --- | --- |
-| 功能 / 9 | 问题、场景与目标；`behavior_contract` 行为与接口契约 | 输入输出、正常/失败/边界、副作用与兼容；[功能决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-feature) |
-| 缺陷 / 10 | 实际与期望行为；`reproduction` 复现步骤与已有证据；`environment` 版本与相关运行条件 | 观察与根因猜测分开，未知项如实填写；[缺陷决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-bug) |
-| 研究 / 10 | 研究问题与决策用途；`evidence_plan` 方法、比较与证据计划；`stop_rule` 结束条件与投入边界 | 真实假设、基线、方法、证据限度及结束边界；[研究决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-research) |
-| 决策 / 10 | 需要敲定的问题与适用范围；`options` 候选方案与比较依据；`impact` 影响、落实与重开条件 | 保留已确认约束，不编造替代方案或固定审阅人数；[决策决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-decision) |
-| 维护 / 9 | 当前问题与工程目标；`change_plan` 改动、兼容与验证计划 | 指定工程结果、兼容及适用迁移/回退，不涉及则说明；[维护决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-maintenance) |
+## 网页、CLI 与 API
 
-完整填写与边界演练见 [样例记录](../validation/2026-09-08-issue-template-examples.md)。样例不代表产品已实现或已发生故障，也没有为演练创建真实 Issue。
+网页从 [New issue 选择器](https://github.com/TonQiaN/Agent_flow/issues/new/choose) 选择主类型，填领域和正文，并另设 Assignees。placeholder 和顶部说明不会自动成为已提交答案。[GitHub 表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)。
 
-## 网页、CLI 与 API 使用
+CLI/API 先读取对应 YAML，用字段标题作正文小节，补齐同等信息。领域直接写所选文字，例如正文先写 `## 所属领域`，下一段写“开发流程”，再填写主责、当前情况等。交付物写所选成果名称，非必填信息可留空或按事实补充；没有另一套正式 Markdown 模板。
 
-网页从 [New issue 选择器](https://github.com/TonQiaN/Agent_flow/issues/new/choose) 选对应入口，保留合适的标题前缀，填写正文并另设 Assignees。输入框提示不会自动成为答案，验收清单须自己填写真实标准。顶部说明只辅助填表，不作为提交后保存的确认记录。[GitHub 表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema)。
-
-CLI/API 不依赖网页替你展开字段。先读取对应完整 YAML，用其中的字段标题作 Markdown 小节，补齐八项共通信息与该类专用内容，保存为一个工作用正文文件。交付物写所选项的文字即可；decision_context 和 handoff 建项时可以留空或标“待补充”，开工前按实际补齐。无需维护另一套正式 Markdown 模板。
-
-例如已经准备好 `issue-body.md` 后，可使用下列命令**实际创建**工作项；替换标题、负责人和正文，不运行未填写的示例，也不要随后再用 API 重复创建同一项：
+准备好实际正文后，可用以下命令创建工作项；替换标题、负责人及文件内容，不运行未填写的示例：
 
 ```sh
 gh issue create --repo TonQiaN/Agent_flow \
-  --title '[维护] 具体工程结果' \
+  --title '[维护] 具体期望改进' \
   --assignee ACTUAL_GITHUB_LOGIN \
   --body-file issue-body.md
 ```
 
-`--assignee` 接收实际 GitHub 登录名，正文 owner 仍写主责。`--body-file` 的使用见 [GitHub CLI 文档](https://cli.github.com/manual/gh_issue_create)。API 使用同一正文作为 `body`，并明确设置 `title` 和 `assignees`；例如先准备包含这三个字段的 `issue.json`，再用 `gh api --method POST repos/TonQiaN/Agent_flow/issues --input issue.json`。文件中的换行用 JSON 编码，避免手工 shell 拼接正文。无论入口，创建后核对服务器保存的标题、正文和真实 Assignees；CLI 可用 `gh issue view NUMBER --repo TonQiaN/Agent_flow --json title,body,assignees` 读回。没有为本次演练调用这些创建命令。
+[GitHub CLI 文档](https://cli.github.com/manual/gh_issue_create) 说明 `--body-file` 和 Assignees 用法。API 使用同一正文作为 body，并设置 title、assignees。创建或修改后读回服务器保存的正文和责任人，确认情况、目标、领域及范围没有遗漏；不要为同一项重复创建。
 
-Issue 表单由默认分支提供，工作分支的文件检查不能代替默认分支实际显示验证。[GitHub 配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)。五表已合入默认分支，2026-09-08 已核对选择器与五类表单的字段、提示和交付物展示；结果与边界见 [实施验证](../validation/2026-09-08-issue-templates.md)。
+表单由默认分支提供，分支文件检查不代替线上展示验证。[GitHub 入口配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)。本次工作分支改版的实际验证与待合入状态见 [2026-09-10 验证记录](../validation/2026-09-10-issue-domain.md)；[2026-09-08 的线上结果](../validation/2026-09-08-issue-templates.md) 只覆盖旧版表单。
 
-当前仓库私有。GitHub 官方对 input、textarea、dropdown 的 required 校验标注公开仓库限制；本项目按就绪核对补齐信息，不把表单当作自动门禁。正文中的 owner 也不会自动设置 Assignees，提交后的编辑和 CLI/API 入口仍需核对。关闭空白入口不等于取消维护者创建空白 Issue 的能力。以上平台行为边界于 2026-09-08 对照 [表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema) 与 [入口配置说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository)；本次不提交空白 Issue 来试探拦截。
+当前仓库私有。2026-09-10 重新核对的 [GitHub 表单结构说明](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema) 仍对 input、textarea、dropdown 的 required 提交校验注明公开仓库限制。本项目通过人参与的就绪核对补齐信息，不能把模板声明当作自动门禁；正文中的 owner 也不会自动设置 Assignees。CLI/API 及提交后的正文编辑仍需核对。
 
-## 研究、仅决策交付与关闭
+## 完成与迁移
 
-研究可以得到支持、不支持或有界不确定结论。完成按约定方法回答问题并交付证据和限制的工作，否定答案可以验收；缺少必要环境、样本或证据时须补证、交接或明确调整范围。预算用完不等于完成，只有原验收允许有界不确定、且约定方法已完成时，才可按该结果验收。
+研究的否定结论可以验收；结果须回答约定问题并说明依据和限制。关键问题仍缺依据或必要讨论时，不因用完预算或执行过步骤就算完成；有界不确定是否可接受取决于原目标。研究完成、决定采纳与产品实现分别记录。取消、重复、延期和无法复现说明事实及去向，不写成已实现或已修复。
 
-研究和决策都可以只选择“正式决策正文”，但正文须足以说明结论、真实比较、理由或证据、适用限制、确认范围、落实去向与重开条件。Issue 保存实际讨论、分工及具体确认；决定浓缩取舍。采纳方案不表示产品已实现，不能据研究 Issue 关闭就自动把产品决定移为 implemented。
+2026-09-10 新增 domain，并将共同验收改为结果表达。以下专用字段已移除，原有需求事实有对应位置：
 
-如果本项还承诺模板、代码或指南，须逐项交付并验证后再关闭。例如 Issue #6 不能只凭七份决定或研究 artifact 完成验收。PR、合并、剩余项与关闭核对按工作指南；已取消或不继续的事项记录事实与去向，不伪装为实现完成。
+| 旧字段 | 需求部分的去向 |
+| --- | --- |
+| feature：behavior_contract | 期望行为归 problem/acceptance，真实兼容或权限要求归 scope |
+| research：evidence_plan、stop_rule | 已知事实和未知问题归 problem，真实范围与投入约束归 scope，期望结论归 acceptance |
+| decision：options、impact | 待选问题归 problem，已有边界归 scope，形成的取舍与影响在正式决定中说明 |
+| maintenance：change_plan | 当前问题与改善结果归 problem/acceptance，已有必要约束归 scope |
 
-## 维护与迁移
+执行方法不随字段迁移到其他需求栏。共同 ID 保留；旧 Bug behavior→problem 的历史映射继续适用，reproduction/environment 保留。旧链接预填被删除字段时需重新整理，不能原样搬运方法计划。
 
-旧功能/维护的 owner、problem、scope、acceptance、dependencies、decision_context ID 保留；增加各类专用字段、deliverables 与 handoff。旧 bug.yml 的 `behavior` 合并为同义 `problem`，保留“实际与期望行为”的内容职责及 reproduction、environment，不并列重复问题块。链接预填或其他外部工具若使用旧 behavior 参数，应在下次维护时改为 problem；历史 Issue 的已提交 Markdown 不回写。
+已关闭 Issue 与旧验证样例保持历史。当前受审查的 #20 按明确反馈整理，其他活跃项按实际工作需要补充，不批量改写。共同变化回到共通决定，类别差异回到对应决定；无真实改动的记录不为凑数修订。
 
-七份决定是分类和字段设计依据，五份完整 YAML 是可提交表单，当前指南是使用入口，验证记录保存实际结果。没有 common.yml、YAML 继承、生成器或另一套五类正式 Markdown 模板。
-
-实际选类争议、漏填追问、无用字段、交接失败或共同文字漏同步时，由改动 Issue 的主负责开发者归纳并敲定：共同变化修订共通决定及受影响五表；类内变化修订对应差异决定、表单与说明；需要改分类则回到分类决定。无真实变化的决定不为凑数修改。
-
-每次实际改动核对：YAML 与单表 ID 唯一、共通七字段完整对象相同、problem 职责与类差异有依据、标题/控件/提示/必填意图和字段顺序、历史 ID 映射、链接、受影响填写例、默认分支实际入口。将来有明确例外时按决定中的职责去向核对，不能让同步检查覆盖已确认例外。已有 Issue 只在活跃工作需要时补缺口，不批量改写历史。没有自动迁移、固定审阅配额或定期过期机制。
+维护时核对字段唯一性、共同对象、显式迁移、事实与目标是否保留，以及方法要求是否以其他名称重新出现。使用指南、实际表单与验证结果同步，默认分支展示单独核对。
