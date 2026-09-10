@@ -23,7 +23,7 @@ export class ParallelWorkflowCatalog implements WorkflowCatalog,WorkflowNodeExec
    &&Number.isSafeInteger(d.maxConcurrency)&&d.maxConcurrency>=1&&d.maxConcurrency<=62);
   const expected=['kind','inputContract','outputContract','outcome','maxConcurrency','failurePolicy',...(d.kind==='map'?['itemId','component',...(Object.hasOwn(d,'retry')?['retry']:[])]:['branches'])];
   valid(Object.keys(d).sort().join(',')===expected.sort().join(','));this.contracts.definition(d.inputContract);this.contracts.definition(d.outputContract);
-  const branches:Record<string,ParallelBranch>=d.kind==='map'?{map:{component:d.component,...(d.retry?{retry:d.retry}:{})}}:d.branches;
+  const branches:Record<string,ParallelBranch>=d.kind==='map'?{map:{component:d.component,...(Object.hasOwn(d,'retry')?{retry:d.retry}:{})}}:d.branches;
   valid(object(branches)&&Object.keys(branches).length>=(d.kind==='map'?1:2)&&Object.keys(branches).length<=62);
   if(d.kind==='map')valid(typeof d.itemId==='string'&&d.itemId.length>0&&d.itemId.length<=128);
   const units=new Map<string,CompiledWorkflow>();
@@ -35,7 +35,7 @@ export class ParallelWorkflowCatalog implements WorkflowCatalog,WorkflowNodeExec
    if(d.kind==='fork')valid(c.inputContract===d.inputContract&&e.contractDefinition&&equal(e.contractDefinition(c.inputContract),{kind:'json',id:d.inputContract,schema:this.contracts.definition(d.inputContract)}));
    const workflowId=`${id}-unit-${branch}`;valid(isIdentifier(workflowId)&&!this.#children.has(workflowId));
    const compiled=compileWorkflow({id:workflowId,start:'unit',maxSteps:1,input:{kind:'json',id:c.inputContract},outcomes:Object.fromEntries(Object.entries(c.outcomes).map(([outcome,ref])=>[outcome,{kind:'json',id:ref}])),
-    nodes:{unit:{component:c.id,...(item.retry?{retry:item.retry}:{})}},routes:Object.keys(c.outcomes).map(outcome=>({from:'unit',outcome,to:{end:outcome}}))},this.catalog);
+    nodes:{unit:{component:c.id,...(Object.hasOwn(item,'retry')?{retry:item.retry}:{})}},routes:Object.keys(c.outcomes).map(outcome=>({from:'unit',outcome,to:{end:outcome}}))},this.catalog);
    units.set(branch,compiled);
   }
   this.#definitions.set(id,d);this.#units.set(id,units);

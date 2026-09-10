@@ -19,3 +19,18 @@ test('Fork rejects invalid branch IDs and nonmatching input contracts before reg
  const fork={kind:'fork',inputContract:'item',outputContract:'joined',outcome:'joined',maxConcurrency:2,failurePolicy:'wait-all',branches:{alpha:{component:'extract'},zeta:{component:'extract'}}} as const;
  for(const change of [{inputContract:'items'},{branches:{only:{component:'extract'}}},{branches:{'bad id':{component:'extract'},zeta:{component:'extract'}}},{branches:{alpha:{component:'extract',flow:'unsupported'},zeta:{component:'extract'}}}]){const catalog=fixture();assert.throws(()=>catalog.register('node',{...fork,...change} as ParallelDefinition));assert.equal(catalog.childWorkflows().length,0);}
 });
+
+for (const kind of ['map','fork'] as const) test(`${kind} rejects explicitly supplied invalid retry policies instead of dropping them`,()=>{
+ for(const retry of [null,false,0,'']){
+  const catalog=fixture();
+  const configured=kind==='map'?{...definition,retry}:{kind:'fork',inputContract:'item',outputContract:'joined',outcome:'joined',maxConcurrency:2,failurePolicy:'wait-all',branches:{alpha:{component:'extract'},zeta:{component:'extract',retry}}};
+  assert.throws(()=>catalog.register('node',configured as unknown as ParallelDefinition));
+  assert.equal(catalog.childWorkflows().length,0);
+  // A failed registration must not reserve the structural name or earlier valid branches.
+  catalog.register('node',definition);assert.equal(catalog.childWorkflows().length,1);
+ }
+ const catalog=fixture(),retry={maxAttempts:2,on:['execution_failure'] as const,delayMs:500};
+ const configured=kind==='map'?{...definition,retry}:{kind:'fork',inputContract:'item',outputContract:'joined',outcome:'joined',maxConcurrency:2,failurePolicy:'wait-all',branches:{alpha:{component:'extract'},zeta:{component:'extract',retry}}};
+ catalog.register('node',configured as ParallelDefinition);
+ assert.deepEqual(catalog.childWorkflows().map(c=>c.definition.nodes['unit']!.retry),kind==='map'?[retry]:[undefined,retry]);
+});
