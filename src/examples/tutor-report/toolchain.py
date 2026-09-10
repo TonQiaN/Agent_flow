@@ -19,6 +19,34 @@ def module(path: Path, name: str):
     return result
 
 
+def report_candidate_view(workspace, config, candidate_path, original, output, operation):
+    """Use the existing host-only Tutor projection, never rewrite reviewed scores."""
+    confirmation = config.get("submissionCompleteness")
+    if confirmation is None:
+        return candidate_path
+    sys.path.insert(0, str(workspace / "backend/src"))
+    from paper_app.infrastructure.workbench.report_completeness import project_confirmed_submission
+    from paper_app.infrastructure.workbench.jobs import canonical
+    with tempfile.TemporaryDirectory(prefix="agentflow-completeness-") as temporary:
+        temporary = Path(temporary)
+        recorded = temporary / "confirmation.json"
+        recorded.write_bytes(canonical(confirmation))
+        projected = temporary / "projection.json"
+        project_confirmed_submission(candidate_path, recorded, job_id=config["reportId"],
+            contracts=workspace / "contracts", output=projected)
+        files = {"submission-completeness.json": recorded.read_bytes(),
+                 "report-marking-projection.json": projected.read_bytes()}
+    destination = output / "report-source/input"
+    if operation == "prepare":
+        for name, content in files.items():
+            with (destination / name).open("xb") as handle:
+                handle.write(content)
+    else:
+        for name, content in files.items():
+            if (original / "report-source/input" / name).read_bytes() != content:
+                raise ValueError("Submission confirmation or projection changed")
+    return destination / "report-marking-projection.json"
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("operation", choices=("prepare", "gate", "render"))
@@ -67,7 +95,14 @@ def main():
             trusted_catalog_reference=None, trusted_curriculum=curriculum)
         projector = module(flow / "toolchain/project_single_submission_metrics.py", "tutor_metrics")
         report_id = uuid.UUID(config["reportId"])
-        metrics = projector.project(reference=reference, candidate=candidate, curriculum=curriculum,
+        # The original candidate is validated above. Only this local view feeds metrics.
+        with tempfile.TemporaryDirectory(prefix="agentflow-completeness-view-") as view_root:
+            view_root = Path(view_root)
+            (view_root / "report-source/input").mkdir(parents=True)
+            view = report_candidate_view(workspace, config, output / "candidate/marking-candidate.json",
+                original, view_root, "prepare")
+            metrics_candidate = strict_object(view)
+        metrics = projector.project(reference=reference, candidate=metrics_candidate, curriculum=curriculum,
             snapshot_id=uuid.uuid5(report_id, "metrics:v1"), user_id=uuid.UUID(marking_input["user_id"]),
             marking_result_id=uuid.uuid5(report_id, "local-marking-result:v1"))
         contracts.validate("exam-performance-metrics-snapshot-v1.schema.json", metrics)
@@ -83,6 +118,7 @@ def main():
                 raw_score_metric_id="overall.raw_score", raw_max_mark=candidate["max_score"],
                 performance_band_scheme="UNAVAILABLE", web_estimation_enabled=False,
                 minimum_metric_coverage=1)
+        report_candidate_view(workspace, config, output / "candidate/marking-candidate.json", original, output, "prepare")
         result = {"outcome": "completed"}
     else:
         report_source = output / "report-source"
@@ -110,9 +146,10 @@ def main():
             if gate["decision"] != "passed" or gate["reportHash"] != sha256_file(output / "report-candidate.json"):
                 raise ValueError("Report Gate does not bind the current report")
             renderer = module(flow / "toolchain/render_integrated_report.py", "tutor_integrated_report")
+            render_candidate = report_candidate_view(workspace, config, output / "candidate/marking-candidate.json", original, output, "render")
             renderer.render(SimpleNamespace(source_root=source, marking_input=source / "input/marking-input.json",
                 reference=output / "candidate/assessment-reference.json", submission_mapping=output / "candidate/submission-mapping.json",
-                candidate=output / "candidate/marking-candidate.json", report_candidate=output / "report-candidate.json",
+                candidate=render_candidate, report_candidate=output / "report-candidate.json",
                 metrics_snapshot=metrics_path, report_source=report_source, selection=None,
                 output_pdf=output / "report.pdf", manifest_output=output / "render-manifest.json",
                 title=config["title"], student_name=config["studentName"], exam_year=str(config["examYear"]),
