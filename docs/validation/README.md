@@ -128,3 +128,5 @@
 - [2026-09-10 Tutor 扫描件批改与报告串接](2026-09-10-tutor-scanned-marking.md)：合成来源、复核哈希/质量、用户返修和 PDF。
 
 - [Codex 初始图片执行验证](2026-09-10-codex-input-images.md)：参数、manifest、既有 Docker 组合及真实扫描件尝试。
+
+- [多页学生输入接线](2026-09-10-tutor-student-input.md)：显式材料与预算、准备失败收尾、存储/容器及完整消费端回归；学生整卷结果另行核对。

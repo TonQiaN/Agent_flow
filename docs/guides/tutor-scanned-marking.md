@@ -31,3 +31,21 @@ node --import tsx src/examples/tutor-marking/demo.ts /absolute/new-output-direct
 演示使用明确的合成扫描页和独立 canned Marker/Reviewer/Reporter 调用。Reviewer 修改反馈并重新绑定候选，最终交付两条 Workflow 记录、标注 Gate/Review 文件和三页 A3 PDF。输出目录必须不存在。它验证接线与校验行为，不证明真实模型阅卷质量。
 
 目前工具桥接是受信任宿主文件函数，超时/取消等待子进程组停止；不是这条消费管线的 Docker 或持久 Worker 实现。依赖显式 Tutor 安装、Python 库与字体。真实学生材料、实际三个模型角色的完整执行、质量复核仍须独立验收；详见 [本次验证](../validation/2026-09-10-tutor-scanned-marking.md)。
+
+## 显式学生材料入口
+
+`src/examples/tutor-marking/student.ts` 接收调用方已准备且已授权的 source 包；不搜索学生、读取数据库或回退到夹具。`prompts.ts` 是消费端示例任务，应用仍接受用户自己的角色绑定。真实与合成入口共用 `acceptance.ts` 的两个正常 Workflow、Gate、实际执行记录和释放流程；验收摘要分别记录 syntheticMaterial、realModels、evidenceComplete 和 cleanupComplete，全部成功才报告 passed。
+
+除 Codex 执行所需的显式镜像、模型、凭据引用和验收输出根配置外，该入口要求：
+
+- `AGENTFLOW_MARKING_SOURCE`：包含 source/ 的独立绝对目录，由 Tutor prepare_marking_source 准备；source/prompt-images 使用原 prepare_initial_images 工具生成。
+- `AGENTFLOW_REPORT_CONTEXT`：展示上下文 JSON 的绝对路径，字段同 ReportContext；不从候选生成身份。
+- `TUTOR_WORKSPACE`、`TUTOR_PYTHON`：受信安装和解释器绝对路径。
+- `AGENTFLOW_AGENT_TIMEOUT_MS`：显式正整数，每节点最多 5,400,000 毫秒。
+- `AGENTFLOW_SOURCE_MAX_BYTES`：显式正整数，最多 512 MiB；保留原始照片和完整分辨率的规范页。
+
+运行 `node --import tsx src/examples/tutor-marking/student.ts`。学生数据和角色原始输出可能含私人信息，应使用调用方的私有目录，不能提交仓库。每次创建独立运行目录，不导入旧可信收据；失败也不接纳部分候选。这个入口不默认启用返修，调用应用时仍可提供用户定义的 repair。
+
+批改和报告的 `maxSourceBytes` 默认均为 128 MiB；本机存储与 Docker 输入复制另有独立预算，学生组合按来源加 128 MiB 余量显式配置。通用 FileArtifactStore 和 DockerBackend 默认仍为 256 MiB，各自最高 1 GiB；单文件和 JSON 限额仍有效。原持久归档仍为 256 MiB，不能把本例成功当作大文件持久恢复证据。来源契约有效也不代表评分正确，完整学生结果见后续验收记录。
+
+可选 AGENTFLOW_MARKING_PRIOR_DRAFT 指向调用方明确选择的三份未接纳候选目录。入口在新任务包内保存 source/prior-candidate，只接受新 Marker 的正常完成和全部 Gate，不复用旧收据。入口同时从显式 Tutor 安装复制纯业务 validator 与其两个依赖，供 Agent 运行 source/self-check/check.py；该自检明确不签发宿主收据，宿主仍执行原安装的校验器。所有辅助材料只加入新任务包，原准备包保持不变。

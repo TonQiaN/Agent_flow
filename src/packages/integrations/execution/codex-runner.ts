@@ -9,7 +9,7 @@ export type CodexRunRequest = CredentialRunRequest<CodexSubscriptionProfile>;
 export type CodexExecutionResult = CredentialExecutionResult;
 
 export class CodexSubscriptionRunner extends CredentialHarnessRunner<CodexSubscriptionProfile> {
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }) {
+  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }) {
     super(store, options, {
       binding: 'exclusive',
       resourceEnvironment: { CODEX_HOME: '/task/state/codex' },
