@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+批卷示例新增 intake/Gate Script 定义生成器：同一评分源码、独立原始摘要参数、现有 contract 和 Runner。文件流程已验证正常、返修、来源篡改及 Gate 中断恢复；整条批卷持久组合尚未接通。
+
 新增显式版本化的确定性 JSON 函数登记：配置和函数同时捕获，支持持久启动、版本比较和中断节点重算；已接纳 Gate 不重跑，迟到结果由 Run CAS 拒绝。普通函数保持原用法。
 
 固定 target/key 的 apply Effect 已接入实际执行快照、严格回执加载和 Workflow 恢复。已完成节点保留，已提交回执复用；pending 在认领前阻塞，新 Attempt 仍需当前授权。动态映射与 dry-run 尚不支持持久启动。

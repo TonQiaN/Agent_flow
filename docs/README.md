@@ -82,3 +82,5 @@
 [Effect Workflow 恢复](validation/2026-09-10-effect-workflow.md)已接通固定操作的 apply、实际定义和日志身份比较、严格回执核对及新 Attempt；动态映射、其他绑定和完整 #13 仍待完成。
 
 [确定性 JSON 函数](guides/deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通函数、文件函数及完整 #13 仍有验收缺口。
+
+[批卷文件 Script](guides/tutor-file-scripts.md)已接通 intake/Gate 的实际执行及中断恢复验证；整条批卷持久组合仍待接线。
