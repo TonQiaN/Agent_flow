@@ -48,7 +48,7 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 
 - [三种 Harness 共用批卷验收](harness-grading-matrix.md)：显式组装、离线预检和同一业务契约。
 
-- [本地 Run 记录存储](run-record-store.md)：SQLite/CAS 基础，尚未连接流程恢复。
+- [本地 Run 记录存储](run-record-store.md)：SQLite/CAS 保存端口，供 Workflow 检查点及恢复使用。
 
 - [耐久文件归档](artifact-archive.md)：独立归档保留、摘要引用与跨进程物化。
 
@@ -56,19 +56,19 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 
 - [Workflow 执行绑定快照](workflow-execution-snapshot.md)：断网脚本实际绑定、镜像冻结和变化拒绝。
 
-[Workflow 检查点](workflow-checkpoints.md)：共享正常执行中的耐久值、状态提交和异步取消；重启恢复未开放。
+[Workflow 检查点](workflow-checkpoints.md)：共享正常执行中的耐久值、状态提交和异步取消。
 
-[检查点加载与文件恢复](workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
+[检查点加载与文件恢复](workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚。
 
-[Runner 资源保存与恢复](runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
+[Runner 资源保存与恢复](runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除，供 Workflow 恢复使用。
 
-[Workflow 恢复认领与旧资源清理](workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
+[Workflow 恢复认领与旧资源清理](workflow-recovery.md)：同一 Run CAS、并发与崩溃后接管、旧资源清理及同 NodeTask 新 Attempt。
 
 [Workflow 通用阶段](workflow-phases.md)：有序资源和宿主操作、共同 CAS 与中断恢复边界。
 
 [Runner 输入物化](runner-owned-input.md)：在已登记资源目录内准备 ArtifactStore 快照或空输入。
 
-[确定性 JSON 函数](deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通函数、文件函数及完整 #13 仍有验收缺口。
+[确定性 JSON 函数](deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通宿主函数仍须使用其实际支持的执行边界；完整 #13 交付仍待审阅合并。
 
 [批卷文件 Script](tutor-file-scripts.md)：复用现有 Runner 的 intake/Gate 绑定。
 
