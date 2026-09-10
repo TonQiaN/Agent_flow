@@ -7,6 +7,7 @@ import type { AgentExecutionDriver, ArtifactStore, FileManifest, WorkflowDefinit
 import type { JsonValue } from '@agentflow/domain';
 import { FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
 import type { FileFunctionContext } from '@agentflow/integrations';
+import { sourceByteBudget } from '../tutor-tools/source-budget.js';
 import { invokeTutorTool } from '../tutor-tools/process.js';
 
 export interface MarkingAgent { readonly id: string; readonly prompt: string; readonly config: JsonValue }
@@ -20,18 +21,19 @@ export interface TutorMarkingSetup<D extends AgentExecutionDriver> {
   readonly repair?: { readonly agent: MarkingAgent; readonly maxRounds: number };
   readonly driver: (artifacts: ArtifactStore) => D;
   readonly toolTimeoutMs?: number;
+  readonly maxSourceBytes?: number;
 }
 export interface MarkingRun { readonly input: JsonValue; readonly snapshot: WorkflowSnapshot }
 const toolchain = fileURLToPath(new URL('./toolchain.py', import.meta.url));
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 const reviewFiles = ['trusted/candidate-gate-report.json', 'trusted/marking-review-input.json'];
-function contracts() {
+function contracts(maxSourceBytes: number) {
   const json = new ContractRegistry(); json.register('tutor-object', { type: 'object' });
   const registry = new FileContractRegistry(json);
   const file = (path: string) => ({ id: path.replaceAll('/', '-'), kind: 'file' as const, match: path, minCount: 1, maxCount: 1,
     maxBytes: 16 * 1024 ** 2, mediaTypes: ['application/json'], jsonContract: 'tutor-object' });
   const source = [{ id: 'source', kind: 'tree' as const, match: 'source', minCount: 1, maxCount: 1, minFiles: 1, maxFiles: 1000,
-    maxBytes: 128 * 1024 ** 2, mediaTypes: ['application/json', 'application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif', 'text/plain', 'text/markdown', 'text/x-python', 'application/octet-stream'] }];
+    maxBytes: maxSourceBytes, mediaTypes: ['application/json', 'application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif', 'text/plain', 'text/markdown', 'text/x-python', 'application/octet-stream'] }];
   const candidate = [...source, ...['assessment-reference', 'submission-mapping', 'marking-candidate'].map(p => file(`candidate/${p}.json`))];
   const reviewInput = [...candidate, ...reviewFiles.map(file)], reviewed = [...reviewInput, file('trusted/marking-reviewer-result.json')];
   for (const [id, rules] of [['scan-source', source], ['scan-candidate', candidate], ['scan-review-input', reviewInput], ['scan-reviewed', reviewed],
@@ -52,7 +54,8 @@ export async function createTutorMarkingApplication<D extends AgentExecutionDriv
   }
   if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 600000 || (repair && (!Number.isSafeInteger(repair.maxRounds) || repair.maxRounds < 1 || repair.maxRounds > 100))) throw new Error('INVALID_MARKING_SETUP');
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const registered = contracts(), store = new FileArtifactStore(join(root, 'artifacts'), registered), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
+  const maxSourceBytes = sourceByteBudget(setup.maxSourceBytes);
+  const registered = contracts(maxSourceBytes), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
   const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime();
   const originals = new Map<string, FileManifest>(), completed = new Map<string, MarkingRun>(), runIds = new Set<string>();
   const component = (id: string, kind: 'agent' | 'transform' | 'gate', inputContract: string, outcomes: Record<string, string>) => ({ id, kind, implementation: id, inputContract, outcomes });
@@ -124,7 +127,7 @@ export async function createTutorMarkingApplication<D extends AgentExecutionDriv
       return { bundle: destination, candidateHash: trusted.manifest.files.find(f => f.path === 'candidate/marking-candidate.json')!.sha256 };
     },
     async release(run: MarkingRun) {
-      for (const step of run.snapshot.steps) {
+      for (const step of [...run.snapshot.steps].reverse()) {
         if (step.result.status === 'accepted') await files.release(step.result.output, run.snapshot.runId);
         else await files.cleanup(step.result.identity);
       }

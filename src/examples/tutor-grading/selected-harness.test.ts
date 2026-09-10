@@ -41,4 +41,7 @@ test('preflight preserves shared credential identifiers and rejects trailing lin
     AGENTFLOW_CREDENTIAL_REF: 'valid', AGENTFLOW_PROXY_IMAGE: 'unused', AGENTFLOW_CODEX_IMAGE: 'unused', AGENTFLOW_CODEX_MODEL: 'fixture-model' };
   assert.throws(() => selectGradingHarness('codex', { ...environment, AGENTFLOW_CREDENTIAL_REF: 'valid\n' }), /INVALID_GRADING_REFERENCE/);
   assert.doesNotThrow(() => selectGradingHarness('codex', { ...environment, AGENTFLOW_CREDENTIAL_REF: 'scope:identity' }));
+  assert.equal(selectGradingHarness('codex', environment).preflight.timeoutPerNodeMs, 180000);
+  assert.equal(selectGradingHarness('codex', environment, { timeoutMs: 1800000 }).preflight.timeoutPerNodeMs, 1800000);
+  for (const timeoutMs of [0, NaN, 5400001]) assert.throws(() => selectGradingHarness('codex', environment, { timeoutMs }), /INVALID_GRADING_TIMEOUT/);
 });

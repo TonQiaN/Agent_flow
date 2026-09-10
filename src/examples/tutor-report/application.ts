@@ -7,6 +7,7 @@ import type { AgentExecutionDriver, ArtifactStore, FileManifest, WorkflowSnapsho
 import type { JsonValue } from '@agentflow/domain';
 import { FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
 import type { FileFunctionContext } from '@agentflow/integrations';
+import { sourceByteBudget } from '../tutor-tools/source-budget.js';
 import { invokeTutorTool } from '../tutor-tools/process.js';
 
 export interface ReportContext {
@@ -28,17 +29,18 @@ export interface TutorReportSetup<D extends AgentExecutionDriver> {
   readonly reporter: { readonly id: string; readonly prompt: string; readonly config: JsonValue };
   readonly driver: (artifacts: ArtifactStore) => D;
   readonly toolTimeoutMs?: number;
+  readonly maxSourceBytes?: number;
 }
 const toolchain = fileURLToPath(new URL('./toolchain.py', import.meta.url));
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 
-function contracts() {
+function contracts(maxSourceBytes: number) {
   const json = new ContractRegistry();
   json.register('tutor-object', { type: 'object' });
   json.register('report-gate', { type: 'object', properties: { decision: { enum: ['passed', 'rejected'] }, code: { type: ['string', 'null'] }, reportHash: { type: 'string', pattern: '^[a-f0-9]{64}$' } }, required: ['decision', 'code', 'reportHash'], additionalProperties: false });
   const files = new FileContractRegistry(json);
   const file = (id: string, path: string, schema = 'tutor-object') => ({ id, kind: 'file' as const, match: path, minCount: 1, maxCount: 1, maxBytes: 16 * 1024 ** 2, mediaTypes: ['application/json'], jsonContract: schema });
-  const tree = (id: string) => ({ id, kind: 'tree' as const, match: id, minCount: 1, maxCount: 1, minFiles: 1, maxFiles: 1000, maxBytes: 128 * 1024 ** 2,
+  const tree = (id: string) => ({ id, kind: 'tree' as const, match: id, minCount: 1, maxCount: 1, minFiles: 1, maxFiles: 1000, maxBytes: id === 'source' ? maxSourceBytes : 128 * 1024 ** 2,
     mediaTypes: ['application/json', 'application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif', 'text/plain', 'text/markdown', 'text/x-python', 'application/octet-stream'] });
   const initial = [tree('source'), ...['assessment-reference', 'submission-mapping', 'marking-candidate'].map(id => file(id, `candidate/${id}.json`))];
   const prepared = [...initial, tree('report-source')], reported = [...prepared, file('report', 'report-candidate.json')];
@@ -56,7 +58,8 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
   const timeout = setup.toolTimeoutMs ?? 120000;
   if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 600000 || ['prepare', 'report-gate', 'render'].includes(reporter.id)) throw new Error('INVALID_TUTOR_REPORT_SETUP');
   await mkdir(root, { recursive: true, mode: 0o700 });
-  const registered = contracts(), store = new FileArtifactStore(join(root, 'artifacts'), registered), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
+  const maxSourceBytes = sourceByteBudget(setup.maxSourceBytes);
+  const registered = contracts(maxSourceBytes), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
   const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime();
   const originals = new Map<string, FileManifest>(), prepared = new Map<string, FileManifest>();
   const component = (id: string, kind: 'transform' | 'gate' | 'agent', inputContract: string, outcomes: Record<string, string>) => ({ id, kind, implementation: id, inputContract, outcomes });
@@ -101,7 +104,7 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
       catch (error) { await files.release(input, runId); throw error; }
     },
     async release(run: { input: JsonValue; snapshot: WorkflowSnapshot }) {
-      for (const step of run.snapshot.steps) {
+      for (const step of [...run.snapshot.steps].reverse()) {
         if (step.result.status === 'accepted') await files.release(step.result.output, run.snapshot.runId);
         else await files.cleanup(step.result.identity);
       }

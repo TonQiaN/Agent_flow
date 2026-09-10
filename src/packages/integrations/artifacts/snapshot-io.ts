@@ -6,6 +6,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { ArtifactError, FileContractRegistry, isArtifactPath } from '@agentflow/engine';
 import type { ArtifactMaterializer, FileManifest, FileEntry } from '@agentflow/engine';
 const LIMITS = { entries: 10_000, fileBytes: 64 * 1024 * 1024, totalBytes: 256 * 1024 * 1024, jsonBytes: 1024 * 1024 };
+export function snapshotByteBudget(value = LIMITS.totalBytes): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 1024 ** 3) throw new ArtifactError('INVALID_STORE_BYTE_BUDGET');
+  return value;
+}
 const same = (a: Stats, b: Stats): boolean => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs && b.nlink === 1;
 const within = (parent: string, child: string): boolean => { const p = relative(parent, child); return p === '' || p !== '..' && !p.startsWith('..' + sep) && !isAbsolute(p); };
 
@@ -55,7 +59,8 @@ function media(path: string, prefix: Buffer): string {
 
 export interface StoredSnapshot { root: string; manifest: FileManifest; cleanupRoot?: string }
 
-export async function captureSnapshot(root: string, contracts: FileContractRegistry, source: string | ArtifactMaterializer, contractId: string): Promise<StoredSnapshot> {
+export async function captureSnapshot(root: string, contracts: FileContractRegistry, source: string | ArtifactMaterializer, contractId: string, maxTotalBytes = LIMITS.totalBytes): Promise<StoredSnapshot> {
+    const totalLimit = snapshotByteBudget(maxTotalBytes);
     const contract = contracts.definition(contractId);
     // Capture the installed capability before the first asynchronous operation.
     const materialize = typeof source === 'string' ? null : source.materialize.bind(source);
@@ -96,7 +101,7 @@ export async function captureSnapshot(root: string, contracts: FileContractRegis
           } else {
             if (files.length >= Math.min(contract.maxFiles, LIMITS.entries)) throw new ArtifactError('MAX_FILES', path);
             await privateEntry(from, false);
-            const copied = await copyFile(from, materialize ? undefined : to, path, Math.min(LIMITS.fileBytes, contract.maxTotalBytes - totalBytes, LIMITS.totalBytes - totalBytes));
+            const copied = await copyFile(from, materialize ? undefined : to, path, Math.min(LIMITS.fileBytes, contract.maxTotalBytes - totalBytes, totalLimit - totalBytes));
             totalBytes += copied.bytes;
             const mediaType = media(path, copied.prefix);
             let json;
@@ -146,4 +151,3 @@ export async function materializeSnapshot(storeRoot: string, snapshot: StoredSna
       throw new ArtifactError('MATERIALIZE_FAILED');
     }
   }
-
