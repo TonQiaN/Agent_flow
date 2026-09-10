@@ -51,6 +51,7 @@ test('Docker configuration explicitly rejects unsupported network, root and unbo
   const options = { workspaceRoot: '/tmp/af-test', image: 'alpine:3' };
   assert.doesNotThrow(() => new DockerBackend(options));
   assert.throws(() => new DockerBackend({ ...options, network: 'bridge' as 'none' }), /INVALID_DOCKER_OPTIONS/);
+  assert.throws(() => new DockerBackend({ ...options, sandbox: 'unconfined' as 'standard' }), /INVALID_DOCKER_OPTIONS/);
   assert.throws(() => new DockerBackend({ ...options, uid: 0 }), /INVALID_DOCKER_OPTIONS/);
   assert.throws(() => new DockerBackend({ ...options, logBytes: Infinity }), /INVALID_DOCKER_OPTIONS/);
 });

@@ -126,10 +126,37 @@ test "$(awk '/CapEff:/ {print $2}' /proc/self/status)" = 0000000000000000
 test "$(awk '/NoNewPrivs:/ {print $2}' /proc/self/status)" = 1
 test ! -e /sys/class/net/eth0
 if touch /root-write-test 2>/dev/null; then exit 90; fi
+if touch /task/config/task-overwrite 2>/dev/null; then exit 91; fi
 touch /tmp/writable /task/input/extra /task/work/extra /task/state/extra
 printf verified > /task/outputs/check`;
     const result = await f.run(f.request(script));
     assert.equal(result.exitCode, 0, JSON.stringify(result));
     assert.equal(await readFile(join(result.capture!.outputsPath, 'check'), 'utf8'), 'verified');
+  } finally { await f.cleanup(); }
+});
+
+realTest('Docker: host configuration is readable, immutable and separate from task input and output', async () => {
+  const f = await fixture();
+  try {
+    const request = f.request('set -eu; test ! -e /task/input/protocol; cat /task/config/protocol/outcome.json > /task/outputs/copied.json; if echo changed > /task/config/protocol/outcome.json 2>/dev/null; then exit 90; fi');
+    const result = await f.run({ ...request, invocation: { ...request.invocation, configFiles: [{ name: 'protocol/outcome.json', content: '{"outcome":"accepted"}' }] } });
+    assert.equal(result.exitCode, 0);
+    assert.equal(await readFile(join(result.capture!.outputsPath, 'copied.json'), 'utf8'), '{"outcome":"accepted"}');
+    assert.equal(await readFile(join(f.input, 'answer.txt'), 'utf8'), 'original');
+  } finally { await f.cleanup(); }
+});
+
+realTest('Docker: configuration paths, collisions and limits reject before process startup', async () => {
+  const f = await fixture();
+  try {
+    const invalid = [[{ name: '../escape', content: 'x' }], [{ name: '/absolute', content: 'x' }], [{ name: 'a\\b', content: 'x' }],
+      [{ name: 'a', content: 'x' }, { name: 'a', content: 'y' }], [{ name: 'a', content: 'x' }, { name: 'a/b', content: 'y' }],
+      [{ name: 'huge', content: 'x'.repeat(65537) }], Array.from({ length: 17 }, (_, index) => ({ name: String(index), content: 'x' }))];
+    for (const configFiles of invalid) {
+      const request = f.request('echo should-not-run');
+      const result = await f.run({ ...request, invocation: { ...request.invocation, configFiles } });
+      assert.equal(result.phase, 'failed'); assert.ok(result.diagnostics.includes('PREPARE_FAILED'));
+      assert.equal(result.exitCode, null);
+    }
   } finally { await f.cleanup(); }
 });

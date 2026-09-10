@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { dirname, isAbsolute, join } from 'node:path';
 import { getuid, getgid } from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isIdentifier } from '@agentflow/domain';
@@ -9,11 +9,18 @@ import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, Runn
 import { docker, attach } from './process.js';
 import type { AttachedProcess } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
+import { nestedUserNamespacePolicy } from './sandbox-policy.js';
+import { DockerEgress, egressOptions } from './egress.js';
+import type { DockerEgressOptions } from './egress.js';
+import { stateEnvironment } from '../execution/state-binding.js';
+import type { PrivateStateBinding } from '../execution/state-binding.js';
 
 export interface DockerOptions {
   readonly workspaceRoot: string;
   readonly image: string;
-  readonly network?: 'none';
+  readonly network?: 'none' | DockerEgressOptions;
+  /** Trusted host choice. The task cannot supply arbitrary Docker security options. */
+  readonly sandbox?: 'standard' | 'nested-userns-v1';
   readonly cpus?: number;
   readonly memoryMiB?: number;
   readonly pidsLimit?: number;
@@ -29,6 +36,7 @@ interface OwnedResource {
   attached?: AttachedProcess;
   removed: boolean;
   capture?: RawCapture;
+  egress?: DockerEgress;
 }
 interface Inspected { state: { Status: string; Running: boolean; ExitCode: number }; owner: string }
 
@@ -36,21 +44,27 @@ export class DockerBackend implements ExecutionBackend {
   readonly #resources = new Map<string, OwnedResource>();
   readonly #released = new Set<string>();
   readonly #options: Required<DockerOptions>;
+  readonly #binding: PrivateStateBinding | undefined;
+  readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions) {
-    const defaults = { network: 'none' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
+  constructor(options: DockerOptions, binding?: PrivateStateBinding) {
+    const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
       uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024 };
     const config = { ...defaults, ...options };
     const allowed = ['workspaceRoot', 'image', ...Object.keys(defaults)];
     if (Object.keys(config).some(key => !allowed.includes(key)) || !isAbsolute(config.workspaceRoot)
       || /[,\0]/.test(config.workspaceRoot) || !/^[A-Za-z0-9][A-Za-z0-9./_:@-]*$/.test(config.image) || /\s/.test(config.image)
-      || config.network !== 'none' || !Number.isFinite(config.cpus) || config.cpus < 0.1 || config.cpus > 64
+      || typeof config.network === 'string' && config.network !== 'none' || !['standard', 'nested-userns-v1'].includes(config.sandbox)
+      || !Number.isFinite(config.cpus) || config.cpus < 0.1 || config.cpus > 64
       || !Number.isSafeInteger(config.memoryMiB) || config.memoryMiB < 16 || config.memoryMiB > 262144
       || !Number.isSafeInteger(config.pidsLimit) || config.pidsLimit < 1 || config.pidsLimit > 8192
       || !Number.isSafeInteger(config.uid) || config.uid < 1 || !Number.isSafeInteger(config.gid) || config.gid < 0
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
-    this.#options = Object.freeze(config);
+    this.#options = Object.freeze({ ...config, network: config.network === 'none' ? 'none' : egressOptions(config.network) });
+    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    this.#binding = binding;
+    this.#stateEnv = stateEnvironment(binding?.environment ?? {});
   }
 
   #owned(resource: ExecutionResource): OwnedResource {
@@ -71,7 +85,7 @@ export class DockerBackend implements ExecutionBackend {
     const owned = this.#owned(resource);
     const invocation = request.invocation;
     if (Object.keys(request).some(key => !['identity', 'invocation', 'inputSource', 'timeoutMs'].includes(key))
-      || Object.keys(invocation).some(key => !['argv', 'env', 'recordFiles'].includes(key))) throw new Error('UNSUPPORTED_RUNNER_CONFIGURATION');
+      || Object.keys(invocation).some(key => !['argv', 'env', 'recordFiles', 'configFiles'].includes(key))) throw new Error('UNSUPPORTED_RUNNER_CONFIGURATION');
     const env = invocation.env ?? {};
     if (!env || typeof env !== 'object' || Array.isArray(env)
       || Object.entries(env).some(([key, value]) => !['LANG', 'LC_ALL', 'TZ'].includes(key) || typeof value !== 'string' || value.includes('\0') || value.length > 1024)) throw new Error('UNSUPPORTED_ENVIRONMENT');
@@ -79,9 +93,25 @@ export class DockerBackend implements ExecutionBackend {
     if (!Array.isArray(records) || records.length > 16 || new Set(records.map(item => item.id)).size !== records.length
       || records.some(item => !isIdentifier(item.id) || ['stdout', 'stderr'].includes(item.id) || typeof item.path !== 'string' || !safeRelative(item.path)
         || !Number.isSafeInteger(item.maxBytes) || item.maxBytes < 1 || item.maxBytes > 1024 * 1024)) throw new Error('INVALID_RECORD_CONFIGURATION');
+    const configs = invocation.configFiles ?? [];
+    if (!Array.isArray(configs) || configs.length > 16 || configs.some(file => !file || typeof file !== 'object'
+      || Object.keys(file).sort().join(',') !== 'content,name' || typeof file.name !== 'string' || !safeRelative(file.name)
+      || file.name.length > 256 || file.name.split('/').length > 8 || typeof file.content !== 'string'
+      || Buffer.byteLength(file.content) > 64 * 1024)
+      || new Set(configs.map(file => file.name)).size !== configs.length
+      || configs.some(file => configs.some(other => other.name.startsWith(`${file.name}/`)))) throw new Error('INVALID_CONFIG_FILES');
     owned.request = request;
     for (const name of [...Object.keys(TASK_PATHS), 'raw']) await mkdir(join(owned.directory, name), { mode: 0o700 });
     await copyInput(request.inputSource, join(owned.directory, 'input'));
+    for (const file of configs) {
+      const path = join(owned.directory, 'config', file.name);
+      await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+      await writeFile(path, file.content, { flag: 'wx', mode: 0o600 });
+    }
+    if (this.#options.sandbox === 'nested-userns-v1') {
+      await writeFile(join(owned.directory, 'sandbox-policy.json'), nestedUserNamespacePolicy(), { flag: 'wx', mode: 0o600 });
+    }
+    await this.#binding?.prepare(resource, join(owned.directory, 'state'));
   }
 
   async create(resource: ExecutionResource, request: RunnerRequest): Promise<void> {
@@ -90,16 +120,24 @@ export class DockerBackend implements ExecutionBackend {
     if (!/^sha256:[a-f0-9]{64}$/.test(imageId)) throw new Error('INVALID_IMAGE_ID');
     owned.imageId = imageId;
     const options = this.#options;
+    if (options.network !== 'none') {
+      owned.egress = new DockerEgress(resource.id, owned.directory, options.network);
+      await owned.egress.setup(options.uid, options.gid);
+    }
     const args = ['create', '--name', owned.name, '--label', `agentflow.resource=${resource.id}`,
       '--label', `agentflow.attempt=${request.identity.attemptId}`, '--restart', 'no', '--init',
       '--user', `${options.uid}:${options.gid}`, '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--cpus', String(options.cpus), '--memory', `${options.memoryMiB}m`, '--memory-swap', `${options.memoryMiB}m`,
-      '--pids-limit', String(options.pidsLimit), '--network', 'none', '--log-driver', 'none',
+      '--pids-limit', String(options.pidsLimit), '--log-driver', 'none',
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--workdir', TASK_PATHS.work,
       '--env', `HOME=${TASK_PATHS.state}`, '--env', `AGENTFLOW_INPUT=${TASK_PATHS.input}`,
       '--env', `AGENTFLOW_OUTPUTS=${TASK_PATHS.outputs}`, '--env', `AGENTFLOW_STATE=${TASK_PATHS.state}`];
-    for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}`);
+    args.push(...owned.egress?.arguments() ?? ['--network', 'none']);
+    if (options.sandbox === 'nested-userns-v1') args.push('--ipc', 'private', '--security-opt', 'systempaths=unconfined',
+      '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
+    for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
+    for (const [key, value] of Object.entries(this.#stateEnv)) args.push('--env', `${key}=${value}`);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));
     await docker(args);
   }
@@ -124,6 +162,7 @@ export class DockerBackend implements ExecutionBackend {
     const owned = this.#owned(resource);
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
+    await owned.egress?.assertRunning();
     owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes);
   }
 
@@ -132,6 +171,7 @@ export class DockerBackend implements ExecutionBackend {
     const existing = await this.#inspect(resource);
     if (!existing) return { state: 'absent' };
     if (existing.state.Running) {
+      await owned.egress?.assertRunning();
       if (owned.attached?.settled) { owned.attached.failed = true; throw new Error('ATTACH_ENDED_EARLY'); }
       return { state: 'running' };
     }
@@ -192,7 +232,8 @@ export class DockerBackend implements ExecutionBackend {
       files[record.id] = await captureFile(join(owned.directory, 'state'), record.path, join(owned.directory, 'raw', `${record.id}.bin`), record.maxBytes);
     }
     owned.capture = { stdout: owned.attached?.stdout ?? unstarted('stdout.bin'), stderr: owned.attached?.stderr ?? unstarted('stderr.bin'),
-      files, outputsPath: join(owned.directory, 'outputs'), imageId: owned.imageId };
+      files, outputsPath: join(owned.directory, 'outputs'), imageId: owned.imageId,
+      ...(owned.egress ? { network: owned.egress.evidence() } : {}) };
     return owned.capture;
   }
 
@@ -202,6 +243,7 @@ export class DockerBackend implements ExecutionBackend {
     if (existing?.state.Running) throw new Error('REMOVE_RUNNING_CONTAINER');
     if (existing) await docker(['rm', owned.name]);
     if (await this.#inspect(resource)) throw new Error('CONTAINER_NOT_REMOVED');
+    await owned.egress?.remove();
     owned.removed = true;
   }
 
@@ -209,6 +251,7 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#released.has(resource.id)) return;
     const owned = this.#owned(resource);
     if (!owned.removed) throw new Error('RESOURCE_STILL_OWNED_BY_EXECUTION');
+    await this.#binding?.beforeRelease(resource);
     await rm(owned.directory, { recursive: true, force: true });
     this.#resources.delete(resource.id);
     this.#released.add(resource.id);
