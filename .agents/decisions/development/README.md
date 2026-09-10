@@ -32,28 +32,28 @@
 
 ## D-20260908-issue-classification
 
-[用五类表达 Issue 的主要交付目标](implemented/D-20260908-issue-classification.md)
+[用所属领域与五类交付目标区分主 Issue](proposed/D-20260908-issue-classification.md)
 
 ## D-20260908-issue-template-common
 
-[共通规范与五份完整 Issue 表单](implemented/D-20260908-issue-template-common.md)
+[主 Issue 的共通字段与 Sub-issue 的自主表达](proposed/D-20260908-issue-template-common.md)
 
 ## D-20260908-issue-template-feature
 
-[功能模板补充场景与行为契约](implemented/D-20260908-issue-template-feature.md)
+[功能主 Issue 说明当前场景与期望能力](proposed/D-20260908-issue-template-feature.md)
 
 ## D-20260908-issue-template-bug
 
-[缺陷模板保留契约差异、复现与环境](implemented/D-20260908-issue-template-bug.md)
+[缺陷主 Issue 保留行为差异、复现与环境](proposed/D-20260908-issue-template-bug.md)
 
 ## D-20260908-issue-template-research
 
-[研究模板用证据问题与停止条件限定交付](implemented/D-20260908-issue-template-research.md)
+[研究主 Issue 说明未知问题与期望结论](proposed/D-20260908-issue-template-research.md)
 
 ## D-20260908-issue-template-decision
 
-[决策模板补充真实比较与落实交接](implemented/D-20260908-issue-template-decision.md)
+[决策主 Issue 说明当前情况与需要作出的选择](proposed/D-20260908-issue-template-decision.md)
 
 ## D-20260908-issue-template-maintenance
 
-[维护模板补充改动、兼容与验证计划](implemented/D-20260908-issue-template-maintenance.md)
+[维护主 Issue 说明当前问题与期望改进](proposed/D-20260908-issue-template-maintenance.md)

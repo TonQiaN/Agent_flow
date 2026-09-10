@@ -4,6 +4,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-10 | [主 Issue 模板与 Sub-issue 自主表达验证](2026-09-10-main-issue-templates.md) · [五类主 Issue 填写与边界核对](2026-09-10-main-issue-examples.md) |
 | 2026-09-08 | [Issue 模板实施验证](2026-09-08-issue-templates.md) · [12 个填写与边界演练](2026-09-08-issue-template-examples.md) |
 | 2026-09-08 | [七份 Issue 模板决定设计验证](2026-09-08-issue-template-decisions.md) |
 | 2026-09-08 | [版本管理骨架验证](2026-09-08-version-management.md) |
