@@ -1,6 +1,6 @@
 # 使用指南
 
-当前支持确定性 Component 与 JSON contract 基础。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
+当前支持确定性 Component、JSON contract 与离线 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
 
 在仓库根目录运行：
 
@@ -16,4 +16,4 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 
 从 [文档入口](../README.md) 了解当前能力，再查对应决定与说明。维护正式知识使用 [文档维护指南](../development/documentation.md)；原始资料区不要求统一整理方式，不作为日常开发默认上下文。
 
-完整 Agent、文件工作区与批卷流程按版本计划继续实施；本例未调用模型或外部业务服务。
+[Docker Runner](runner.md) 提供可写文件副本、原始采集和真实取消/清理；完整 Agent、Workflow 和批卷流程继续实施，当前示例未调用模型或外部业务服务。

@@ -1,6 +1,6 @@
 # AgentFlow
 
-项目开始提供 TypeScript 运行基础：确定性 Component、JSON 契约校验及 CLI 示例。完整 Workflow、Docker 与真实 Agent 尚未接入，当前用法见 [使用指南](docs/guides/README.md)。
+项目开始提供 TypeScript 运行基础：确定性 Component、JSON 契约校验及 CLI 示例。已增加离线 Docker Runner；完整 Workflow 与真实 Agent 尚未接入，当前用法见 [使用指南](docs/guides/README.md)。
 
 | 入口 | 内容 |
 | --- | --- |
