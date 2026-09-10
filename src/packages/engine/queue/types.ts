@@ -34,7 +34,10 @@ export interface QueuedNodeTask {
     readonly nodeTaskId: string;
     readonly node: string;
     readonly requirements: NodeRequirements;
-    readonly state: 'ready' | 'leased' | 'blocked' | 'done';
+    readonly state: 'ready' | 'leased' | 'blocked' | 'done' | 'waiting';
+    readonly parallel?: {readonly parentKey:string;readonly maxConcurrency:number};
+    readonly children?: readonly string[];
+    readonly cancelRequested?: true;
     readonly admissionTokens: readonly string[];
     readonly notBefore: number;
     readonly owner: {
@@ -45,6 +48,7 @@ export interface QueuedNodeTask {
     readonly reason: string | null;
 }
 export interface NodeTaskQueue {
+    cancellationRequested?(claim:NodeTaskClaim):Promise<boolean>;
     records(): RunRecordStore;
     query(): Promise<readonly QueuedNodeTask[]>;
     claim(worker: string, capabilities: readonly string[], leaseMs: number): Promise<NodeTaskClaim | null>;

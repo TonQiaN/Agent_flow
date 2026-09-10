@@ -83,3 +83,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [单机 NodeTask 队列与 Worker](node-queue.md)：程序入口、共享容量、归属检查与恢复边界。
 
 [节点有限重试](node-retries.md)：同任务多 Attempt、持久等待与累计预算。
+
+[JSON Map 与固定 Fork](json-parallel.md)：单层展开、原子登记、有序汇合及现有队列/恢复/重试组合。

@@ -67,3 +67,7 @@ export type { NodeCredentialAdmission } from './queue/types.js';
 
 export { retryCategories, retryCategory, validateRetryPolicy, decideRetry } from './retry/policy.js';
 export type { RetryCategory, RetryPolicy, RetryDecision } from './retry/policy.js';
+
+export { ParallelWorkflowCatalog } from './parallel/catalog.js';
+export type { ParallelDefinition, ParallelBranch, ParallelExpansion, ParallelCheckpoint } from './parallel/types.js';
+export type { ParallelRecordPort } from './persistence/types.js';
