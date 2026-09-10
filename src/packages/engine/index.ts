@@ -15,3 +15,18 @@ export type { RunnerRequest, RunnerResult, Invocation, Cancellation, Clock, Exec
 export { HarnessRegistry } from './harness/registry.js';
 export type { HarnessAdapter, HarnessTask, HarnessPlan, HarnessEvent, HarnessUsage, HarnessEvidence, HarnessResult } from './harness/types.js';
 export type { CredentialIdentity, CredentialMetadata, CredentialSource, CredentialLease, CredentialStore } from './auth/types.js';
+export { compileWorkflow, WorkflowDefinitionError } from './workflow/compiler.js';
+export { WorkflowRuntime } from './workflow/runtime.js';
+export { JsonFunctionWorkflowCatalog } from './workflow/functions.js';
+export type { WorkflowRunHandle } from './workflow/runtime.js';
+export type { WorkflowDefinition, WorkflowContract, WorkflowDestination, WorkflowRoute, WorkflowCatalog, WorkflowNodeExecutor, WorkflowNodeResult, WorkflowIssue, CompiledWorkflow, WorkflowSnapshot, WorkflowStep, WorkflowLimitEvent } from './workflow/types.js';
+
+export { ScriptExecutor, ScriptAttempt, parseScriptResult, SCRIPT_RESULT_SCHEMA, SCRIPT_RESULT_MAX_BYTES } from './components/script-executor.js';
+export type { ScriptDefinition, ScriptRequest, ScriptRecordReader, ScriptEvidence, ScriptResult } from './components/script-executor.js';
+
+export { EffectExecutor, EFFECT_RECEIPT_SCHEMA } from './components/effect-executor.js';
+export type { EffectMode, EffectStatus, EffectRequest, EffectReceipt, EffectAdapter, EffectAdapterRequest, EffectApproval, EffectResult, EffectRecordView } from './components/effect-executor.js';
+export { EffectWorkflowCatalog } from './workflow/effects.js';
+export type { EffectWorkflowBinding } from './workflow/effects.js';
+
+export { copyJson as snapshotJson } from './json.js';

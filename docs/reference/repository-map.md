@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证接口切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证、Agent 接纳及串行 JSON Workflow 切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -13,7 +13,7 @@ Agent_flow/
 ├── src/
 │   ├── apps/cli/                  # 当前仅 demo 命令
 │   ├── packages/domain/           # 业务类型与执行身份
-│   ├── packages/engine/           # contracts、components、runner、harness/auth 接口；无环境依赖
+│   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth 接口；无环境依赖
 │   ├── packages/integrations/     # Docker、CONNECT 代理、Codex 映射/parser、私有凭据存储/绑定、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
@@ -55,3 +55,9 @@ Agent_flow/
 正式开发以 Issue 为工作起点，按对应决定及当前说明执行。原始资料可由研究任务提炼进决定，但正式决定不依赖原始资料路径；原始区内部结构不在本图管理。
 
 [生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
+
+`src/packages/integrations/workflow` 提供文件函数/Agent 与串行 Workflow 的本机连接、私有文件来源引用及失败资源清理；核心编译器与运行控制留在 `engine/workflow`。
+
+`engine/components/script-executor` 保存一次脚本执行及纯结果协议，`integrations/execution/script-record-reader` 执行停止后原始文件读取；`integrations/workflow` 复用文件契约和来源引用接纳脚本产物。
+
+`engine/components/effect-executor` 与 `engine/workflow/effects` 分开保存操作授权/幂等接纳和 Workflow 适配；`integrations/effects/simulated-service` 只提供内存模拟目标，不接触 Harness 凭据。

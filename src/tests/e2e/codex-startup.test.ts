@@ -9,7 +9,7 @@ import { CODEX_VERSION, CodexAdapter, DockerBackend, systemClock } from '@agentf
 
 const image = process.env['AGENTFLOW_CODEX_IMAGE'];
 test('Codex: actual exec initializes single and structured tasks with empty or existing metadata, entirely offline',
-  { skip: !image, timeout: 60_000 }, async () => {
+  { skip: !image, timeout: 180_000 }, async () => {
     const imageId = execFileSync('docker', ['image', 'inspect', '--format', '{{.Id}}', image!], { encoding: 'utf8' }).trim();
     assert.match(imageId, /^sha256:[a-f0-9]{64}$/);
     assert.equal(execFileSync('docker', ['run', '--rm', '--network', 'none', '--entrypoint', 'codex', imageId, '--version'], { encoding: 'utf8' }).trim(), `codex-cli ${CODEX_VERSION}`);
@@ -31,7 +31,10 @@ test('Codex: actual exec initializes single and structured tasks with empty or e
         // turn starts, then the offline request is timed out; this is not model acceptance.
         const auth = JSON.stringify({ auth_mode: 'chatgpt', tokens: { id_token: 'fixture-id', access_token: 'fixture-access', refresh_token: 'fixture-refresh', account_id: 'fixture-account' } });
         const bootstrap = 'set -eu; mkdir -p /task/state/codex; printf %s "$1" > /task/state/codex/auth.json; shift; export CODEX_HOME=/task/state/codex; exec "$@"';
-        const result = await runner.run({ identity, inputSource: input, timeoutMs: 5000,
+        // Blackbox ProviderBootTests gives offline Codex 25s. Five seconds can expire
+        // before turn.started when the full Docker suite competes for CPU; keep the
+        // startup evidence mandatory, and bound each of the four real invocations.
+        const result = await runner.run({ identity, inputSource: input, timeoutMs: 25_000,
           invocation: { argv: ['/bin/sh', '-c', bootstrap, 'fixture', auth, ...plan.argv], configFiles: plan.configFiles } });
         try {
           assert.equal(result.phase, 'timed_out'); assert.equal(result.stop, 'confirmed'); assert.equal(result.cleanup, 'removed');
