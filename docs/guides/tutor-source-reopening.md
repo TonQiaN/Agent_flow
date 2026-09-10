@@ -10,4 +10,4 @@
 
 归档 read 核对清单；实际文件字节、全部历史、当前定义和资源由完整加载/恢复继续检查。来源读取成功不代表整个 Run 可以执行，失败/取消等状态也不会因此重新启动。即使元数据可读，归档内容缺失或损坏仍会在文件恢复时拒绝。两次读取之间发生变化也不能跳过后续完整校验及 CAS。
 
-当前已接入批卷 Script 验收组合，覆盖初始 queued 记录和 Gate 中断后的新进程重开。原始宿主目录删除或变化不改变已保存输入。完整 createGradingApplication、文件到 JSON 收据、Effect/实际 Agent 的联合持久流程仍在接线；见[验证](../validation/2026-09-10-tutor-source-reopening.md)。
+当前已接入 [createPersistentGradingApplication](persistent-tutor-grading.md)，与实际 Agent Driver、Script、文件到 JSON 收据及持久 Effect 共同运行。新进程从首个输入归档重开，原始宿主目录删除或变化不改变已保存输入。来源接口的独立验证见[记录](../validation/2026-09-10-tutor-source-reopening.md)；组合验证使用合成答卷和协议替身，不代表官方模型或真实学生持久恢复验收。
