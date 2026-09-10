@@ -77,14 +77,18 @@ fs.writeFileSync(path.join(dir,provider==='codex'?'auth.json':'.credentials.json
         const identity = { credentialRef: 'terminal', service: provider === 'codex' ? 'openai' : 'anthropic', method: 'subscription' };
         const store = new FileCredentialStore(storeRoot, [new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec()]);
         if (mode === 'cleanup-pending') {
-          const owned = execFileSync(actualDocker, ['container', 'ls', '--all', '--filter', `label=agentflow.attempt=${proof.status.identity.attemptId}`, '--format', '{{.Names}}'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+          const owned = execFileSync(actualDocker, ['container', 'ls', '--all', '--filter', `label=agentflow.attempt=${proof.status.identity.attemptId}`, '--format', '{{.Names}}\t{{.Label "agentflow.resource"}}'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean).map(row => row.split('\t'));
+          const resources = [...new Set(owned.map(row => row[1]!))];
           try {
             assert.equal(proof.exit, 3); assert.equal(proof.status.status, 'pending_cleanup'); assert.equal(proof.diagnostic, 'AUTH_LOGIN_CLEANUP_PENDING');
-            assert.equal(owned.length, 1); assert.ok((await readdir(workspace)).length > 0); assert.equal(await store.inspect(identity), null);
+            // Task and proxy carry the same complete Attempt identity after resource recovery was added.
+            assert.equal(resources.length, 1); assert.match(resources[0]!, /^af-[a-f0-9-]{36}$/);
+            assert.deepEqual(owned.map(row => row[0]).sort(), [resources[0], `${resources[0]}-proxy`].sort());
+            assert.ok((await readdir(workspace)).length > 0); assert.equal(await store.inspect(identity), null);
             await assert.rejects(store.acquireManagement(identity), { code: 'CREDENTIAL_BUSY' });
           } finally {
             // Explicitly dispose only the synthetic execution identified by this returned attempt.
-            for (const resource of owned) {
+            for (const resource of resources) {
               const names = execFileSync(actualDocker, ['container', 'ls', '--all', '--filter', `label=agentflow.resource=${resource}`, '--format', '{{.Names}}'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
               if (names.length) execFileSync(actualDocker, ['rm', '--force', ...names], { stdio: 'pipe' });
               const networks = execFileSync(actualDocker, ['network', 'ls', '--filter', `label=agentflow.resource=${resource}`, '--format', '{{.Name}}'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean);
