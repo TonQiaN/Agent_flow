@@ -87,3 +87,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [JSON Map 与固定 Fork](json-parallel.md)：单层展开、原子登记、有序汇合及现有队列/恢复/重试组合。
 
 [Tutor 报告消费端](tutor-report-consumer.md)：已有标注结果到 Reporter、确定性 Gate 和集成 PDF。
+
+- [Tutor 扫描件批改](tutor-scanned-marking.md)：独立 Marker/Reviewer、用户返修、可信 Gate 和报告交接。

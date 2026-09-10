@@ -34,3 +34,5 @@
 - [节点有限重试](guides/node-retries.md)：用户策略、跨重启累计预算、等待与取消。
 - [JSON Map 与固定 Fork](guides/json-parallel.md)：有序汇合、wait-all、共享容量、部分恢复与可运行示例。
 - [Tutor 报告消费端](guides/tutor-report-consumer.md)：复用已安装 Tutor 标注校验、指标、报告 Gate 与 A3 渲染器；已通过合成扫描页，真实模型/学生验收待完成。
+
+- [Tutor 扫描件批改](guides/tutor-scanned-marking.md)：已接通复杂契约的 Marker/Reviewer、用户返修与报告串接；合成验证不代替真实阅卷验收。
