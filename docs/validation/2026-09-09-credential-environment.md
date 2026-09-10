@@ -10,7 +10,7 @@
 
 `PrivateStateBinding` 增加可选的秘密环境方法，值只进入 Docker create 的客户端环境。普通 `Invocation.env` 仍不接受密钥，路径环境仍只接受受限 state 路径，DockerOptions 不新增秘密字段。凭据变量名限定为受限的 API_KEY/TOKEN 名称，不允许 PATH、NODE_OPTIONS、代理或 AGENTFLOW 配置覆盖；与路径环境同名时拒绝。值不进入 argv，进程失败只返回静态错误。
 
-DeepSeek Adapter 的认证声明改为变量名，宿主配方选择环境绑定。固定启动器只读取 DEEPSEEK_API_KEY，经有界格式检查转交 CLI，不查找遗留文件或其他来源。订阅组合继续使用原文件绑定和条件刷新；旧不可变文件快照 API 保留，已不用于 DeepSeek 组合。
+DeepSeek Adapter 的认证声明改为变量名，宿主配方选择环境绑定。固定启动器只读取 DEEPSEEK_API_KEY，经有界格式检查转交 CLI，不查找遗留文件或其他来源。订阅组合继续使用原文件绑定和条件刷新；本阶段保留的旧不可变文件快照 API 已不用于 DeepSeek 组合；后续 PR 审查确认无当前生产调用后移除了该入口及对应配方分支，见[认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
 
 Docker daemon 管理员可以查看容器环境，属于可信宿主边界；本实现不声称对其隐藏秘密。工具进程仍通过独立 PID 视图、文件隔离与清空继承环境保护父 CLI 的密钥。普通结果不抓取 Docker Config.Env；原始日志仍保持私有。
 
