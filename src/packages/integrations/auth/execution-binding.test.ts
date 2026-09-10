@@ -34,7 +34,7 @@ test('binding holds one lease, keeps sources out of JSON and only commits after 
       await assert.rejects(f.store.acquire(credential), /CREDENTIAL_BUSY/);
     }
     const result = await f.binding.finish(proof({ phase: 'cancelled', exitCode: null }));
-    assert.equal(result.status, 'released'); assert.equal(result.refresh, 'updated'); assert.equal(result.credential.revision, 2);
+    assert.equal(result.status, 'released'); assert.equal(result.refresh, 'updated'); assert.equal(result.credential?.revision, 2);
     await assert.rejects(readFile(f.copy), { code: 'ENOENT' });
     const lease = await f.store.acquire(credential); assert.equal(await lease.readSecret(), 'fixture-refreshed'); await lease.release();
     assert.deepEqual(await f.binding.finish(proof()), result);

@@ -12,6 +12,7 @@ export class CodexSubscriptionRunner extends CredentialHarnessRunner<CodexSubscr
   constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }) {
     super(store, options, {
       binding: 'exclusive',
+      resourceEnvironment: { CODEX_HOME: '/task/state/codex' },
       version: CODEX_VERSION, hosts: CODEX_SUBSCRIPTION_HOSTS, stateFile: 'codex/auth.json', versionCommand: ['codex', '--version'],
       adapter: () => new CodexAdapter(), profile: codexSubscriptionProfile, redactor: () => new CodexCredentialRedactor(),
       parseVersion: stdout => /^codex-cli ([0-9]+\.[0-9]+\.[0-9]+)\s*$/.exec(stdout)?.[1] ?? null,

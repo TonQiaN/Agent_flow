@@ -56,7 +56,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
           const file = result.runner.capture[stream]; if (file.complete) await cp(file.path, join(root, `first-${stream}.bin`));
         }
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);
-        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential.revision, 2); assert.deepEqual(result.diagnostics, []);
+        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential?.revision, 2); assert.deepEqual(result.diagnostics, []);
         assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.equal(result.version.actual, '2.1.226');
         assert.equal(await readFile(join(input, 'numbers.json'), 'utf8'), original);
         assert.deepEqual(JSON.parse(await readFile(join(result.runner.capture!.outputsPath, 'answer.json'), 'utf8')), { sum: 6 });

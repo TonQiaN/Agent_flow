@@ -77,3 +77,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [指定 JSON 文件转换](json-file-projection.md)：固定读取、契约接纳、持久来源证明与恢复边界。
 
 - [持久批卷应用组合](persistent-tutor-grading.md)：显式启动/重开、用户返修、来源链与当前发布策略。
+
+[订阅资源恢复](subscription-resource-recovery.md)：来源归属、停止后刷新收尾与持久 Agent 组合。

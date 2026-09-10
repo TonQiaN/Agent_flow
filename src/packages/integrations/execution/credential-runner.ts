@@ -6,6 +6,8 @@ import { DockerBackend } from '../docker/backend.js';
 import { docker } from '../docker/process.js';
 import { EnvironmentExecutionCredentialBinding } from '../auth/environment-binding.js';
 import { FileExecutionCredentialBinding } from '../auth/execution-binding.js';
+import { SubscriptionResourceBinding } from '../auth/subscription-resource.js';
+import type { ExecutionCredentialStore } from '../auth/file-store.js';
 import type { BindingFinalization, ExecutionCredentialBinding } from '../auth/execution-binding.js';
 import { readCapturedBytes } from './capture-reader.js';
 import { systemClock } from '../system-clock.js';
@@ -18,6 +20,7 @@ export type CredentialRecipe<P extends CredentialIdentity> = CredentialRecipeBas
   | { readonly binding: 'environment'; readonly secretEnvironmentKeys: readonly string[]; readonly secretEnvironment: (content: string) => Readonly<Record<string, string>>; readonly stateFile?: never }
 );
 interface CredentialRecipeBase<P extends CredentialIdentity> {
+  readonly resourceEnvironment?: Readonly<Record<string, string>>;
   readonly memoryMiB?: number;
   readonly version: string; readonly hosts: readonly string[]; readonly versionCommand: readonly string[];
   readonly systemConfigMounts?: readonly SystemConfigMount[];
@@ -71,6 +74,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
   constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }, recipe: CredentialRecipe<P>) {
     if (!options || Object.keys(options).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
     this.#recipe = Object.freeze({ ...recipe, hosts: Object.freeze([...recipe.hosts]), versionCommand: Object.freeze([...recipe.versionCommand]),
+      ...(recipe.resourceEnvironment ? { resourceEnvironment: Object.freeze({ ...recipe.resourceEnvironment }) } : {}),
       ...(recipe.systemConfigMounts ? { systemConfigMounts: Object.freeze(recipe.systemConfigMounts.map(m => Object.freeze({ ...m }))) } : {}) });
     if (recipe.binding === 'environment') this.#recipe = Object.freeze({ ...this.#recipe, secretEnvironmentKeys: Object.freeze([...recipe.secretEnvironmentKeys]) }) as CredentialRecipe<P>;
     this.#store = store; this.#options = Object.freeze({ ...options });
@@ -96,11 +100,18 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     try { return await this.#imagesPending; } finally { this.#imagesPending = undefined; }
   }
   #credential(profile: P): CredentialIdentity { return { credentialRef: profile.credentialRef, service: profile.service, method: profile.method }; }
-  #recoveryBinding(profile: P) {
-    if (this.#recipe.binding !== 'environment') throw new Error('CREDENTIAL_RESOURCE_RESTORE_UNAVAILABLE');
-    return EnvironmentExecutionCredentialBinding.recoveryBinding(this.#credential(profile), this.#recipe.secretEnvironmentKeys);
+  credentialAcquisitionIsResourceOwned(): boolean {
+    const source = this.#store as CredentialStore & Partial<ExecutionCredentialStore>;
+    return this.#recipe.binding === 'exclusive' && !!this.#recipe.resourceEnvironment
+      && typeof source.executionDefinition === 'function' && typeof source.acquireExecution === 'function' && typeof source.finishExecution === 'function';
   }
-  /** Actual immutable environment transport; no source store access. */
+  #recoveryBinding(profile: P) {
+    if (this.#recipe.binding === 'environment') return EnvironmentExecutionCredentialBinding.recoveryBinding(this.#credential(profile), this.#recipe.secretEnvironmentKeys);
+    if (this.credentialAcquisitionIsResourceOwned() && this.#recipe.binding === 'exclusive')
+      return new SubscriptionResourceBinding(this.#store as CredentialStore & ExecutionCredentialStore, this.#credential(profile), this.#recipe.stateFile, this.#recipe.resourceEnvironment!);
+    throw new Error('CREDENTIAL_RESOURCE_RESTORE_UNAVAILABLE');
+  }
+  /** Actual transport and source identity; no credential reads or acquisition. */
   async executionResourceDefinition(rawProfile: P): Promise<JsonValue> {
     const profile = this.#recipe.profile(structuredClone(rawProfile)), binding = this.#recoveryBinding(profile);
     const key = canonicalJson(snapshotJson(this.#credential(profile)));
@@ -146,7 +157,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       profile, timeoutMs, version: this.#recipe.version, versionCommand: this.#recipe.versionCommand,
       authentication: { binding: this.#recipe.binding, stateFile: this.#recipe.stateFile ?? null,
         environment: this.#recipe.stateEnvironment({ ...plan, identity: captured.identity }) },
-      environment: this.#recipe.binding === 'environment' ? await this.executionResourceDefinition(profile)
+      environment: this.#recipe.binding === 'environment' || this.credentialAcquisitionIsResourceOwned() ? await this.executionResourceDefinition(profile)
         : new DockerBackend(this.#backendOptions(images.image, images.proxyImage)).configurationSnapshot() });
   }
 
@@ -197,7 +208,9 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
     const redactor = this.#recipe.redactor();
     const credential = { credentialRef: profile.credentialRef, service: profile.service, method: profile.method };
     await persistence?.acquisition?.enter();
-    const binding = this.#recipe.binding === 'environment'
+    const binding = this.#recipe.binding === 'exclusive' && this.credentialAcquisitionIsResourceOwned()
+      ? new SubscriptionResourceBinding(this.#store as CredentialStore & ExecutionCredentialStore, credential, this.#recipe.stateFile, this.#recipe.stateEnvironment(plan), task.identity, content => redactor.remember(content))
+      : this.#recipe.binding === 'environment'
       ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.#recipe.secretEnvironment, 0, content => redactor.remember(content))
       : await (this.#recipe.binding === 'snapshot' ? FileExecutionCredentialBinding.acquireSnapshot : FileExecutionCredentialBinding.acquire).call(FileExecutionCredentialBinding,
         this.#store, { identity: task.identity, credential, stateFile: this.#recipe.stateFile, environment: this.#recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));

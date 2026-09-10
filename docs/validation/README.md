@@ -114,3 +114,5 @@
 - [JSON 文件转换与来源恢复](2026-09-10-json-file-projection.md)：子进程中断、收据恢复、定义漂移、并发与回滚验证。
 
 - [完整批卷持久组合](2026-09-10-persistent-tutor-grading.md)：真实容器的 Agent、Gate、转换与发布中断联合验证。
+
+[订阅资源恢复](2026-09-10-subscription-resource-recovery.md)；[Issue #13 验收对照](2026-09-10-issue13-acceptance.md)。
