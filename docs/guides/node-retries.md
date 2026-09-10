@@ -19,6 +19,8 @@ nodes: {
 | execution_failure | SCRIPT_EXECUTION_FAILED、EXECUTION_NOT_SUCCESSFUL、HARNESS_NOT_SUCCESSFUL、IMPLEMENTATION_FAILED、FILE_NODE_EXECUTION_FAILED |
 | interrupted | ATTEMPT_INTERRUPTED，由共同恢复确认旧执行已清理后生成 |
 
+文件 Workflow 的超时码也影响未配置重试的调用：实际 Runner 为 `timed_out` 时统一返回 `EXECUTION_TIMEOUT`，替代此前的 `SCRIPT_EXECUTION_FAILED`（Script）或 `EXECUTION_NOT_SUCCESSFUL`（Agent）。依赖旧错误码的调用者应更新判断；其他失败码不变，未配置策略仍只执行一次。Runner / ScriptExecutor / AgentExecutor 的原始执行事实保留。
+
 仅匹配结构化错误码。契约不合格、取消、明确认证配置错误、未知错误和未知 Effect 结果不匹配。Agent 自由文本不参与判断。业务 `outcome` 仍通过用户路由进入返修节点，不占原 NodeTask 的重试预算。
 
 ## 执行与等待

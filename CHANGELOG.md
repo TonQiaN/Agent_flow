@@ -6,6 +6,8 @@
 
 ### 重要变更
 
+- 文件 Workflow 将实际 Runner 超时统一映射为 EXECUTION_TIMEOUT，替代通用 Script/Agent 执行失败码；未配置重试的调用也会看到此错误码，仍默认只执行一次。
+
 - 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
 
 ### 修复
