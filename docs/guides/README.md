@@ -81,3 +81,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [订阅资源恢复](subscription-resource-recovery.md)：来源归属、停止后刷新收尾与持久 Agent 组合。
 
 [单机 NodeTask 队列与 Worker](node-queue.md)：程序入口、共享容量、归属检查与恢复边界。
+
+[节点有限重试](node-retries.md)：同任务多 Attempt、持久等待与累计预算。

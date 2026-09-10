@@ -28,9 +28,9 @@ const Driver=provider==='codex'?CodexAgentDriver:provider==='claude'?ClaudeAgent
 const driver=new Driver(runtime,artifacts,profile,{timeoutMs:15000});
 const executor = new AgentExecutor(contracts, artifacts, driver), catalog = new FileWorkflowCatalog(contracts, artifacts, join(root, 'work'), archive);
 const calls=[]; const execute = catalog.execute.bind(catalog); catalog.execute = (...args) => { calls.push(args[0].id); return execute(...args); };
-for (const id of ['a','b']) catalog.registerAgent({ id, kind:'agent', implementation:id,inputContract:id==='a'?'input':'answer',outcomes:{ok:'answer'}},executor,{prompt: (operation === 'failure' || stage === 'failure') && id === 'b' ? 'nonzero' : 'normal',config:provider==='deepseek'?{model:'deepseek-v4-flash',reasoning:'off',search:false,subagents:false}:{model:'fixture-model',search:false,subagents:false}});
+for (const id of ['a','b']) catalog.registerAgent({ id, kind:'agent', implementation:id,inputContract:id==='a'?'input':'answer',outcomes:{ok:'answer'}},executor,{prompt: (operation === 'failure' || stage === 'failure' || stage === 'retry') && id === 'b' ? 'nonzero' : 'normal',config:provider==='deepseek'?{model:'deepseek-v4-flash',reasoning:'off',search:false,subagents:false}:{model:'fixture-model',search:false,subagents:false}});
 const value={kind:'files',id:'answer'};
-const flow=compileWorkflow({id:'agents',start:'a',input:{kind:'files',id:'input'},maxSteps:2,outcomes:{done:value},nodes:{a:{component:'a'},b:{component:'b'}},routes:[{from:'a',outcome:'ok',to:{node:'b'}},{from:'b',outcome:'ok',to:{end:'done'}}]},catalog);
+const flow=compileWorkflow({id:'agents',start:'a',input:{kind:'files',id:'input'},maxSteps:2,outcomes:{done:value},nodes:{a:{component:'a'},b:{component:'b',...(stage==='retry'?{retry:{maxAttempts:2,on:['execution_failure'],delayMs:100}}:{})}},routes:[{from:'a',outcome:'ok',to:{node:'b'}},{from:'b',outcome:'ok',to:{end:'done'}}]},catalog);
 const db=await SqliteRunRecordStore.open(join(root,'db'));let paused=false;
 const configuration={roles:{writer:1},credentials:[{identity:credential,capacity:1}],workflows:{agents:Object.fromEntries(['a','b'].map(node=>[node,{role:'writer',capability:'agent',harness:provider,credential}]))}};
 const queue=queued?new PersistentNodeQueue(db,configuration):null;
@@ -58,7 +58,7 @@ try{
      }}};
      const worker=new NodeWorker(queue,{open:async(_id,_records,claim)=>{
        queueAdmission=createQueueCredentialAdmission(actual,claim);
-       return{compiled:flow,runtime:new WorkflowRuntime(),admission:queueAdmission.admission};
+       return{compiled:flow,runtime:new WorkflowRuntime(),admission:queueAdmission.admission,dispose:async(snapshot)=>{if(snapshot?.status==='failed'&&snapshot.currentIdentity)await catalog.cleanup(snapshot.currentIdentity);}};
      }},systemClock,'worker',['agent'],900);
      const result=await worker.runOnce();
      console.log(JSON.stringify({result,credentialCalls,calls,record:await queue.records().read('run'),tasks:await queue.query()}));

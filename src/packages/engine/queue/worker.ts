@@ -106,6 +106,7 @@ export class NodeWorker {
             snapshot = await this.#active.completion;
             await opened.admission?.release();
             const task = (await this.queue.query()).find(t => t.key === selected.key);
+            if (snapshot.status === 'retry_wait' && task?.state === 'ready') return { claim, snapshot, error: null, waiting: 'RETRY_WAIT' };
             if (task?.state !== 'done') {
                 await this.queue.block(selected, 'WORKER_RESULT_UNCONFIRMED');
                 return { claim, snapshot, error: 'WORKER_RESULT_UNCONFIRMED' };

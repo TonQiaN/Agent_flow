@@ -322,6 +322,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
     resources.releaseInput?.(); resources.releaseInput = null;
   }
   /** Retry cleanup by the retained failed identity; never upgrade its Workflow result. */
+  cleanupFailed(identity: ExecutionIdentity): Promise<void> { return this.cleanup(identity); }
   async cleanup(identity: ExecutionIdentity): Promise<void> {
     const resources = this.#resources.get(key(identity)); if (!resources) return;
     if (!sameIdentity(resources.identity, identity) || resources.cleaning || resources.active) throw new DefinitionError('INVALID_WORKFLOW_CLEANUP');
@@ -374,7 +375,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.stopped = false;
         resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
-        if (result.status === 'failed') return failed(result.code);
+        if (result.status === 'failed') return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
         script = result.evidence; outcome = script.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
         output = await this.artifacts.capture(resources.script.executionFacts()!.capture!.outputsPath, checkedContractId);
@@ -384,7 +385,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
           config: clone(b.config), outcomes: clone(component.outcomes), input: reused ? { snapshotId: ref.storageId, contractId: component.inputContract } : { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
-        if (result.status === 'failed') return { ...failed(result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
+        if (result.status === 'failed') return { ...failed(resources.attempt.executionFacts()?.runner.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;
         resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);
         if (!sameFiles(ref.manifest, agent.input)) return failed('WORKFLOW_AGENT_INPUT_MISMATCH');

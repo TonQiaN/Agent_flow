@@ -29,3 +29,7 @@
 ## P-20260910-node-queue
 
 [按 NodeTask 调度及原子归属校验](proposed/P-20260910-node-queue.md)
+
+## P-20260910-node-retries
+
+[同一 NodeTask 的有限重试与持久等待](proposed/P-20260910-node-retries.md)
