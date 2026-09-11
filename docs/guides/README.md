@@ -10,7 +10,7 @@ npm run check
 npm run demo
 ```
 
-demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；当前只有 demo 子命令，没有 Workflow 启动、查询或取消入口。
+demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；当前只有 demo 子命令，Workflow 库的启动、查询或取消见独立指南。
 
 [Component 使用指南](components.md) 说明注册与执行接口、错误和副本语义。[验证记录](../validation/2026-09-09-execution-foundation.md) 区分已运行检查和后续能力。
 
@@ -25,3 +25,15 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 [文件契约与独立交接](file-contracts.md) 说明 outputs 自动收集、目录树约束、JSON 文件 schema 与交接完整性检查。
 
 [Agent 接纳与可信收据](agent-acceptance.md) 说明单次执行接纳、可信前序引用和失败后的清理句柄。
+
+[Workflow 编译与串行执行](workflow.md) 说明当前 JSON 函数流程、用户定义返修上限和取消边界。
+
+- [Workflow 文件节点与 Agent 交接](workflow-files.md)
+
+- [确定性脚本 Workflow](workflow-scripts.md)
+
+- [模拟 Effect 与 Workflow](workflow-effects.md)
+
+- [Tutor 合成批卷与文件到 JSON 转换](tutor-grading-fixture.md)
+
+- [真实 Codex 批卷 Workflow](tutor-grading-codex.md)

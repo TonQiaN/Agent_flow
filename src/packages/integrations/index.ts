@@ -14,3 +14,13 @@ export type { CodexSubscriptionProfile } from './auth/codex-subscription.js';
 export { CodexSubscriptionRunner, CodexExecution } from './execution/codex-runner.js';
 export { CodexAgentDriver } from './execution/codex-agent-driver.js';
 export type { CodexRunRequest, CodexExecutionResult } from './execution/codex-runner.js';
+
+export { FileWorkflowCatalog } from './workflow/files.js';
+export type { FileFunctionContext, FileWorkflowFunction, FileWorkflowReceipt } from './workflow/files.js';
+
+export { FileScriptRecordReader } from './execution/script-record-reader.js';
+
+export { SimulatedEffectService } from './effects/simulated-service.js';
+
+export { FileJsonWorkflowCatalog } from './workflow/file-json.js';
+export type { FileJsonContext, FileJsonTransform, FileJsonReceipt } from './workflow/file-json.js';
