@@ -7,11 +7,17 @@ import subprocess
 import sys
 import termios
 import time
+from urllib.parse import quote
 
 node, cli, store, mode = sys.argv[1:]
 master, slave = os.openpty()
 before = termios.tcgetattr(slave)
 args = [node, cli, 'auth', 'configure', 'deepseek', '--store', store, '--credential-ref', 'terminal']
+if mode == 'signal':
+    # A PTY write and an OS signal have no delivery ordering. Acknowledge the
+    # actual data callback before cancelling, without exposing its contents.
+    probe = "const emit=process.stdin.emit;process.stdin.emit=function(event,...args){const result=emit.call(this,event,...args);if(event==='data')process.stderr.write('AUTH_FIXTURE_INPUT_CONSUMED\\n');return result;};"
+    args[1:1] = ['--import', 'data:text/javascript,' + quote(probe)]
 if mode == 'timeout':
     module = os.path.join(os.path.dirname(cli), 'hidden-input.js')
     script = "import {readHiddenInput} from " + json.dumps(module) + "; try {await readHiddenInput(process.stdin,process.stderr,300);} catch(e){process.stderr.write(e.message);process.exitCode=1;}"
@@ -44,6 +50,11 @@ try:
             remaining = remaining[n:]
     elif mode == 'signal':
         os.write(master, b'fixture-terminal-key')
+        while b'AUTH_FIXTURE_INPUT_CONSUMED' not in observed:
+            if time.monotonic() >= deadline or child.poll() is not None:
+                raise RuntimeError('TERMINAL_INPUT_NOT_CONSUMED')
+            if select.select([master], [], [], 0.1)[0]:
+                observed.extend(os.read(master, 16384))
         child.send_signal(signal.SIGTERM)
     elif mode != 'timeout':
         raise RuntimeError('UNKNOWN_TERMINAL_TEST')
