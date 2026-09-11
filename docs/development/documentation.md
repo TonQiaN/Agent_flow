@@ -2,7 +2,7 @@
 
 适用范围：正式项目文档与决策。本文记录当前操作；规则的理由分别维护在 [生命周期决定](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)、[内容决定](../../.agents/decisions/development/README.md#d-20260907-decision-record-content)及 [分层决定](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)。
 
-决策目录的执行入口是 [.agents/decisions/AGENTS.md](../../.agents/decisions/AGENTS.md)，README 负责说明和导航；两者书写分工见 [唯一负责决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing)。
+根目录的执行入口是 [AGENTS.md](../../AGENTS.md)，由 [根入口书写决定](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing) 独立负责。决策目录的执行入口是 [.agents/decisions/AGENTS.md](../../.agents/decisions/AGENTS.md)，其书写分工继续由 [原负责决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing) 管理。README 负责说明和导航。
 
 ## 开始一项改动
 
@@ -15,7 +15,13 @@
 
 先从文件中的唯一书写决策回链定位负责记录，了解它为何包含当前指令。实质改变职责或规则时，在同一负责决定中补充取舍，再同步 AGENTS.md；新增文件则先确定唯一归属，并在负责决定的完整文件清单中登记。
 
-当前根 AGENTS.md 与决策目录 AGENTS.md 由同一项书写决定管理，CLAUDE.md 复用根文件正文。其他领域决定可提供事实依据，但不因此成为该指令文件的另一项书写决定。对应关系的主清单仅在负责决定中维护。
+根 AGENTS.md 使用独立书写决定，决策目录 AGENTS.md 沿用其原负责决定。归属迁移时同步移除旧清单中的受管文件、登记新归属并修改文件回链，确保一份 AGENTS.md 只有一个负责决定。其他领域决定提供事实依据，不成为该指令文件的另一项书写决定；对应关系的主清单仅在负责决定中维护。
+
+项目内每份 AGENTS.md 的同目录都有 `CLAUDE.md -> AGENTS.md` 相对符号链接，共用正文。新增时在对应目录创建该链接；移动或删除时同步处理。完成后检查它确实是符号链接、目标为同目录 AGENTS.md，且能够读取相同内容。符号链接保证仓库指令正文一致，工具各自的全局配置和加载效果需另外核对。
+
+根入口保持简短、准确、具体：布局仅展开 src 的应用、包、测试、示例与工具，其他目录只列根级入口与职责；尚未创建的产品目录或命令明确标为占位。实际目录、职责或运行入口变化时同步根布局、[结构图](../reference/repository-map.md) 和相关指南，结构图可保留更详细的参考层次。非源码目录的局部指令按各目录实际设计逐项建立。重复错误或审查反馈表明指令不清时，先在负责决定中说明取舍，再修订对应内容。
+
+开发框架中的操作内容若适合作为根入口引用，先把已确认且当前适用的说明写入 docs，再添加根文件链接。Issue 开工、预检、决策准备、PR 与验收使用 [开发工作指南](workflow.md)，主／子 Issue 分工使用 [Issue 指南](issue-templates.md)，版本工作使用 [版本维护指南](versioning.md)。尚未实现的流程如实标注；方案比较、理由和否决记录继续留在决定中。根入口只保留任务触发条件和必要约定，避免复制一套详细流程。
 
 ## 移动与修订
 
@@ -53,7 +59,8 @@ rg -n --hidden '关键词' .agents/decisions docs AGENTS.md
 - 同一 ID 只对应一份正文，目录与实际生效/落实情况一致，没有正文 status 字段。
 - 替代、拒绝理由有唯一归属，不因文案不同而重复研究同一方案。
 - 决策索引、正式链接与模板完整；正式决定不依赖原始资料路径。
-- 每份正式 AGENTS.md 具有唯一负责决定，回链与负责决定的文件清单相符；README 未复制一套执行规则。
+- 每份正式 AGENTS.md 具有唯一负责决定，回链与负责决定的文件清单相符；同目录 CLAUDE.md 为有效的相对符号链接，指向该份 AGENTS.md；README 未复制一套执行规则。
+- 根入口布局与实际目录一致，未建立部分明确占位；根入口所需工作说明在 docs 中可定位，相关路径与锚点有效。
 - 当前说明反映实际行为，未完成事项如实标明；相关验证与重大事故复盘可独立阅读。
 - Issue 与 PR 的验收信息、决策正文实质改动及实际验证情况，按开发工作指南核对；Issue 模板增删改作为非平凡工作管理。
 
