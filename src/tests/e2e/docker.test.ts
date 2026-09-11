@@ -41,7 +41,7 @@ realTest('Docker: two writable copies cannot modify each other or their source; 
       f.run(f.request('echo changed > /task/input/answer.txt; mv /task/input/answer.txt /task/input/renamed; cp /task/input/renamed /task/outputs/final.txt')),
       f.run(f.request('sleep 1; cat /task/input/answer.txt > /task/outputs/final.txt; rm /task/input/answer.txt')),
     ]);
-    for (const result of [a, b]) { assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0, JSON.stringify(result)); assert.equal(result.cleanup, 'removed'); }
+    for (const result of [a, b]) { assert.equal(result.phase, 'exited', JSON.stringify(result)); assert.equal(result.exitCode, 0, JSON.stringify(result)); assert.equal(result.cleanup, 'removed'); }
     assert.equal(await readFile(join(f.input, 'answer.txt'), 'utf8'), 'original');
     assert.equal(await readFile(join(a.capture!.outputsPath, 'final.txt'), 'utf8'), 'changed\n');
     assert.equal(await readFile(join(b.capture!.outputsPath, 'final.txt'), 'utf8'), 'original');
