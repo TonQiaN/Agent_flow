@@ -1,55 +1,39 @@
 # Changelog
 
-这里记录实际变化；未来目标见 [Roadmap](docs/roadmap/README.md)，维护方式见 [版本维护指南](docs/development/versioning.md)。目前尚无正式发布版本，Unreleased 不代表已发布。
+这里记录实际变化；未来目标见 [Roadmap](docs/roadmap/README.md)，维护方式见 [版本维护指南](docs/development/versioning.md)。目前尚无正式发布版本；Unreleased 中的编号表示目标版本归属，不代表整版完成或已发布。
 
 ## Unreleased
 
-### 重要变更
+### 0.1.1（目标版本，未发布）
 
-- 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
+以下为已合入的首版产品变化；完整范围和剩余验收见 [0.1.1 计划](docs/roadmap/0.1.1.md)。
 
-### 新增
+#### 新增
 
-- 批卷应用支持宿主注入真实或合成 Agent 驱动、任务绑定和路由定义；真实 Codex 已通过合成试题的正常批卷与一次返修流程，独立输入可修改、原始材料不变，发布保持 dry-run。
+- TypeScript 工作区、严格编译、依赖边界检查、Node 测试与 Node 24/26 CI；CLI 提供可运行的确定性 Component 示例。
+- Component 定义、实现注册与一次执行分离，使用 Run/NodeTask/Attempt 身份、严格 JSON Schema 和独立输入/结果副本；业务 outcome 与执行失败分别处理。
+- Docker Runner 提供独立可写输入、固定任务目录、有界原始输出采集、真实停止确认、容器清理和显式工作区释放；支持只读协议配置注入与 nested-userns-v1 沙箱策略。
+- 可选 CONNECT 代理为每次执行建立独立网络，限制精确公网 IPv4 目标、阻止直连与外部 DNS，并与任务共同清理。
+- 独立 Harness 注册与 Codex 0.153.4 调用计划/终态解析；managed ChatGPT codec、显式 Profile、同镜像版本预检和已知凭据值脱敏组成首个订阅执行入口。
+- 私有凭据存储、跨进程独占租约及 generation/revision 检查；执行使用单次副本，停止和清理后条件回存，失败保留租约并阻止提前释放工作区。
+- 文件契约自动收集 outputs，校验路径、目录树、数量、大小、类型和 JSON 内容；交接复核摘要并生成独立副本。Agent 接纳使用绑定身份、快照和 outcome 的进程内可信收据，拒绝伪造前序和重复 Attempt。
+- 串行 Workflow 编译、路由和有界返修，接入 JSON/文件函数、Agent、确定性 Script、文件到 JSON Transform 及模拟 Effect；支持最大步数、查询和合作式取消，保留最后接纳结果与停止未证实状态。
+- 模拟 Effect 默认 dry-run，实际操作校验一次授权、独立业务凭据及幂等请求；同键不同请求拒绝，未知结果保留占位并阻止重发，取消不冒充回滚。
+- Tutor 合成批卷通过业务 Gate、用户返修、来源证明及模拟发布；宿主可注入驱动和路由，真实 Codex 已通过合成试题正常及一次返修流程，输入副本可改且原始材料不变。
 
-- 新增显式文件到 JSON Transform、私有转换收据及 Tutor 合成批卷样例：按来源、覆盖、评分和证据校验，用户定义返修目标/次数，Gate 来源与转换结果复核后模拟发布；不同来源内容不能复用同一操作键。
+#### 修复
 
-- 新增独立模拟 Effect 和 JSON Workflow 接入：默认 dry-run、绑定请求与执行身份的一次授权、独立业务凭据、幂等复用和冲突；结果未知时保留占位并阻止重发，取消不冒充回滚。
+- Codex 临时 input/work/outputs 的元数据权限采用固定子路径映射，避免默认只读挂载阻止启动，仍保护认证文件。
+- Codex 解析允许 turn.started 前的初始化警告，并将明确 turn.failed 识别为失败终态；仍拒绝冲突或终态后的事件。
+- 文件收集忽略未归属的普通空目录，避免工具遗留空目录阻止合法交付；未声明文件、危险链接和已声明目录树仍严格验证。
 
-- Workflow 新增确定性脚本适配：stdout 单份结构化 outcome、stderr 日志、outputs 契约产物，通过既有 Runner 确认退出和清理；真实 Docker 文件 Gate 交接、异常协议、取消与超时通过验证。
+#### 已知限制
 
-- Workflow 接入可信文件 Gate/Transform 与 AgentExecutor：私有引用绑定 Run 和前序，独立可写输入在交接时复核摘要，执行资源清理失败阻止推进并保留可重试能力；新增跨 Agent/Gate/Fixer 的合成集成验证。
+- 主干尚未交付持久化恢复、队列、自动重试与并行；进程内收据、模拟 Effect 不构成跨崩溃的外部 exactly-once 保证。
+- 真实 OAuth 刷新、Claude/DeepSeek 完整组合，以及真实学生批卷、完整报告/PDF 的主干验收尚未完成；合成试题通过不能代替这些验收。
 
-- 增加独立 Workflow 编译器与串行 Run 控制，先接入 JSON gate/transform 函数；校验契约类别/ID 与出口路由，支持用户定义的返修上限、最大步数、查询和合作式取消，保留最后接纳结果与停止未证实的失败。
+### 开发协作（未分配产品版本）
 
-- 增加与 Harness/认证解耦的 Agent 接纳层、Codex 执行驱动及进程内可信收据：绑定身份、输入输出快照与 outcome，拒绝伪造/跨 Run 前序和重复 Attempt，清理恢复不会升级原失败结果。
-
-- 文件契约注册与本机快照适配解耦：自动发现 outputs、校验路径/树/数量/大小/类型及 JSON Schema，拒绝歧义和未归属内容；交接重新校验摘要并生成独立副本，失败清理半成品。已接入真实 Codex 小任务，可信前序记录已接通，完整 Workflow 仍待完成。
-
-- 增加 Codex managed ChatGPT codec、明确 Profile、同镜像版本预检、已知凭据值脱敏及订阅执行组合入口；本地、合成 CLI 连接与获授权的真实 Codex/gpt-5.6-sol 数字任务通过，输入副本可改且原件不变；通用文件契约已接入，真实刷新与 Tutor 流程仍待验收。
-
-- 新增独立私有凭据执行绑定：单次副本、停止和清理后条件回存、失败保留租约，以及收尾前禁止释放工作区。合成刷新已在真实 Docker 的非零退出、取消和超时场景验证；真实刷新仍待验证。
-
-- Docker 新增可选 CONNECT 代理：每次执行独立网络、精确公网 IPv4 目标、禁用直连及外部 DNS、有界转发与共同清理；真实 TLS、拒绝路径和故障清理已验证。已接入首个 Codex 订阅组合。
-
-- Docker 支持只读协议配置文件注入及宿主选择的 nested-userns-v1 策略；真实 Codex 沙箱验证了可写任务副本与认证文件访问拒绝。已接入首个 Codex 订阅组合。
-
-- Harness 显式注册、Codex 0.153.4 调用计划和结束后事件/终态 parser；新增私有凭据存储、跨进程独占租约与 generation/revision 刷新检查。真实认证 Runner 组合见上述首个订阅入口。
-
-- 离线 Docker Runner：每次执行可写独立输入副本、统一任务路径、流式有界 raw 采集、实际停止确认、容器清理和显式工作区释放；新增真实 Docker 验收。认证和联网通过独立集成层接入。
-
-- 根 src 下的 TypeScript 工作区、严格编译、依赖边界检查与 Node 测试/CI 配置。
-- 确定性 gate/transform Component、独立定义与实现注册、Run/NodeTask/Attempt 身份、严格 JSON Schema 契约和输入/结果副本；CLI 提供可运行 demo。该确定性入口不包含 Workflow 或 Agent 执行。
-
-- Issue 表单扩展为功能、缺陷、研究、决策、维护五类；加入交付物选择、续接记录和各类专用字段，支持仅交付正式决定的研究/讨论，并提供填写指南和边界示例。
-
-- 建立 Roadmap 总览与按需版本计划方式，区分版本安排、任务进展和实际交付。
-- 增加变更记录及手工发布维护指南，明确发布 tag、维护职责和 PR 中的同步时机。
-
-### 修复
-
-- Codex 0.153.4 对固定临时 input/work/outputs 显式允许元数据子目录写入，避免不适用的默认只读挂载；新增真实离线启动与元数据写入/认证隔离回归。
-
-- Codex 初始化警告可出现在 turn.started 之前；明确的 turn.failed 作为失败终态处理，避免误报事件顺序或缺失终态。冲突和终态后的事件仍拒绝。
-
-- 文件收集参考 Blackbox 忽略未归属的普通空目录，避免 Harness 工具留下的空目录阻止合法交付；未声明文件、危险链接和已声明目录树仍严格验证。
+- 建立决策、当前说明、原始资料的分层入口，提供 Roadmap、CHANGELOG 与手工发布维护指南；变更按目标版本归类，同一未发布功能收敛为当前行为，正式发布仍需核对远端 tag。
+- 五类主 Issue 表单提供“开发流程 / 项目内容”领域分类，聚焦情况、期望结果与边界，保留缺陷事实；开放空白入口，Sub-issue 的内容与形式由负责人自主决定。见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
+- 明确主／子 Issue 与 PR 的责任、追溯和整体验收；当前交接定位最新提交及验证，历史结果保留原日期、范围和限制。见 [Issue #32](https://github.com/TonQiaN/Agent_flow/issues/32)。
