@@ -24,7 +24,7 @@ const wait=async n=>{const until=Date.now()+5000;while(!fs.existsSync(file(n))){
   if(count===2){fs.writeFileSync(file('snapshot'),'');await wait('disposed');}
   if(count>2&&${JSON.stringify(final)}==='unknown')process.exit(1);
   const status=count===1?'created':count===2?${JSON.stringify(stale)}:${JSON.stringify(final)};
-  process.stdout.write(JSON.stringify({owner:args.at(-1),state:{Status:status,Running:status==='running',ExitCode:0}}));
+  process.stdout.write(JSON.stringify({labels:{'agentflow.resource':args.at(-1)},state:{Status:status,Running:status==='running',ExitCode:0}}));
  }else if(args[0]==='container')process.exit(1);
 })().catch(()=>process.exit(1));
 `, { mode: 0o700 });
