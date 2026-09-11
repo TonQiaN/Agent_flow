@@ -63,3 +63,7 @@ AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_DOCKER_TESTS=1 node --import tsx --test --tes
 同一程序在当前 base/head 的普通、持久和队列入口运行，有效及无效输入的最终 snapshot、持久检查点与队列结果完全一致，没有 retry 字段或额外尝试。另以实际 AgentExecutor 和 FileWorkflowCatalog 配合同一合成 Driver，分别提供 timed_out 和非零退出事实：无策略时两版本都只调用一次；非零退出仍为 EXECUTION_NOT_SUCCESSFUL，而超时从 EXECUTION_NOT_SUCCESSFUL 变为 EXECUTION_TIMEOUT。此为共有执行适配的实际变化，现已在决定、指南与 CHANGELOG 明确披露；不能把“默认不自动重试”写成“所有普通错误码完全不变”。Script 的同类映射已与对应失败分支核对。
 
 上述测试之后仅补充错误码说明，生产及测试文件未变；结果保留执行时的提交身份，不冒充新源码重跑。后续 PR 描述和本地审查包按最终提交核对。没有远端重试 PR、独立批准或 Node 24 CI；按既定最多三个未合并功能 PR 的顺序等待现有短栈推进，完整交付后再关闭 #15。
+
+## 2026-09-11 完整 Docker 集合的兼容断言
+
+最终组合扩大为基础 Docker 全集时，原 Workflow 超时 E2E 仍断言旧 SCRIPT_EXECUTION_FAILED，导致失败。决定和生产实现此前已明确将真实 timed_out 映射为 EXECUTION_TIMEOUT（包括没有 retry 的普通调用）；本次将这条旧断言同步为确切结构化超时码，保留取消阻断后继、失败状态、清理与输入释放断言。不是放宽为任意失败，也没有更改超时或产品行为。此前三项重试 Docker 定向验证未包含这条基础脚本回归，不再将其解释为全 Docker 集合通过。

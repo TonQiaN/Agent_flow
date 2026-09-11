@@ -102,7 +102,7 @@ test('Workflow: real script cancellation waits for termination and blocks its su
   f.catalog.registerScript(comp('timeout'), f.executor, { argv: ['/bin/sh', '-c', 'sleep 30'], timeoutMs: 700 });
   const timeoutInput = await f.catalog.prepareInput('timeout', f.source, 'files');
   const timed = await new WorkflowRuntime().start(compileWorkflow(workflow('timeout'), f.catalog), 'timeout', timeoutInput).completion;
-  assert.equal(timed.status, 'failed'); assert.equal(timed.reason, 'SCRIPT_EXECUTION_FAILED');
+  assert.equal(timed.status, 'failed'); assert.equal(timed.reason, 'EXECUTION_TIMEOUT');
   await f.catalog.cleanup(timed.currentIdentity!); await f.catalog.release(timeoutInput, 'timeout');
   assert.deepEqual(await readdir(join(f.root, 'attempts')), []);
 });
