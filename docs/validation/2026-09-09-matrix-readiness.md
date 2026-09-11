@@ -81,3 +81,9 @@
 ### 同步取消测试的输入前置条件
 
 验收延期的纯文档提交 832ed58 在四个 CI 检查中一项 Node26 失败：signal PTY 用例检测到合成输入回显；其他三项及本地相同测试通过。核对 Blackbox 已安装 api_keys.py 后确认其使用 Python getpass，没有可直接套用的 Node PTY/信号测试修复。现有夹具在写 PTY 后立即发 SIGTERM，但内核对输入与信号不保证处理顺序，不能证明取消时输入已被读取。夹具现用仅测试加载的 data 回调完成标记确认这个前置条件，再发送 SIGTERM；标记不含输入内容，不修改产品处理器、回显/恢复/未落库断言或超时上限。保留首次失败证据，不把它计作通过。
+
+### Docker 状态采样与 attach 收尾竞争
+
+后续 CI 两次出现并发输入副本测试的 failed/exited 差异；原断言没有输出阶段证据，不能仅凭该记录断定具体异常。对照 Blackbox 已安装 runners.py、agent_container.py 和 subprocess 管理边界，未找到等同于本项目异步 inspect/attach 的可直接复用实现。检查本项目 observe 后发现：inspect 可以先采样 running/created，attach 在命令返回前结束，旧代码会把旧样本误判为提前断开。
+
+新增六项真实子进程协议替身，用文件握手强制“状态已采样→attach close/dispose 已完成→旧样本返回”的顺序。修复前5失败1通过；修复后6通过、0跳过。覆盖旧 running/created 与真实 exited、仍 running、查询失败；未将查询失败或仍运行变成成功。后端只在这个冲突窗口多核对一次状态，保留原隔离、捕获、清理和恢复责任；基础 Docker 断言补充脱敏结构化结果，便于后续失败定位。这一确定性反例证明所修竞争，不把缺少原始阶段诊断的历史 CI 失败全部归为同因。
