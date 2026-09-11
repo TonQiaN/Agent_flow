@@ -281,7 +281,12 @@ export class DockerBackend implements ExecutionBackend {
 
   async observe(resource: ExecutionResource): Promise<Observation> {
     const owned = this.#owned(resource);
-    const existing = await this.#inspect(resource);
+    let existing = await this.#inspect(resource);
+    // inspect may have sampled a running/created container before attach closed.
+    // Reconcile once after close before treating the old sample as lost transport.
+    if (owned.attached?.settled && existing && ['created', 'running'].includes(existing.state.Status)) {
+      existing = await this.#inspect(resource);
+    }
     if (owned.restored) await owned.egress?.verifyOwnership();
     if (!existing) return { state: 'absent' };
     if (owned.attached?.failed) throw new Error('ATTACH_INTERACTION_FAILED');
