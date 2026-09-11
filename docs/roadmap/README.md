@@ -12,7 +12,7 @@
 | 0.1.2 | 持久化恢复、节点队列与共享容量 | 计划中 | [计划](0.1.2.md)，#13–#14 |
 | 0.1.3 | 节点重试、首版 JSON Map/Fork；真实批卷总验收 | 计划中 | [计划](0.1.3.md)，#15–#16 |
 
-版本管理骨架来自 [Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4)。产品范围由 #9–#16 跟进，部分 PR 不关闭整个 Issue；版本发布须另行核对 tag 和整版验收。
+版本管理骨架来自 [Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4)。产品范围由 #9–#16 跟进，部分 PR 不关闭整个 Issue；版本发布须另行核对 tag 和整版验收。2026-09-11 用户将 Claude/DeepSeek 真实官方组合验收延期至待重新安排，解除其对本批 PR 合入的阻塞，详见 0.1.1 计划。
 
 ## 计划文件与相关入口
 
