@@ -23,25 +23,14 @@ src/
   examples/                  示例入口
   tests/                     跨模块、CLI 测试与合成测试素材
   tooling/                   依赖边界与测试工具
-.agents/decisions/            产品与开发流程取舍、生命周期及局部指令
-.github/                     Issue / PR 模板
-  ISSUE_TEMPLATE/            五类主 Issue 表单与空白入口配置
-  PULL_REQUEST_TEMPLATE.md   PR 交付与审查说明
-  workflows/                 基础 CI
-docs/
-  README.md                  当前能力与文档入口
-  architecture/              当前架构说明与待定问题
-  guides/                    安装、运行与接口使用
-  development/               开发、Issue、文档及版本维护指南
-  reference/                 仓库结构等参考
-  roadmap/                   当前规划，不代表已实现
-  validation/                实际验证结果与限制
-  postmortems/               永久事故复盘
+.agents/                     代理协作规则与项目决策
+.github/                     Issue / PR 模板与基础 CI
+docs/                        当前能力、工作指南、规划与验证记录
 CHANGELOG.md                 实际变化与发布记录
 materials/                   宽松原始资料区
 ```
 
-目录或职责变化时，同步本节与 [完整结构图](docs/reference/repository-map.md)。尚未建立的入口明确标为占位，落地后及时替换；运行与安装方式见 [使用指南](docs/guides/README.md)。
+布局仅展开 src 的关键代码入口，其他目录只列入口与职责。目录或职责变化时，同步本节与 [完整结构图](docs/reference/repository-map.md)。尚未建立的入口明确标为占位，落地后及时替换；运行与安装方式见 [使用指南](docs/guides/README.md)。
 
 ## 按任务读取
 

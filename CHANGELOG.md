@@ -6,11 +6,23 @@
 
 ### 重要变更
 
-- 根 AGENTS.md 采用独立书写决定，整理为必要规则、真实仓库布局、docs 工作入口与团队约定；项目内每份 AGENTS.md 配套同目录 CLAUDE.md 符号链接，本轮补齐决策目录链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
+- 根 AGENTS.md 采用独立书写决定，整理为必要规则、真实仓库布局、docs 工作入口与团队约定；布局展开 src，其余目录只列入口与职责。项目内每份 AGENTS.md 配套同目录 CLAUDE.md 符号链接，本轮补齐决策目录链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
 
 - 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
 
 ### 新增
+
+- 批卷应用支持宿主注入真实或合成 Agent 驱动、任务绑定和路由定义；真实 Codex 已通过合成试题的正常批卷与一次返修流程，独立输入可修改、原始材料不变，发布保持 dry-run。
+
+- 新增显式文件到 JSON Transform、私有转换收据及 Tutor 合成批卷样例：按来源、覆盖、评分和证据校验，用户定义返修目标/次数，Gate 来源与转换结果复核后模拟发布；不同来源内容不能复用同一操作键。
+
+- 新增独立模拟 Effect 和 JSON Workflow 接入：默认 dry-run、绑定请求与执行身份的一次授权、独立业务凭据、幂等复用和冲突；结果未知时保留占位并阻止重发，取消不冒充回滚。
+
+- Workflow 新增确定性脚本适配：stdout 单份结构化 outcome、stderr 日志、outputs 契约产物，通过既有 Runner 确认退出和清理；真实 Docker 文件 Gate 交接、异常协议、取消与超时通过验证。
+
+- Workflow 接入可信文件 Gate/Transform 与 AgentExecutor：私有引用绑定 Run 和前序，独立可写输入在交接时复核摘要，执行资源清理失败阻止推进并保留可重试能力；新增跨 Agent/Gate/Fixer 的合成集成验证。
+
+- 增加独立 Workflow 编译器与串行 Run 控制，先接入 JSON gate/transform 函数；校验契约类别/ID 与出口路由，支持用户定义的返修上限、最大步数、查询和合作式取消，保留最后接纳结果与停止未证实的失败。
 
 - 增加与 Harness/认证解耦的 Agent 接纳层、Codex 执行驱动及进程内可信收据：绑定身份、输入输出快照与 outcome，拒绝伪造/跨 Run 前序和重复 Attempt，清理恢复不会升级原失败结果。
 
