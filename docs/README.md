@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。PR 交付尚未完成；真实刷新尚未验收；真实 Codex 已完成一题合成扫描件，并从草稿修正和单独报告续跑完成一份16页真实学生作答的批改、独立复核及18页 PDF。详情见学生验收记录，未证明空白冷启动一次成功。**
+**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。PR 尚未全部合入，用户要求仅提交评审、暂不合并；Claude/DeepSeek 官方联合验收延期，真实刷新尚未验收；真实 Codex 已完成一题合成扫描件，并从草稿修正和单独报告续跑完成一份16页真实学生作答的批改、独立复核及18页 PDF。详情见学生验收记录，未证明空白冷启动一次成功。**
 
 | 入口 | 内容 |
 | --- | --- |
