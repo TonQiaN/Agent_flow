@@ -11,11 +11,11 @@ import {systemClock} from '../system-clock.js';
 import {application} from '../../../tests/fixtures/parallel-workflow.mjs';
 const input=[{id:'a',value:1},{id:'b',value:2},{id:'c',value:3}];
 async function setup(t:{after(fn:()=>Promise<void>):void},options:any={}){
- const root=await mkdtemp(join(tmpdir(),'af-parallel-'));let store=await SqliteRunRecordStore.open(join(root,'db'));const a=application(options);let queue=new PersistentNodeQueue(store,a.configuration);let seq=0;
+ const root=await mkdtemp(join(tmpdir(),'af-parallel-'));let store=await SqliteRunRecordStore.open(join(root,'db')),now=1000;const clock={now:()=>now,sleep:systemClock.sleep};const a=application({...options,clock});let queue=new PersistentNodeQueue(store,a.configuration,clock);let seq=0;
  t.after(async()=>{store.close();await rm(root,{recursive:true,force:true});});
- return {root,a,store:()=>store,queue:()=>queue,worker:()=>new NodeWorker(queue,{open:a.open},systemClock,`worker-${++seq}`,['json'],300),
+ return {root,a,clock,advance:(ms=10)=>now+=ms,store:()=>store,queue:()=>queue,worker:()=>new NodeWorker(queue,{open:a.open},clock,`worker-${++seq}`,['json'],300),
  async submit(value:any=input){await a.runtime.preparePersisted(a.compiled,'run',value,queue.records());},
- async reopen(){store.close();store=await SqliteRunRecordStore.open(join(root,'db'));queue=new PersistentNodeQueue(store,a.configuration);},
+ async reopen(){store.close();store=await SqliteRunRecordStore.open(join(root,'db'));queue=new PersistentNodeQueue(store,a.configuration,clock);},
  async load(){const l=await loadWorkflowCheckpoint(a.compiled,'run',queue.records());const c=l.checkpoint;await l.dispose();return c;}};
 }
 test('Map expands once, waits without a Worker, completes out of order and joins original indices',async t=>{
@@ -28,7 +28,10 @@ test('Map expands once, waits without a Worker, completes out of order and joins
  const done=await s.worker().runOnce();assert.equal(done!.snapshot!.status,'succeeded');assert.equal(await s.worker().runOnce(),null);assert.equal((await s.load()).attempts.length,2);
 });
 test('Fork uses the same logical input and joins lexicographic branch IDs; empty Map is valid',async t=>{
- for(const kind of ['fork','map']){const s=await setup(t,{kind}),value=kind==='fork'?{id:'request',value:7}:[];await s.submit(value);assert.equal((await s.worker().runOnce())!.waiting,'PARALLEL_WAIT');
+ for(const kind of ['fork','map']){const s=await setup(t,{kind}),value=kind==='fork'?{id:'request',value:7}:[];
+  // A scheduler pause must not consume logical lease time in this structure test.
+  const open=s.a.open;let delayed=false;s.a.open=async(...args:Parameters<typeof open>)=>{if(!delayed){delayed=true;const until=Date.now()+350;while(Date.now()<until){/* force a pause longer than the fixture lease */}}return open(...args);};
+  await s.submit(value);const expanded=(await s.worker().runOnce())!;assert.equal(expanded.error,null,JSON.stringify(expanded));assert.equal(expanded.waiting,'PARALLEL_WAIT');
   await s.worker().runUntilIdle();const c=await s.load();assert.equal(c.snapshot.status,'succeeded');const output=(c.snapshot.lastAccepted!.result as any).output;
   if(kind==='fork'){assert.deepEqual(output.branches.map((b:any)=>b.id),['alpha','zeta']);assert.deepEqual(output.branches.map((b:any)=>b.output),[value,value]);}else assert.deepEqual(output,{items:[]});}
 });
@@ -57,7 +60,7 @@ test('retry after reopening only repeats the failed child and preserves parent e
  const calls:any[]=[],s=await setup(t,{observe:async({component,input,identity}:any)=>{calls.push({component,id:input.id,attempt:identity.attemptNumber});return input.id==='b'&&identity.attemptNumber===1?'IMPLEMENTATION_FAILED':undefined;}});
  await s.submit();await s.worker().runOnce();const expanded=(await s.load()).attempts[0]!.parallel;
  await s.worker().runOnce();const first=await s.worker().runOnce();assert.equal(first!.waiting,'RETRY_WAIT');
- await s.reopen();await s.worker().runUntilIdle();const c=await s.load();assert.equal(c.snapshot.status,'succeeded');assert.deepEqual(c.attempts[0]!.parallel,expanded);
+ await s.reopen();s.advance();await s.worker().runUntilIdle();const c=await s.load();assert.equal(c.snapshot.status,'succeeded');assert.deepEqual(c.attempts[0]!.parallel,expanded);
  assert.equal(calls.filter(x=>x.id==='a').length,1);assert.deepEqual(calls.filter(x=>x.id==='b').map(x=>x.attempt),[1,2]);assert.equal(calls.filter(x=>x.id==='c').length,1);assert.equal(calls.filter(x=>x.component==='finish').length,1);
 });
 test('expansion transaction failure publishes no partial children and normal recovery expands once',async t=>{
@@ -65,7 +68,7 @@ test('expansion transaction failure publishes no partial children and normal rec
  const raw=s.store(),store={create:raw.create.bind(raw),read:raw.read.bind(raw),compareAndSwap:raw.compareAndSwap.bind(raw),commitRecords:async(...args:Parameters<typeof raw.commitRecords>)=>{
   if(reject&&args[1].some(w=>(w.content as any).snapshot?.status==='parallel_wait'))throw new RunStoreError('RUN_STORE_IO_ERROR');return raw.commitRecords(...args);
  }};
- const queue=new PersistentNodeQueue(store,s.a.configuration),worker=()=>new NodeWorker(queue,{open:s.a.open},systemClock,'worker',['json'],300);
+ const queue=new PersistentNodeQueue(store,s.a.configuration,s.clock),worker=()=>new NodeWorker(queue,{open:s.a.open},s.clock,'worker',['json'],300);
  const failed=await worker().runOnce();assert.ok(failed!.error);assert.equal((await queue.query()).length,1);assert.equal((await s.load()).attempts[0]!.parallel,undefined);
  reject=false;await queue.retryRecovery('run/task-1');assert.equal((await worker().runOnce())!.waiting,'PARALLEL_WAIT');assert.equal((await queue.query()).length,4);
  await worker().runUntilIdle();const final=await s.load();assert.equal(final.snapshot.status,'succeeded');assert.equal(final.attempts.filter(a=>a.parallel).length,1);
@@ -97,7 +100,7 @@ test('shared role and credential caps further restrict a larger parallel node li
 test('cancellation during reclaim of a retry-waiting child consumes no new Attempt',async t=>{
  const s=await setup(t,{observe:async()=> 'IMPLEMENTATION_FAILED'});await s.submit([{id:'b',value:2}]);await s.worker().runOnce();assert.equal((await s.worker().runOnce())!.waiting,'RETRY_WAIT');
  let claimed!:()=>void,release!:()=>void;const started=new Promise<void>(r=>claimed=r),held=new Promise<void>(r=>release=r);
- const worker=new NodeWorker(s.queue(),{open:async(...args)=>{const app=await s.a.open(...args);claimed();await held;return app;}},systemClock,'cancelled-worker',['json'],300);
+ s.advance();const worker=new NodeWorker(s.queue(),{open:async(...args)=>{const app=await s.a.open(...args);claimed();await held;return app;}},s.clock,'cancelled-worker',['json'],300);
  const running=worker.runOnce();await started;assert.equal(await s.queue().cancelReady('run'),true);release();const result=await running;assert.equal(result!.error,null);assert.equal(result!.snapshot!.status,'cancelled');
  const parent=await s.worker().runOnce();assert.equal(parent!.error,null);assert.equal(parent!.snapshot!.status,'cancelled');const metadata=(await s.load()).attempts[0]!.parallel!;const child=(await s.queue().records().read(metadata.children[0]!.runId))!.content as any;assert.equal(child.attempts.length,1);assert.equal(child.snapshot.retry,undefined);
 });
