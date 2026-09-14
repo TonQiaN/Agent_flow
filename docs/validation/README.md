@@ -6,6 +6,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-14 | [项目代理指令与技能相关内容审查](2026-09-14-agent-instructions-audit.md)（含 PR #35 合并后复查、R1–R4 修复验收及待讨论取舍） |
 | 2026-09-11 | [materials 管理、原件保留与飞书 CLI 核对](2026-09-11-materials-management.md) |
 | 2026-09-10、11 | [根 AGENTS.md 与同目录指令链接验证](2026-09-10-root-agents.md)（含布局粒度修订） |
 | 2026-09-09 | [真实 Codex 批卷 Workflow](2026-09-09-tutor-grading-codex.md) |

@@ -34,7 +34,7 @@ materials/                   本地原始资料区，管理文件入库
 
 ## 按任务读取
 
-先从 [文档入口](docs/README.md) 确认当前能力，再读取本次任务所需说明：
+按本次任务读取相关说明。需要确认项目当前能力、未完成范围或查找文档入口时，查阅 [文档入口](docs/README.md)。
 
 - 开工、预检、决策准备、PR 与验收：按 [开发工作指南](docs/development/workflow.md) 执行。
 - 源码组织、包依赖与构建测试：按 [工程指南](docs/development/code-structure.md) 执行。
