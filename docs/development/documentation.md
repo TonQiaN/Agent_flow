@@ -4,6 +4,8 @@
 
 根目录的执行入口是 [AGENTS.md](../../AGENTS.md)，由 [根入口书写决定](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing) 独立负责。决策目录的执行入口是 [.agents/decisions/AGENTS.md](../../.agents/decisions/AGENTS.md)，其书写分工继续由 [原负责决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing) 管理。README 负责说明和导航。
 
+原始资料区的局部入口是 [materials/AGENTS.md](../../materials/AGENTS.md)，由 [资料管理决定](../../.agents/decisions/development/README.md#d-20260911-materials-management) 唯一负责；其 Git、检索与飞书共享的当前操作见 [资料指南](materials.md)。
+
 ## 开始一项改动
 
 1. 正式开发先按 [开发工作指南](workflow.md) 建立 Issue、明确主责与验收，经人参与整理与关键确认后预检；AI 和工具可协助提炼和补齐信息。确认改动影响哪些决策问题，查看相关分类索引、现行决定、alternatives 与独立拒绝项。
@@ -44,7 +46,7 @@
 
 任何开发者都可在 materials 中采用自己的格式和目录组织，已有 artifacts 已整体收容在其中。没有必填材料包字段、统一命名、强制索引或决策回链。进入正式开发的决定仍须按同一模板和流程提炼。
 
-materials/.ignore 让默认 ripgrep 搜索只发现原始区入口 README，不搜索内部正文。它不是访问控制，也不是 Git 忽略规则；其他读取方式同样遵守 AGENTS.md 的语义边界。
+materials 内仅五份根级管理文件受 Git 跟踪：AGENTS.md、CLAUDE.md、README.md、.gitignore、.ignore。`.gitignore` 默认忽略原始内容，`.ignore` 让默认 ripgrep 可发现管理文件、避开原始正文；它们都不是访问控制，其他读取方式同样遵守局部 AGENTS.md 的语义边界。取消旧文件跟踪时的原件保留，以及选定资料通过飞书 CLI 共享的操作见 [资料指南](materials.md)。
 
 日常搜索明确限于正式区域：
 

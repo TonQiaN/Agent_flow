@@ -30,6 +30,10 @@
 
 [根目录 AGENTS.md 作为简短的项目工作入口](implemented/D-20260910-root-agents-writing.md)
 
+## D-20260911-materials-management
+
+[materials 保留本地原始资料，选定内容通过飞书共享](implemented/D-20260911-materials-management.md)
+
 ## D-20260907-development-workflow
 
 [以 Issue 为起点的开发与 PR 闭环](proposed/D-20260907-development-workflow.md)
