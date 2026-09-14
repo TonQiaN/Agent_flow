@@ -2,8 +2,8 @@
 
 这是刻意保持宽松的资料区，可以保存 artifacts、会议纪要、聊天、录音、文件、调研或实验过程。格式、命名、内部树、材料索引均不强制统一，开发者可以按自己的习惯整理和移动。
 
-正式决定与项目说明在本区之外维护；本区任何内容都不自动成为项目规则。进入正式开发时，统一按 [文档维护流程](../docs/development/documentation.md) 提炼自足的决定，不要求附原始资料路径。
+本区的执行入口是 [AGENTS.md](AGENTS.md)，CLAUDE.md 以符号链接共用正文；设计取舍见 [资料管理决定](../.agents/decisions/development/README.md#d-20260911-materials-management)。
 
-默认 rg 只发现本 README；其他材料在任务需要时限定范围读取。这不影响直接访问，也不改变 Git 跟踪策略。
+原始内容默认留在本地，Git 仅保存根级的 AGENTS.md、CLAUDE.md、README.md、.gitignore 和 .ignore。默认检索可发现管理文件，原始正文按任务范围读取。选定的团队共享资料由飞书 CLI 管理，具体身份核对、交付方式及已有 checkout 的原件保留方法见 [资料指南](../docs/development/materials.md)。
 
-原有会议和文档讨论 artifacts 已整体移入 artifacts 子目录，正文保持原样。这仅是此次收容方式，不要求新增资料沿用。
+正式决定与项目说明在本区之外维护，本区内容及飞书共享材料都不会自动成为项目规则。提炼入口见 [文档维护指南](../docs/development/documentation.md)。新克隆不再包含原始资料，已有本地组织方式不构成统一目录要求。
