@@ -52,6 +52,8 @@
 
 ### 修复
 
+- 决策 alternatives 仅记录用户确实考虑过且给出取舍理由的方案；移除模板预填比较表，允许明确写暂无，避免补造候选或理由。见 [Issue #37](https://github.com/TonQiaN/Agent_flow/issues/37)。
+
 - 代理指令按任务触发概览阅读；开发指南补齐已有文档和轻量改动的处理说明、Blackbox 参考入口及调查继续条件，并修正根入口负责决定的过时引用。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
 
 - Codex 0.153.4 对固定临时 input/work/outputs 显式允许元数据子目录写入，避免不适用的默认只读挂载；新增真实离线启动与元数据写入/认证隔离回归。
