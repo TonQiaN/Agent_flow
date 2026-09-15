@@ -47,7 +47,12 @@ test('one NodeTask per worker turn, atomic successor insertion, duplicate submis
     await submit(queue, 'run');
     await assert.rejects(submit(queue, 'run'), /RUN_REVISION_CONFLICT/);
     assert.equal((await queue.query()).length, 1);
-    const worker = () => new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'worker', ['json'], 300);
+    // This is a turn/transaction test; a busy host must not turn it into a lease-expiry test.
+    const worker = () => new NodeWorker(queue, { open: async () => {
+        // Deliberately outlast the old 300 ms fixture lease without yielding to its heartbeat.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 350);
+        return application('shared');
+    } }, systemClock, 'worker', ['json']);
     const first = await worker().runOnce();
     assert.equal(first!.error, null);
     assert.equal(first!.snapshot!.steps.length, 1);
