@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import type { InvocationPhaseSink, InvocationResourcePlan, AgentExecutionRequest, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
+import type { InvocationPhaseSink, InvocationResourcePlan, AgentExecutionRequest, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource, RunnerResult, AgentExecutionFacts } from '@agentflow/engine';
 import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
@@ -17,6 +17,7 @@ export interface FileFunctionContext {
 }
 /** Trusted host code: resolve only after all its writers have stopped. */
 export type FileWorkflowFunction = (context: FileFunctionContext) => Promise<{ readonly outcome: string }>;
+export type FileExecutionObserver = (identity: ExecutionIdentity, facts: { runner: RunnerResult | null; agent?: AgentExecutionFacts; accepted: boolean }) => Promise<void>;
 export interface FileWorkflowReceipt {
   readonly identity: ExecutionIdentity;
   readonly componentId: string;
@@ -67,7 +68,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   readonly #restoring = new Set<string>();
   readonly #attempts = new Set<string>();
   readonly #resources = new Map<string, Resources>();
-  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive) {
+  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive, private readonly observeExecution?: FileExecutionObserver) {
     if (!isAbsolute(workRoot) || workRoot.includes('\0')) throw new DefinitionError('INVALID_WORKFLOW_WORK_ROOT');
   }
 
@@ -375,6 +376,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.stopped = false;
         resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
+        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: result.status !== 'failed' });
         if (result.status === 'failed') return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
         script = result.evidence; outcome = script.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
@@ -385,6 +387,8 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
           config: clone(b.config), outcomes: clone(component.outcomes), input: reused ? { snapshotId: ref.storageId, contractId: component.inputContract } : { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
+        const facts = resources.attempt.executionFacts();
+        await this.observeExecution?.(identity, { runner: facts?.runner ?? null, ...(facts ? { agent: facts } : {}), accepted: result.status !== 'failed' });
         if (result.status === 'failed') return { ...failed(resources.attempt.executionFacts()?.runner.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;
         resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);

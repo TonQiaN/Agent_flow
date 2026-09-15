@@ -25,6 +25,8 @@ jobs:
         run: |
           docker pull alpine:3
           docker pull node:22-bookworm-slim
+          docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
       - run: npm run check
         env:
           AGENTFLOW_DOCKER_TESTS: '1'
+          AGENTFLOW_STUDIO_TESTS: '1'

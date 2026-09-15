@@ -9,6 +9,7 @@
 | 位置 | 当前职责 |
 | --- | --- |
 | `src/apps/cli/` | 可启动的命令行入口，组合包的公开接口 |
+| `src/apps/studio/` | 本机 HTTP 服务；通过固定 examples 子进程组合入口启动 Workflow |
 | `src/packages/domain/` | 共同业务类型、执行身份，保持与运行环境无关 |
 | `src/packages/engine/` | 执行引擎、契约与所需接口 |
 | `src/packages/integrations/` | 文件、进程、容器等具体环境适配 |

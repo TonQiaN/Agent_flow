@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AgentExecutor, ContractRegistry, FileContractRegistry, WorkflowRuntime, compileWorkflow } from '@agentflow/engine';
 import type { AgentExecutionDriver, ArtifactStore, FileManifest, WorkflowSnapshot } from '@agentflow/engine';
 import type { JsonValue } from '@agentflow/domain';
-import { FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
+import { localWorkflowHistory, FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
 import type { FileFunctionContext } from '@agentflow/integrations';
 import { sourceByteBudget } from '../tutor-tools/source-budget.js';
 import { invokeTutorTool } from '../tutor-tools/process.js';
@@ -70,8 +70,9 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
   if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 600000 || ['prepare', 'report-gate', 'render'].includes(reporter.id)) throw new Error('INVALID_TUTOR_REPORT_SETUP');
   await mkdir(root, { recursive: true, mode: 0o700 });
   const maxSourceBytes = sourceByteBudget(setup.maxSourceBytes);
-  const registered = contracts(maxSourceBytes), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
-  const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime();
+  const registered = contracts(maxSourceBytes), history = await localWorkflowHistory('tutor-report', registered), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'), history.archive);
+  const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime(undefined, value => observe(value));
+  let observe: import('@agentflow/engine').WorkflowObserver = async () => {};
   const originals = new Map<string, FileManifest>(), prepared = new Map<string, FileManifest>();
   const component = (id: string, kind: 'transform' | 'gate' | 'agent', inputContract: string, outcomes: Record<string, string>) => ({ id, kind, implementation: id, inputContract, outcomes });
   const verify = async (ctx: FileFunctionContext, manifest: FileManifest) => {
@@ -111,7 +112,7 @@ export async function createTutorReportApplication<D extends AgentExecutionDrive
     async run(runId: string) {
       if (originals.has(runId)) throw new Error('DUPLICATE_TUTOR_RUN');
       const input = await files.prepareInput(runId, setup.source, 'tutor-marked'); originals.set(runId, files.inspect(input, runId).manifest);
-      try { return { input, snapshot: await runtime.start(compiled, runId, input).completion }; }
+      try { return { input, snapshot: await (() => { observe = history.observer(compiled); return runtime.start(compiled, runId, input).completion; })() }; }
       catch (error) { await files.release(input, runId); throw error; }
     },
     async release(run: { input: JsonValue; snapshot: WorkflowSnapshot }) {

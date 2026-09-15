@@ -18,7 +18,7 @@ const e2e = tests.filter(path => path.startsWith(join('src', 'tests', 'e2e') + s
 const unit = tests.filter(path => !e2e.includes(path));
 for (const [files, concurrency] of [[unit, Math.min(4, availableParallelism())], [e2e, 1]]) {
   if (!files.length) continue;
-  const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', `--test-concurrency=${concurrency}`, ...files], { stdio: 'inherit' });
+  const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', `--test-concurrency=${concurrency}`, ...files], { stdio: 'inherit', env: { ...process.env, AGENTFLOW_HISTORY_DISABLED: '1' } });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exitCode = result.status ?? 1;
 }

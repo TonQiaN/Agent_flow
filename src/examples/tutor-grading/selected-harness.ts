@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentExecutionDriver, ArtifactStore } from '@agentflow/engine';
+import type { AgentExecutionDriver, ArtifactStore, CredentialStore } from '@agentflow/engine';
 import { isIdentifier } from '@agentflow/domain';
 import {
   CodexAdapter, ClaudeAdapter, DeepSeekAdapter, FileCredentialStore,
@@ -9,7 +9,7 @@ import {
   CodexSubscriptionRunner, ClaudeSubscriptionRunner, DeepSeekApiKeyRunner,
   CodexAgentDriver, ClaudeAgentDriver, DeepSeekAgentDriver,
 } from '@agentflow/integrations';
-import type { DeepSeekRuntimeAssets } from '@agentflow/integrations';
+import type { DeepSeekRuntimeAssets, ExecutionEventSink } from '@agentflow/integrations';
 
 export type GradingHarness = 'codex' | 'claude' | 'deepseek';
 export function gradingHarness(value: unknown): GradingHarness {
@@ -18,7 +18,7 @@ export function gradingHarness(value: unknown): GradingHarness {
 }
 
 /** Consumer composition only: the Workflow, contracts and Gate never select a provider. */
-export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.ProcessEnv, options: { timeoutMs?: number; maxInputBytes?: number } = {}) {
+export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.ProcessEnv, options: { timeoutMs?: number; maxInputBytes?: number; credentials?: CredentialStore; events?: ExecutionEventSink; persistSession?: boolean } = {}) {
   const harness = gradingHarness(raw);
   const timeoutMs = options.timeoutMs ?? 180_000, maxInputBytes = options.maxInputBytes;
   if (maxInputBytes !== undefined && (!Number.isSafeInteger(maxInputBytes) || maxInputBytes < 1 || maxInputBytes > 1024 ** 3)) throw new Error('INVALID_GRADING_INPUT_BUDGET');
@@ -31,14 +31,14 @@ export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.Pr
   const credentialRef = required('AGENTFLOW_CREDENTIAL_REF');
   if (!isIdentifier(credentialRef)) throw new Error('INVALID_GRADING_REFERENCE');
   const prefix = harness.toUpperCase(), image = required(`AGENTFLOW_${prefix}_IMAGE`), proxyImage = required('AGENTFLOW_PROXY_IMAGE');
-  const config = { model: required(`AGENTFLOW_${prefix}_MODEL`), reasoning: harness === 'deepseek' ? 'off' : 'low', subagents: false, search: false };
+  const config = { model: required(`AGENTFLOW_${prefix}_MODEL`), reasoning: harness === 'deepseek' ? 'off' : 'low', subagents: false, search: false, ...(harness === 'codex' && options.persistSession ? { persistSession: true } : {}) };
   const adapter = harness === 'codex' ? new CodexAdapter() : harness === 'claude' ? new ClaudeAdapter() : new DeepSeekAdapter();
   const plan = adapter.plan({ identity: { runId: 'preflight', nodeTaskId: 'preflight', attemptId: 'preflight', attemptNumber: 1 }, prompt: 'Validate configuration only.', config });
   // Fixed trusted deployment exporter, not a task-selected file or shell command. No credential access.
   const assets: DeepSeekRuntimeAssets | undefined = harness === 'deepseek'
     ? JSON.parse(execFileSync(process.execPath, [fileURLToPath(new URL('../../apps/deepseek-tools/export-assets.mjs', import.meta.url))], { encoding: 'utf8', maxBuffer: 1024 * 1024 })) : undefined;
-  const store = new FileCredentialStore(storeRoot, [new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec(), new DeepSeekApiKeyCodec()]);
-  const runtimeOptions = (root: string) => ({ workspaceRoot: join(root, 'attempts'), image, proxyImage, ...(maxInputBytes === undefined ? {} : { maxInputBytes }) });
+  const store = options.credentials ?? new FileCredentialStore(storeRoot, [new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec(), new DeepSeekApiKeyCodec()]);
+  const runtimeOptions = (root: string) => ({ workspaceRoot: join(root, 'attempts'), image, proxyImage, ...(maxInputBytes === undefined ? {} : { maxInputBytes }), ...(options.events ? { events: options.events } : {}) });
   const driver = (artifacts: ArtifactStore, root: string): AgentExecutionDriver => {
     const execution = { timeoutMs };
     const common = { id: 'tutor-acceptance', credentialRef, endpoint: 'official' as const };
