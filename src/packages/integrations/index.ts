@@ -62,3 +62,10 @@ export { SqliteEffectRecordStore } from './persistence/effect-store.js';
 export { PersistentNodeQueue } from './queue/node-queue.js';
 
 export { createQueueCredentialAdmission } from './queue/credential-admission.js';
+
+export type { RunRevision, RunEvent, RecordPage } from './persistence/sqlite-store.js';
+export { projectRun, redactView, createWorkflowRecorder } from './observability/views.js';
+export type { RunView, RunMetadata } from './observability/views.js';
+export { ExecutionLogCapture } from './observability/logs.js';
+export type { ExecutionEvent, ExecutionEventSink } from './observability/logs.js';
+export type { CredentialRunnerOptions } from './execution/credential-runner.js';

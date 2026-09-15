@@ -1,3 +1,4 @@
+import type { CredentialRunnerOptions } from './credential-runner.js';
 import { snapshotJson } from '@agentflow/engine';
 import type { CredentialStore, HarnessPlan } from '@agentflow/engine';
 import { DeepSeekAdapter } from '../harness/deepseek.js';
@@ -18,7 +19,7 @@ const assetNames = ['sdk', 'fs-worker', 'fs-service', 'tool-isolate', 'tool-spac
 
 /** Assets are an explicit trusted deployment input, separate from host options and Workflow task JSON. */
 export class DeepSeekApiKeyRunner extends CredentialHarnessRunner<DeepSeekApiKeyProfile> {
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }, rawAssets: DeepSeekRuntimeAssets) {
+  constructor(store: CredentialStore, options: CredentialRunnerOptions, rawAssets: DeepSeekRuntimeAssets) {
     let assets: DeepSeekRuntimeAssets;
     try { assets = snapshotJson(rawAssets) as unknown as DeepSeekRuntimeAssets; } catch { throw new Error('INVALID_DEEPSEEK_ASSETS'); }
     if (!assets || Object.keys(assets).sort().join(',') !== 'files,schema,version' || assets.schema !== 'agentflow-deepseek-assets/v1' || assets.version !== DEEPSEEK_VERSION

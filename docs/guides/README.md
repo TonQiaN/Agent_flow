@@ -91,3 +91,5 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Tutor 扫描件批改](tutor-scanned-marking.md)：独立 Marker/Reviewer、用户返修、可信 Gate 和报告交接。
 
 - [Codex 初始图片](codex-input-images.md)：显式输入附件、执行前检查和真实合成扫描件入口。
+
+- [运行历史与可见日志](run-history.md)：事务内历史、只读投影和按尝试保存的日志。

@@ -1,3 +1,5 @@
+import { codexInvocation } from './codex-session.js';
+import type { CredentialRunnerOptions } from './credential-runner.js';
 import type { CredentialStore } from '@agentflow/engine';
 import { CodexAdapter, CODEX_VERSION } from '../harness/codex.js';
 import { CODEX_SUBSCRIPTION_HOSTS, CodexCredentialRedactor, codexSubscriptionProfile } from '../auth/codex-subscription.js';
@@ -9,14 +11,14 @@ export type CodexRunRequest = CredentialRunRequest<CodexSubscriptionProfile>;
 export type CodexExecutionResult = CredentialExecutionResult;
 
 export class CodexSubscriptionRunner extends CredentialHarnessRunner<CodexSubscriptionProfile> {
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }) {
+  constructor(store: CredentialStore, options: CredentialRunnerOptions) {
     super(store, options, {
       binding: 'exclusive',
       resourceEnvironment: { CODEX_HOME: '/task/state/codex' },
       version: CODEX_VERSION, hosts: CODEX_SUBSCRIPTION_HOSTS, stateFile: 'codex/auth.json', versionCommand: ['codex', '--version'],
       adapter: () => new CodexAdapter(), profile: codexSubscriptionProfile, redactor: () => new CodexCredentialRedactor(),
       parseVersion: stdout => /^codex-cli ([0-9]+\.[0-9]+\.[0-9]+)\s*$/.exec(stdout)?.[1] ?? null,
-      stateEnvironment: plan => plan.environment, invocation: plan => ({ argv: plan.argv, configFiles: plan.configFiles }),
+      stateEnvironment: plan => plan.environment, invocation: codexInvocation,
     });
   }
 }

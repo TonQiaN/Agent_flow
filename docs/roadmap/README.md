@@ -23,3 +23,7 @@
 - [版本维护指南](../development/versioning.md)：创建计划、调整范围、记录变更及发布的实际步骤。
 - [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)：目录、职责和最小发布方式的取舍。
 - [产品决策索引](../../.agents/decisions/product/README.md)：产品取舍及其确认边界。
+
+## 本机工作台（尚未指定发布版本）
+
+[Issue #39](https://github.com/TonQiaN/Agent_flow/issues/39) 按三层依赖交付：运行历史与日志 → 本机服务和招聘 → TypeScript 画布及浏览器验收。本层提供保存与查询基础，后续层交付页面及完整用户体验；不改变 0.1.1–0.1.3 的发布目标。
