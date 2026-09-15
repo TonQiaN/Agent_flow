@@ -10,7 +10,9 @@
 | [使用指南](guides/README.md) | 当前仓库用法与未来用户指南入口 |
 | [仓库结构图](reference/repository-map.md) | 正式目录职责，原始区只列边界 |
 | [文档维护](development/documentation.md) | 决策的查找、记录、转换及校验 |
+| [资料管理与团队共享](development/materials.md) | materials 的 Git 边界、原件保留与飞书 CLI 共享 |
 | [开发工作指南](development/workflow.md) | Issue 整理、预检记录、PR 模板与当前能力边界 |
+| [源码组织与工程检查](development/code-structure.md) | 当前代码职责、导入边界与构建测试命令 |
 | [Issue 分类与填写](development/issue-templates.md) | 五类主表、领域分类、Sub-issue 自主表达与 PR 衔接 |
 | [Roadmap](roadmap/README.md) | 阶段方向、版本安排与按需版本计划 |
 | [Changelog](../CHANGELOG.md) | 已实现的变化与发布记录 |
