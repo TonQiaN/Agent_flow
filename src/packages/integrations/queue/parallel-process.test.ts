@@ -65,7 +65,11 @@ for (const competingClaim of [false, true]) test(`group cancellation after recov
   assert.equal(await queue.cancelReady('run'),true);
   const loaded=await loadWorkflowCheckpoint(app.parallel.childWorkflow(before.checkpoint.snapshot.workflowId),childId,queue.records());
   assert.equal(loaded.checkpoint.snapshot.status,'cancelled');assert.equal(loaded.checkpoint.attempts.length,1);await loaded.dispose();
-  const parent=await new NodeWorker(queue,{open:app.open},systemClock,'join',['json'],300).runOnce();
+  // Joining a cancelled group is not a lease-expiry probe. Simulate a busy host.
+  const parent=await new NodeWorker(queue,{open:async(...args)=>{
+   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,350);
+   return app.open(...args);
+  }},systemClock,'join',['json']).runOnce();
   assert.equal(parent!.error,null);assert.equal(parent!.snapshot!.status,'cancelled');
   const calls=(await readFile(join(root,'calls.jsonl'),'utf8')).trim().split('\n').map(s=>JSON.parse(s));
   assert.deepEqual(calls.map(c=>c.id),['a','b']);assert.equal(await new NodeWorker(queue,{open:app.open},systemClock,'idle',['json'],300).runOnce(),null);
