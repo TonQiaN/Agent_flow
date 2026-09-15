@@ -1,6 +1,8 @@
 # AgentFlow
 
-项目开始提供 TypeScript 运行基础：确定性 Component、JSON 契约校验及 CLI 示例。已增加离线 Docker Runner；完整 Workflow 与真实 Agent 尚未接入，当前用法见 [使用指南](docs/guides/README.md)。
+AgentFlow 提供 TypeScript 工作流引擎、容器执行、模型接入、持久化队列，以及本机可视化工作台。可以上传材料、运行工作流、查看节点和容器配置，并回看历史。新增单岗位多简历的证据招聘流程；当前能力和验证边界见[项目文档](docs/README.md)。
+
+从[本机工作台指南](docs/guides/local-studio.md)开始安装与启动；命令行和各类工作流用法见[使用指南](docs/guides/README.md)。
 
 | 入口 | 内容 |
 | --- | --- |

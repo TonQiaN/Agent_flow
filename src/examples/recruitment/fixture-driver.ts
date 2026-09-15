@@ -30,8 +30,8 @@ export class RecruitmentFixtureDriver implements AgentExecutionDriver {
         reason: candidateId === 'c1' ? '材料包含对应实践。' : candidateId === 'c3' ? '材料缺失或摘要与项目细节冲突。' : '材料明确缺少对应实践。', evidence: [source] }));
       if (request.stage === 'review') {
         if (request.scenario === 'rework' && request.round === 0 && candidateId === 'c1') criteria[0]!.evidence = [{ ...source, page: 99 }];
-        result = { candidateId, dimension: request.dimension, criteria, notes: ['合成评审，仅用于验证展示与编排'] };
-      } else if (request.stage === 'audit') result = { candidateId, issues: [], summary: '合成独立复核完成；确定性关卡继续检查引用。' };
+        result = { criteria, notes: ['合成评审，仅用于验证展示与编排'] };
+      } else if (request.stage === 'audit') result = { issues: [], summary: '合成独立复核完成；确定性关卡继续检查引用。' };
       else result = { candidateId, recommendation: candidateId === 'c1' ? '推荐通过' : '推荐不通过', rationale: candidateId === 'c1' ? '必需项均有材料支持。' : '关键岗位要求缺少可靠支持。', decisiveRequirementIds: ['R1', 'R2'], uncertaintyImpact: candidateId === 'c3' ? '缺失与冲突涉及必需项，因此推荐不通过。' : '', criteria, questions: ['请现场演示对应项目中的接口测试。'] };
     }
     await new Promise(resolve => setTimeout(resolve, 250));

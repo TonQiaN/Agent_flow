@@ -1,12 +1,14 @@
 # 本机工作台
 
-面向 #39 的本机服务位于 `src/apps/studio`，固定执行入口位于 `src/examples/studio/entry.ts`。团队成员各自拉取代码、安装并运行；数据和凭据留在自己的电脑。第二层 PR 提供服务与工作流，画布前端由后续层交付。
+面向 #39 的本机服务位于 `src/apps/studio`，固定执行入口位于 `src/examples/studio/entry.ts`。团队成员各自拉取代码、安装并运行。历史和文件保存在自己的电脑；真实模型节点会把本次任务材料交给所配置的模型服务。React + TypeScript 页面提供工作流画布、启动、运行详情、报告、文件、历史和回放。
 
 ## 环境与启动
 
 需要 Node.js 24 或 26、npm、Docker。普通检查：`npm ci && npm run check`。
 
 ```sh
+npm ci
+npm run studio:build
 docker pull node:22-bookworm-slim
 docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
 docker build -f src/apps/studio/docker/Dockerfile.deepseek -t agentflow/studio-deepseek:0.1.1-rc.2 .
@@ -31,6 +33,18 @@ npm run studio
 
 不要把 API key 填进 config、前端或 Git。按[认证指南](auth-management.md)导入本机私有凭据。Codex/Claude 按[订阅登录](subscription-login.md)使用各自凭据。镜像版本必须与当前 Adapter 一致；DeepSeek 工具依赖含固定 Cordis 4.0.1。运行开始后固定镜像摘要，重建标签不影响已启动的招聘流程。
 
+## 怎么使用页面
+
+1. 打开 `http://127.0.0.1:3587`，先看“本机设置”。提示缺少镜像、凭据或 Tutor 时，按提示在本机准备好，再点“重新检查环境”。
+2. 在“工作流”中选择流程。画布可以平移、缩放和拖动节点；点击节点看输入、输出、设置或日志，点击连线看它连接哪里、什么结果会走这条线。拖动只调整这台浏览器的显示位置。
+3. 点“发起运行”。在同一个弹窗中准备全部材料，可以点击选文件，也可以拖入对应框。招聘只选一个岗位，每份简历放到对应候选人下面；补充材料也要选好归属。确认后只启动一次。
+4. 运行详情会更新正在做哪一步、排队、并行等待和重试。点“步骤与并行任务”进入单个子运行；同一节点多次执行可在详情里切换，重试保留 attemptNumber。
+5. “结果与报告”显示最后经过检查的结果。招聘会显示每人的二元推荐、逐项证据、缺失/冲突影响和面试问题；点击个人 PDF 可以翻页、查看本页文字或下载。“文件”还可预览原始材料、JSON、文本和图片。未被节点接纳的输出标为草稿，丢失文件会明确提示。
+6. “本次设置”显示当时保存的容器镜像摘要、CPU、内存、网络和挂载。不是容器节点或旧记录缺少配置时会说明；不会拿今天的配置替换历史配置。
+7. 在“运行历史”按流程、状态和本机日期筛选。进入记录后可播放、暂停、逐步或拖动滑块回放；历史超过一页时加载更后的记录。子任务、结果、日志和文件随所选时间变化；回放不执行任何节点。点击“回到当前”退出回放。
+
+首版操作是上传、发起运行和查看。技术设置、流程连接、取消、恢复均没有页面修改入口。浏览器刷新或本机服务重启不会清空历史；启动进程独立保存完成标记。
+
 ## 现有入口接入表
 
 | 工作流 | 原有代码 | 页面输入 | 环境 |
@@ -50,7 +64,7 @@ Tutor 在 config 添加绝对路径 `tutorWorkspace` 与 `tutorPython`。缺少�
 
 ## 招聘材料与结果
 
-一次提交全部材料：1 份岗位、1–12 位候选人、每位 1 份简历；可追加岗位或候选人的补充材料。支持 PDF、DOCX、TXT、MD、PNG、JPEG。每文件最多 20 MiB，最多 64 文件、合计 128 MiB、每份文档最多 60 页。PDF 文本不足时 OCR；OCR 结果仍需对照原图。代码中有文本量与结果契约限制，超过时显示失败原因。
+一次提交全部材料：1 份岗位、1–12 位候选人、每位 1 份简历；可追加岗位或候选人的补充材料。支持 PDF、DOCX、TXT、MD、PNG、JPEG。每文件最多 20 MiB，最多 64 文件、合计 128 MiB、每份文档最多 60 页。PDF 保留实际页码，文本不足时 OCR；OCR 结果仍需对照原图。TXT/MD/DOCX 采用逻辑第 1 页保存全文，不声称复原 Word 打印分页。代码中有文本量与结果契约限制，超过时显示失败原因。
 
 要求拆解后，每位候选人做四维评审和独立复核。引用必须找到原文件、页码及原文，错误引用按有限路线返工。最后逐项说明证据，输出“推荐通过”或“推荐不通过”，没有总分和排名。缺失/冲突说明怎样影响结论；执行失败不自动成为候选人不通过。最终校验后生成候选人对照表、个人 MD/HTML/PDF 和 JSON。
 
@@ -62,6 +76,27 @@ AGENTFLOW_STUDIO_TESTS=1 AGENTFLOW_HISTORY_DISABLED=1 node --import tsx --test s
 
 ## 数据和限制
 
-每次运行保存 meta、上传件、SQLite 修订与事件、归档文件。历史与回放只读，没有执行、取消、恢复接口；文件按已登记 ID 读取并验证摘要，HTML 按文本预览。历史不自动清理。重启后缺失、损坏或中断会明确显示；旧记录没有的时间、内部日志和设置不会补造。
+每次运行保存 meta、上传件、SQLite 修订与事件、归档文件。历史与回放接口只读，没有取消、恢复接口；启动仅通过独立上传入口；文件按已登记 ID 读取并验证摘要，HTML 按文本预览，PDF 用本地 PDF.js canvas 查看器渲染，不依赖浏览器 PDF 插件。历史不自动清理。重启后缺失、损坏或中断会明确显示；旧记录没有的时间、内部日志和设置不会补造。
 
 日志记录公开可获取的工具调用、消息、事件与 session 记录。隐藏 CoT 不在接口能力内；Codex session memory 在此隔离任务中关闭。截断、失败、无记录分别标注。凭据由已有 Adapter 脱敏，展示层再过滤敏感字段。
+
+
+## 本机验证与 CI
+
+```sh
+npm run check
+AGENTFLOW_STUDIO_TESTS=1 AGENTFLOW_HISTORY_DISABLED=1 node --import tsx --test src/tests/e2e/studio-documents.test.ts src/tests/e2e/studio-recruitment.test.ts
+npx playwright install chromium
+npm run studio:test
+```
+
+`studio:test` 在 `127.0.0.1:3597` 启动合成测试服务，需要已构建材料镜像；不使用真实 key。覆盖完整上传、画布、PDF 实际渲染、历史回放、丢失归档、390px 窄屏，以及返工、重试、失败和取消。CI 在 Linux Node 24/26 运行原 Docker 矩阵和材料/招聘测试，另有 Node 24 Chromium 用户旅程；浏览器失败时保留 trace、截图和报告。
+
+真实模型与视觉验收见[本轮验收记录](../validation/2026-09-15-issue39-studio.md)。作者的用户操作报告和截图仅在本地 `materials/issue39-user-report/`，不进入 Git。
+
+## 排查运行问题
+
+- 页面空白或提示未构建：执行 `npm run studio:build`，再刷新。
+- 网络断开：页面显示连接错误；服务恢复后重新打开历史，已保存记录仍在。
+- Codex 不能联网：检查 VPN/DNS 是否把 `chatgpt.com`、`auth.openai.com` 解析到保留地址。受控代理只放行已允许的公网目的地，应修复 DNS 条件，不关闭隔离校验。
+- 本地文件丢失或损坏：从自己的备份恢复整个运行目录。页面不会伪造文件内容、旧时间或没采集的日志。

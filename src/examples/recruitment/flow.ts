@@ -5,7 +5,7 @@ import { ContractRegistry, ComponentRegistry, FunctionRegistry, JsonFunctionWork
 import type { AgentExecutionDriver, WorkflowDefinition, ArtifactStore } from '@agentflow/engine';
 import { DockerBackend, FileScriptRecordReader, JsonTaskWorkflowCatalog, systemClock } from '@agentflow/integrations';
 import type { SqliteRunRecordStore } from '@agentflow/integrations';
-import { dimensions, validateInput, validateRequirements, evidenceErrors, criterionErrors, recommendationErrors } from './contracts.js';
+import { dimensions, validateInput, validateRequirements, evidenceErrors, criterionErrors, recommendationErrors, bindReviewIdentity } from './contracts.js';
 import type { RecruitmentState, Requirement, Review, Recommendation } from './contracts.js';
 import { requirementsPrompt, reviewPrompt, auditPrompt, decisionPrompt } from './prompts.js';
 
@@ -66,9 +66,9 @@ export async function createRecruitmentFlow(root: string, documentsRoot: string,
     });
   }
   fn('prepare-reviews', 'state', 'tasks', input => ({ outcome: 'completed', output: jsonValue(tasks(asState(input), 'review')) }));
-  fn('collect-reviews', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, reviews: [...(state.reviews ?? []).filter(r => !updated.has(r.candidateId)), ...tasks.map(t => ({ ...t.result as object, round: t.round }))] }) }; });
+  fn('collect-reviews', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, reviews: [...(state.reviews ?? []).filter(r => !updated.has(r.candidateId)), ...tasks.map(t => ({ ...bindReviewIdentity(t.result, t.candidateId, t.dimension), round: t.round }))] }) }; });
   fn('prepare-audits', 'state', 'tasks', input => ({ outcome: 'completed', output: jsonValue(tasks(asState(input), 'audit')) }));
-  fn('collect-audits', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, audits: [...(state.audits ?? []).filter(a => !updated.has(a.candidateId)), ...tasks.map(t => ({ ...t.result as object }))] }) }; });
+  fn('collect-audits', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, audits: [...(state.audits ?? []).filter(a => !updated.has(a.candidateId)), ...tasks.map(t => bindReviewIdentity(t.result, t.candidateId))] }) }; });
   fn('evidence-gate', 'state', 'state', input => {
     const state = asState(input), jobIssues = state.requirements!.flatMap(r => evidenceErrors(r.evidence, state.documents, 'job')), reasons: string[] = [...jobIssues];
     const repairCandidates = state.candidates.filter(c => {
@@ -82,7 +82,7 @@ export async function createRecruitmentFlow(root: string, documentsRoot: string,
     return { outcome: failed ? round >= 2 ? 'rejected' : jobIssues.length ? 'revise-job' : 'revise' : 'passed', output: jsonValue({ ...state, round: failed ? round + 1 : round, repairCandidates: failed ? jobIssues.length ? [] : repairCandidates : [], repairReasons: reasons }) };
   }, ['passed', 'revise', 'revise-job', 'rejected']);
   fn('prepare-decisions', 'state', 'tasks', input => ({ outcome: 'completed', output: jsonValue(tasks(asState(input), 'decision')) }));
-  fn('collect-decisions', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, recommendations: [...(state.recommendations ?? []).filter(r => !updated.has(r.candidateId)), ...tasks.map(t => ({ ...t.result as object }))] }) }; });
+  fn('collect-decisions', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, recommendations: [...(state.recommendations ?? []).filter(r => !updated.has(r.candidateId)), ...tasks.map(t => bindReviewIdentity(t.result, t.candidateId))] }) }; });
   fn('delivery-gate', 'state', 'state', input => {
     const state = asState(input), errors: string[] = [], repairCandidates: string[] = [];
     for (const c of state.candidates) { const rows = state.recommendations?.filter(r => r.candidateId === c.id) ?? [], invalid = rows.length === 1 ? recommendationErrors(rows[0], state, c.id) : ['候选人结果缺失或重复']; if (invalid.length) { errors.push(...invalid.map(e => c.id + ': ' + e)); repairCandidates.push(c.id); } }

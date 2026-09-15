@@ -72,11 +72,12 @@ export function importViolation(owner, sourceFile, specifier, packages) {
   return undefined;
 }
 
-function sourceFiles(directory) {
+function sourceFiles(directory, generated) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     if (['node_modules', 'dist'].includes(entry.name)) return [];
     const path = resolve(directory, entry.name);
-    return entry.isDirectory() ? sourceFiles(path) : /\.(ts|mts|cts|js|mjs|cjs)$/.test(entry.name) ? [path] : [];
+    if (path === generated) return [];
+    return entry.isDirectory() ? sourceFiles(path, generated) : /\.(tsx|ts|mts|cts|jsx|js|mjs|cjs)$/.test(entry.name) ? [path] : [];
   });
 }
 
@@ -89,7 +90,7 @@ export function checkBoundaries(workspaceRoot = root) {
     }));
   const errors = [];
   for (const owner of packages) {
-    for (const filename of sourceFiles(owner.directory)) {
+    for (const filename of sourceFiles(owner.directory, resolve(workspaceRoot, 'src/apps/studio/public'))) {
       // Tests legitimately use Node's assertion/test API; production sources never inherit test globals.
       if (/\.test\./.test(filename)) continue;
       for (const specifier of importSpecifiers(readFileSync(filename, 'utf8'), filename)) {

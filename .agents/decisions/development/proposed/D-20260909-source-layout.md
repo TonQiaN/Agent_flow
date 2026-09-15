@@ -22,6 +22,10 @@ DeepSeek 的隔离文件服务属于容器内应用，放在 src/apps/deepseek-t
 
 依赖检查同样扫描该应用，接纳显式 peer 声明，并追踪 node:module createRequire 产生的静态加载函数；动态模块名、未声明 SDK 及应用作为库导入仍拒绝。固定安装根用于该容器程序的模块解析，不来自用户输入。本次使用原生 JavaScript 是独立程序与镜像 SDK 的装载边界；业务与宿主内部包继续保持严格 TypeScript。实际原生工具测试验证程序行为，不能用宿主编译通过代替容器兼容性。
 
+## 浏览器应用与构建产物
+
+#39 的浏览器源码位于 studio/client，使用独立 DOM 类型检查；Playwright 用户旅程位于 src/tests/browser。依赖边界检查纳入 TSX/JSX，排除明确生成的 studio/public 与已有 dist；源文件和依赖声明仍受检查，不能把构建后的第三方 bundle 当成应用手写导入。CI 的 Node 24/26 检查外增加 Chromium 用户旅程，运行真实本机服务和断网材料容器，固定模型响应以避免外部费用和模型波动。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
