@@ -1,8 +1,12 @@
+import type { JsonValue } from '@agentflow/domain';
 import { TASK_PATHS } from '@agentflow/engine';
 import type { ExecutionResource } from '@agentflow/engine';
 
 /** Trusted host capability, passed separately from JSON options and task invocations. */
 export interface PrivateStateBinding {
+  /** Optional paired management capability; never describe credential contents here. */
+  resourceDefinition?(): JsonValue;
+  restoreResource?(resource: ExecutionResource, stateDirectory: string): Promise<void>;
   readonly environment: Readonly<Record<string, string>>;
   prepare(resource: ExecutionResource, stateDirectory: string): Promise<void>;
   beforeRelease(resource: ExecutionResource): Promise<void>;

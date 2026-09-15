@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化、队列、重试和并行尚未完成；真实刷新、真实学生批卷、完整报告和 PDF 尚未验收。**
+**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；PR 交付、队列、重试和并行尚未完成；真实刷新、真实学生批卷、完整报告和 PDF 尚未验收。**
 
 | 入口 | 内容 |
 | --- | --- |
@@ -23,20 +23,11 @@
 
 规划与当前行为明确区分。功能落地后再更新操作示例和验证事实，不因决定已接受就写成已实现。
 
-[Claude Adapter](guides/claude-adapter.md) 已实现 2.1.226 的独立调用计划、协议解析和真实无凭据离线启动验证；其订阅组合已通过合成刷新与文件交接、真实 CLI 断网格式识别；实际工具隔离已有断网合成服务驱动真实 CLI 的回归，真实任务仍未验收，见 [组合入口](guides/claude-execution.md)。DeepSeek 当前进展见下方记录。
+当前使用入口：
 
-[DeepSeek 配置预检](validation/2026-09-09-deepseek-compatibility.md) 已验证工具开关和原生会话；默认文件策略无法满足固定目录，下述自有工具隔离层处理了这一限制。
+- [串行 Workflow](guides/workflow.md)、[文件交接](guides/workflow-files.md)、[Script](guides/workflow-scripts.md)与 [Effect](guides/workflow-effects.md)。
+- [Claude 组合](guides/claude-execution.md)、[DeepSeek 组合](guides/deepseek-adapter.md)、[认证管理](guides/auth-management.md)、[订阅登录](guides/subscription-login.md)与[有限备份恢复](guides/credential-recovery.md)。
+- [显式中断恢复](guides/workflow-recovery.md)、[实际 Agent 阶段](guides/workflow-phases.md)、[订阅资源恢复](guides/subscription-resource-recovery.md)与 [#13 作者验收对照](validation/2026-09-10-issue13-acceptance.md)。
+- [持久批卷应用](guides/persistent-tutor-grading.md)：原始来源、Script 评分、用户返修、JSON 转换和当前发布授权共用正常引擎接口。已验证合成答卷与协议替身；真实学生卷、报告和 PDF 待验收。
 
-[DeepSeek 原生文件隔离](validation/2026-09-09-deepseek-file-isolation.md) 已允许固定输入副本/输出写入并保护私有文件；[Bash 与搜索隔离](validation/2026-09-09-deepseek-process-isolation.md) 也已通过真实 CLI 的合成测试。
-
-[DeepSeek 私有会话解析](validation/2026-09-09-deepseek-session.md) 已通过原生日志及反例验证；[固定启动与图像交接](validation/2026-09-09-deepseek-launch.md) 也已通过合成私有密钥的真实 CLI 验证；[纯 Adapter 和结构化出口](guides/deepseek-adapter.md) 已接通并通过原生 CLI 合成验证，[API key 与不可变快照绑定](validation/2026-09-09-deepseek-api-key.md) 已通过宿主存储驱动的原生 CLI 验证，[宿主执行组合](validation/2026-09-09-deepseek-execution.md) 已接通并通过协议替身验收，真实官方模型调用仍未验收。
-
-[凭据环境注入](validation/2026-09-09-credential-environment.md)已消除 DeepSeek 任务密钥文件，恢复与 Issue #11 的环境注入要求一致；[交互录入与本地管理](guides/auth-management.md)已实现；订阅登录及有限备份恢复已有后续实现记录。
-
-[订阅登录协调](guides/subscription-login.md)已具备首次登录管理租约和可恢复的收尾接口；原生登录驱动已在后续切片接入，有限备份恢复已在后续切片实现，真实登录继续验收。
-
-[原生订阅登录驱动](guides/subscription-login.md)已接入私有交互与受控 Docker；已做合成验证，真实官方登录继续验收，CLI 入口已由后续切片接入。
-
-[订阅终端登录](guides/subscription-login.md)已接入显式参数、隐藏授权码、取消与本地检查/删除；有限备份恢复已有后续验证，真实订阅继续验收。
-
-[私有备份恢复](guides/credential-recovery.md)已支持完整身份与版本前缀的尾部截断，拒绝回滚健康文件或复活已删除凭据；真实认证矩阵仍待验收。
+[完整指南索引](guides/README.md)保存其他能力入口；[验证索引](validation/README.md)保留各次版本、范围与失败记录。历史切片的待办不代表当前仍缺该能力，以当前指南和验收对照为准。

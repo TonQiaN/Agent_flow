@@ -76,7 +76,7 @@ Effect 执行器独立于 Harness、认证存储、Runner 和 Workflow 调度。
 
 采用 Blackbox 的一次授权和上下文收据检查：宿主针对已验证的 Component、Run/NodeTask/Attempt、模式、目标、幂等键及完整输入签发不透明授权能力；其私有登记绑定规范化 JSON，不能从 Workflow JSON 或序列化副本导入。每次 apply（包括已完成结果复用）都须匹配授权并一次消费；dry-run 不接受授权，也不占用真实操作幂等记录。宿主授权回调是明确安装的控制能力，不是模型输出里的字段。
 
-每个 EffectExecutor 中幂等键唯一，关联 Component/实现、业务身份、目标及完整输入，规范化对象键顺序。相同键不同请求明确冲突；相同已完成请求重查收据与输出契约后复用，标记 already-applied，不再次调用适配器。第一次真实调用前同步占位，重复并发不重复执行。适配器抛错、收据上下文不匹配或实际写入后的输出不合约，记录 unknown；同键后续请求被阻止，不能删除占位后重发。当前不提供重启恢复或跨崩溃 exactly-once，后续持久化需要接续确认机制。
+每个 EffectExecutor 中幂等键唯一，关联 Component/实现、业务身份、目标及完整输入，规范化对象键顺序。相同键不同请求明确冲突；相同已完成请求重查收据与输出契约后复用，标记 already-applied，不再次调用适配器。第一次真实调用前同步占位，重复并发不重复执行。适配器抛错、收据上下文不匹配或实际写入后的输出不合约，记录 unknown；同键后续请求被阻止，不能删除占位后重发。未安装持久日志时上述占位仅属于本实例；安装持久化工作项的 EffectRecordStore 后，实际调用前还须确认唯一耐久占位，回执耐久提交后才接纳。新进程复用仍要求本次显式授权，不恢复旧授权对象。操作恢复语义由持久化决定负责，不承诺跨崩溃 exactly-once。
 
 收据包含 schema、宿主请求标识、Component、mode、target、key、serviceIdentity、status 与可选外部 reference；接纳必须匹配实际上下文及对应输出 contract。simulated/applied/already-applied 是三个显式业务出口，执行失败不作为业务出口路由。unknown 或仍在进行的操作不能报告取消完成；已经写入后的取消不回滚实际动作。输入、授权范围、适配器请求及公开结果互相取副本。首个 Workflow 适配使用 JSON contract；文件到 JSON 的消费侧转换是后续显式 Transform，不往文件清单或模型自述里嵌入授权。
 

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isIPv4 } from 'node:net';
@@ -13,6 +15,25 @@ export function egressOptions(value: DockerEgressOptions): DockerEgressOptions {
   return Object.freeze({ kind: 'connect-proxy', proxyImage: value.proxyImage, allowedHosts: authorizedHosts(value.allowedHosts) });
 }
 
+/** Internal prepared deployment bytes, never loaded from a saved JSON description. */
+export interface PreparedEgress {
+  readonly options: DockerEgressOptions;
+  readonly source: string;
+  readonly definition: JsonValue;
+}
+export async function prepareEgress(raw: DockerEgressOptions): Promise<PreparedEgress> {
+  const options = egressOptions(raw);
+  const [image, bytes] = await Promise.all([docker(['image', 'inspect', '--format', '{{.Id}}', options.proxyImage]),
+    readFile(new URL('../egress/proxy.js', import.meta.url))]);
+  if (!/^sha256:[a-f0-9]{64}$/.test(image)) throw new Error('INVALID_PROXY_IMAGE');
+  const source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  const fixed = egressOptions({ ...options, proxyImage: image });
+  return Object.freeze({ options: fixed, source, definition: {
+    schema: 'agentflow-egress-execution/v1', proxyImage: image, proxySha256: createHash('sha256').update(bytes).digest('hex'),
+    allowedHosts: [...fixed.allowedHosts], internalMode: 'isolated', proxyPort: 8080,
+  } });
+}
+
 /** Owns only the proxy and networks belonging to one Runner resource. No provider logic or credentials. */
 export class DockerEgress {
   readonly #id: string;
@@ -21,27 +42,45 @@ export class DockerEgress {
   readonly #internal: string;
   readonly #external: string;
   readonly #proxy: string;
+  readonly #labels: Readonly<Record<string, string>>;
+  readonly #prepared: PreparedEgress | undefined;
+  readonly #restored: boolean;
   #proxyImageId: string | null = null;
   #proxyAddress: string | null = null;
-  constructor(id: string, directory: string, options: DockerEgressOptions) {
-    this.#id = id; this.#directory = directory; this.#options = options;
+  constructor(id: string, directory: string, options: DockerEgressOptions,
+    context: { readonly identity?: ExecutionIdentity; readonly prepared?: PreparedEgress; readonly restored?: boolean } = {}) {
+    this.#id = id; this.#directory = directory; this.#prepared = context.prepared; this.#restored = context.restored === true;
+    this.#options = context.prepared?.options ?? egressOptions(options);
+    this.#proxyImageId = context.prepared?.options.proxyImage ?? null;
+    const i = context.identity;
+    this.#labels = Object.freeze({ 'agentflow.resource': id, ...(i ? { 'agentflow.run': i.runId, 'agentflow.node-task': i.nodeTaskId,
+      'agentflow.attempt': i.attemptId, 'agentflow.attempt-number': String(i.attemptNumber) } : {}) });
     this.#internal = `${id}-internal`; this.#external = `${id}-external`; this.#proxy = `${id}-proxy`;
   }
 
+  #labelArguments(): string[] { return Object.entries(this.#labels).flatMap(([key, value]) => ['--label', `${key}=${value}`]); }
+  #checkLabels(labels: Record<string, string> | undefined): void {
+    if (!labels || Object.entries(this.#labels).some(([key, value]) => labels[key] !== value)) throw new Error('EGRESS_OWNERSHIP_MISMATCH');
+  }
+  /** Read ownership even if the task container or proxy is stopped/missing. Never starts anything. */
+  async verifyOwnership(): Promise<void> {
+    await this.#container(); await this.#network(this.#internal); await this.#network(this.#external);
+  }
   async setup(uid: number, gid: number): Promise<void> {
+    if (this.#restored) throw new Error('RESTORED_EGRESS_CANNOT_START');
     const version = await docker(['version', '--format', '{{.Server.Version}}']);
     if (!/^\d+\./.test(version) || Number(version.split('.')[0]) < 28) throw new Error('EGRESS_REQUIRES_DOCKER_28');
-    this.#proxyImageId = await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.proxyImage]);
+    this.#proxyImageId = this.#prepared?.options.proxyImage ?? await docker(['image', 'inspect', '--format', '{{.Id}}', this.#options.proxyImage]);
     if (!/^sha256:[a-f0-9]{64}$/.test(this.#proxyImageId)) throw new Error('INVALID_PROXY_IMAGE');
-    const source = await readFile(new URL('../egress/proxy.js', import.meta.url));
+    const source = this.#prepared?.source ?? await readFile(new URL('../egress/proxy.js', import.meta.url));
     const codePath = join(this.#directory, 'egress-proxy.mjs');
     await writeFile(codePath, source, { flag: 'wx', mode: 0o600 });
     await docker(['network', 'create', '--driver', 'bridge', '--internal', '--opt', 'com.docker.network.bridge.gateway_mode_ipv4=isolated',
-      '--label', `agentflow.resource=${this.#id}`, this.#internal]);
+      ...this.#labelArguments(), this.#internal]);
     const internal = await this.#network(this.#internal);
     if (!internal?.Internal || internal.Options?.['com.docker.network.bridge.gateway_mode_ipv4'] !== 'isolated') throw new Error('EGRESS_ISOLATION_UNAVAILABLE');
-    await docker(['network', 'create', '--driver', 'bridge', '--label', `agentflow.resource=${this.#id}`, this.#external]);
-    await docker(['create', '--name', this.#proxy, '--label', `agentflow.resource=${this.#id}`, '--restart', 'no', '--init',
+    await docker(['network', 'create', '--driver', 'bridge', ...this.#labelArguments(), this.#external]);
+    await docker(['create', '--name', this.#proxy, ...this.#labelArguments(), '--restart', 'no', '--init',
       '--user', `${uid}:${gid}`, '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--memory', '128m', '--memory-swap', '128m', '--cpus', '0.5', '--pids-limit', '64', '--network', this.#internal, '--log-driver', 'none',
       '--mount', `type=bind,src=${codePath},dst=/proxy.mjs,readonly`, '--entrypoint', 'node', this.#proxyImageId, '/proxy.mjs', ...this.#options.allowedHosts]);
@@ -76,26 +115,29 @@ export class DockerEgress {
 
   async #container(): Promise<{ Running: boolean } | null> {
     let raw: string;
-    try { raw = await docker(['inspect', '--format', '{"owner":{{json (index .Config.Labels "agentflow.resource")}},"state":{{json .State}}}', this.#proxy]); }
+    try { raw = await docker(['inspect', '--format', '{"labels":{{json .Config.Labels}},"image":{{json .Image}},"state":{{json .State}}}', this.#proxy]); }
     catch {
       const found = await docker(['container', 'ls', '--all', '--filter', `name=^/${this.#proxy}$`, '--format', '{{.ID}}']);
       if (!found) return null;
       throw new Error('EGRESS_INSPECT_FAILED');
     }
-    const data = JSON.parse(raw) as { owner: string; state: { Running: boolean } };
-    if (data.owner !== this.#id || typeof data.state?.Running !== 'boolean') throw new Error('EGRESS_OWNERSHIP_MISMATCH');
+    const data = JSON.parse(raw) as { labels: Record<string, string>; image: string; state: { Running: boolean } };
+    this.#checkLabels(data.labels);
+    if (this.#proxyImageId !== null && data.image !== this.#proxyImageId || typeof data.state?.Running !== 'boolean') throw new Error('EGRESS_OWNERSHIP_MISMATCH');
     return data.state;
   }
   async #network(name: string): Promise<{ Internal: boolean; Options: Record<string, string> | null } | null> {
     let raw: string;
-    try { raw = await docker(['network', 'inspect', '--format', '{"owner":{{json (index .Labels "agentflow.resource")}},"Internal":{{.Internal}},"Options":{{json .Options}}}', name]); }
+    try { raw = await docker(['network', 'inspect', '--format', '{"labels":{{json .Labels}},"Internal":{{.Internal}},"Options":{{json .Options}}}', name]); }
     catch {
       const found = await docker(['network', 'ls', '--filter', `name=^${name}$`, '--format', '{{.ID}}']);
       if (!found) return null;
       throw new Error('EGRESS_NETWORK_INSPECT_FAILED');
     }
-    const data = JSON.parse(raw) as { owner: string; Internal: boolean; Options: Record<string, string> | null };
-    if (data.owner !== this.#id || typeof data.Internal !== 'boolean') throw new Error('EGRESS_OWNERSHIP_MISMATCH');
+    const data = JSON.parse(raw) as { labels: Record<string, string>; Internal: boolean; Options: Record<string, string> | null };
+    this.#checkLabels(data.labels);
+    if (typeof data.Internal !== 'boolean' || data.Internal !== (name === this.#internal)
+      || name === this.#internal && data.Options?.['com.docker.network.bridge.gateway_mode_ipv4'] !== 'isolated') throw new Error('EGRESS_OWNERSHIP_MISMATCH');
     return data;
   }
 

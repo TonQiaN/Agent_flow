@@ -94,3 +94,12 @@ test('unclaimed empty helper directories are omitted, while declared empty trees
   await rm(join(empty.source, 'bundle/nested/answer.json'));
   const declared = await empty.store.capture(empty.source, 'files'); assert.deepEqual(declared.directories, ['bundle', 'bundle/nested']);
 });
+
+test('snapshot inspection only describes entries actually owned by this store and returns copies', async t => {
+  const f = await fixture(t), manifest = await f.store.capture(f.source, 'files');
+  const view = await f.store.inspect(manifest.id); (view.files[0] as { sha256: string }).sha256 = 'changed';
+  assert.deepEqual(await f.store.inspect(manifest.id), manifest);
+  const other = new FileArtifactStore(join(f.root, 'other'), f.store.contracts);
+  await assert.rejects(other.inspect(manifest.id), /UNKNOWN_SNAPSHOT/);
+  await f.store.release(manifest.id); await assert.rejects(f.store.inspect(manifest.id), /UNKNOWN_SNAPSHOT/);
+});

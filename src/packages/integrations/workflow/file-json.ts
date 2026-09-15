@@ -3,8 +3,9 @@ import { isAbsolute, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import { ArtifactError, DefinitionError, snapshotJson } from '@agentflow/engine';
-import type { Cancellation, ContractRegistry, FileManifest, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
+import { ArtifactError, DefinitionError, snapshotJson, isArtifactPath, consumeWorkflowValueRestore } from '@agentflow/engine';
+import type { Cancellation, ContractRegistry, FileManifest, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult, WorkflowValueRestoreRequest, WorkflowRestoredValue } from '@agentflow/engine';
+import { readSnapshotJson } from './json-file.js';
 import { FileWorkflowCatalog } from './files.js';
 import type { FileWorkflowReceipt } from './files.js';
 
@@ -25,11 +26,13 @@ export interface FileJsonReceipt {
 }
 const clone = <T>(v: T): T => snapshotJson(v) as unknown as T;
 const key = (i: ExecutionIdentity): string => JSON.stringify([i.runId, i.nodeTaskId, i.attemptId]);
+export interface JsonFileProjection { readonly path: string; readonly outcome: string; readonly maxBytes?: number }
 interface Work { readonly identity: ExecutionIdentity; root: string | null; active: boolean; cleaning: boolean }
 
 /** Explicit trusted Transform. File authority remains with the file catalog; JSON acceptance is separate. */
 export class FileJsonWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecutor {
   readonly #bindings = new Map<string, { component: ComponentDefinition; transform: FileJsonTransform }>();
+  readonly #projections = new Map<string, Required<JsonFileProjection>>();
   readonly #fileIds = new Set<string>();
   readonly #jsonIds = new Set<string>();
   readonly #attempts = new Set<string>();
@@ -53,6 +56,63 @@ export class FileJsonWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExe
     this.#fileIds.add(c.inputContract); for (const id of Object.values(c.outcomes)) this.#jsonIds.add(id);
     this.#bindings.set(c.id, { component: c, transform });
   }
+  /** Built-in bounded read of immutable input. Arbitrary host transforms remain non-persistent. */
+  registerJsonFile(component: ComponentDefinition, projection: JsonFileProjection): void {
+    const p = clone(projection);
+    if (!p || Object.keys(p).some(k => !['path', 'outcome', 'maxBytes'].includes(k)) || !isArtifactPath(p.path)
+      || !p.path.toLowerCase().endsWith('.json') || !isIdentifier(p.outcome) || !Object.hasOwn(component.outcomes, p.outcome)
+      || p.maxBytes !== undefined && (!Number.isSafeInteger(p.maxBytes) || p.maxBytes < 1 || p.maxBytes > 1024 * 1024)) throw new DefinitionError('INVALID_JSON_FILE_PROJECTION');
+    const settings = Object.freeze({ path: p.path, outcome: p.outcome, maxBytes: p.maxBytes ?? 1024 * 1024 });
+    this.register(component, async ctx => ({ outcome: settings.outcome,
+      output: await readSnapshotJson(ctx.inputPath, ctx.source.manifest, settings.path, settings.maxBytes) }));
+    this.#projections.set(component.id, settings);
+  }
+  async executionDefinition(component: ComponentDefinition): Promise<JsonValue> {
+    this.validate(component); const projection = this.#projections.get(component.id);
+    if (!projection) throw new DefinitionError('FILE_JSON_EXECUTION_DEFINITION_UNAVAILABLE');
+    return snapshotJson({ schema: 'agentflow-json-file-projection/v1', projection });
+  }
+  async checkRecovery(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity): Promise<void> {
+    await this.executionDefinition(component);
+    if (!isExecutionIdentity(identity) || this.files.check(component.inputContract, input).length
+      || this.files.inspect(input, identity.runId).released) throw new DefinitionError('INVALID_JSON_FILE_RECOVERY');
+  }
+  async checkpointValue(value: JsonValue, runId: string, contractId: string): Promise<JsonValue> {
+    if (this.contract(contractId).kind !== 'files') throw new DefinitionError('INVALID_FILE_JSON_CHECKPOINT');
+    return this.files.checkpointValue(value, runId, contractId);
+  }
+  async checkpointAcceptance(result: Extract<WorkflowNodeResult, { status: 'accepted' }>): Promise<JsonValue> {
+    const c = this.#bindings.get(result.componentId)?.component;
+    if (!c) throw new DefinitionError('INVALID_FILE_JSON_CHECKPOINT');
+    await this.executionDefinition(c);
+    const receipt = this.receipt(result.identity);
+    if (receipt.componentId !== c.id || receipt.outcome !== result.outcome || !isDeepStrictEqual(receipt.output, result.output)) throw new DefinitionError('INVALID_FILE_JSON_CHECKPOINT');
+    return snapshotJson({ schema: 'agentflow-file-json-receipt/v1', receipt });
+  }
+  async restoreValue(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue> {
+    // Routing metadata grants no authority: the selected owner still consumes the one-use request.
+    if (request.contract?.kind === 'files') return this.files.restoreValue(request);
+    const data = consumeWorkflowValueRestore(request);
+    const expected = data.expected;
+    if (data.record.contract.kind === 'files') throw new DefinitionError('INVALID_FILE_JSON_RESTORE_DISPATCH');
+    if (!expected) throw new DefinitionError('INVALID_FILE_JSON_RESTORE');
+    const b = this.#bindings.get(expected.componentId), saved = data.record.saved as Record<string, JsonValue>;
+    const provenance = saved['provenance'] as Record<string, JsonValue> | null;
+    if (!b || !provenance || Array.isArray(provenance) || Object.keys(provenance).sort().join(',') !== 'receipt,schema'
+      || provenance['schema'] !== 'agentflow-file-json-receipt/v1' || b.component.outcomes[expected.outcome] !== data.record.contract.id
+      || !isDeepStrictEqual(await this.executionDefinition(b.component), data.execution)) throw new DefinitionError('INVALID_FILE_JSON_RESTORE');
+    const source = this.files.inspect(expected.predecessor, data.runId);
+    const receipt: FileJsonReceipt = { identity: expected.identity, componentId: expected.componentId, predecessor: expected.predecessor,
+      input: source.manifest, outcome: expected.outcome, output: data.record.value };
+    if (source.released || this.files.check(b.component.inputContract, expected.predecessor).length
+      || !isDeepStrictEqual(provenance['receipt'], receipt)) throw new DefinitionError('INVALID_FILE_JSON_RESTORE');
+    const id = key(expected.identity);
+    if (this.#attempts.has(id) || this.#receipts.has(id)) throw new DefinitionError('FILE_JSON_RECEIPT_EXISTS');
+    this.#attempts.add(id); this.#receipts.set(id, clone(receipt)); let disposed = false;
+    return Object.freeze({ value: clone(data.record.value), dispose: async () => {
+      if (disposed) return; disposed = true; this.#receipts.delete(id); this.#attempts.delete(id);
+    } });
+  }
   resolve(id: string): { component: ComponentDefinition; executor: WorkflowNodeExecutor } {
     const b = this.#bindings.get(id); if (!b) throw new DefinitionError('UNKNOWN_FILE_JSON_TRANSFORM'); return { component: clone(b.component), executor: this };
   }
@@ -63,6 +123,9 @@ export class FileJsonWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExe
     if (this.#fileIds.has(id)) return this.files.contract(id);
     if (this.#jsonIds.has(id)) return { kind: 'json', id };
     throw new DefinitionError('UNKNOWN_TRANSFORM_CONTRACT');
+  }
+  contractDefinition(id: string): import('@agentflow/engine').WorkflowContractDefinition {
+    return this.contract(id).kind === 'files' ? this.files.contractDefinition(id) : { kind: 'json', id, schema: this.json.definition(id) };
   }
   check(id: string, value: JsonValue): readonly WorkflowIssue[] {
     if (this.contract(id).kind === 'files') return this.files.check(id, value);

@@ -1,5 +1,8 @@
+import type { InvocationResourcePlan, InvocationPhaseSink } from './phases.js';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import type { Cancellation } from '../runner/types.js';
+import type { WorkflowContractDefinition } from './structure.js';
+import type { WorkflowValueRestoreRequest, WorkflowRestoredValue } from './restore-value.js';
+import type { Cancellation, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '../runner/types.js';
 
 export interface WorkflowContract { readonly kind: 'json' | 'files'; readonly id: string }
 export type WorkflowDestination = { readonly node: string } | { readonly end: string };
@@ -26,8 +29,28 @@ export type WorkflowNodeResult = { readonly identity: ExecutionIdentity; readonl
 export interface WorkflowNodeExecutor {
   validate(component: ComponentDefinition): void;
   contract(id: string): WorkflowContract;
+  /** Actual registered definitions; optional for legacy executors, required for a structure snapshot. */
+  contractDefinition?(id: string): WorkflowContractDefinition;
+  /** Installed binding evidence, resolved before any Run executes. Missing evidence prevents persistence. */
+  executionDefinition?(component: ComponentDefinition): Promise<JsonValue>;
+  resourcePlan?(component: ComponentDefinition): Promise<InvocationResourcePlan | null>;
+  restorePhaseResource?(component: ComponentDefinition, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
+  /** Actual backend whose resource can be saved by this invocation; absent for resource-free code. */
+  resourceDefinition?(component: ComponentDefinition): Promise<JsonValue>;
+  /** Read-only resource-free recovery admission (pure computation, isolated immutable file reads, or Effect journal).
+   * Never executes the component, invokes a service, or grants permission. */
+  checkRecovery?(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity): Promise<void>;
+  /** Common Runner ownership restoration after the coordinator acquires its durable claim. */
+  restoreResource?(component: ComponentDefinition, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
+  /** Save a live value through its actual owner; only trusted checkpoint coordination calls this port. */
+  checkpointValue?(value: JsonValue, runId: string, contractId: string): Promise<JsonValue>;
+  /** Optional accepted JSON provenance, saved atomically with the accepted result.
+   * Installing this port requires restoreValue for every accepted JSON output. */
+  checkpointAcceptance?(result: Extract<WorkflowNodeResult, { status: 'accepted' }>): Promise<JsonValue>;
+  /** Accepts only a one-use request issued after a checkpoint has been validated. */
+  restoreValue?(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
-  execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation): Promise<WorkflowNodeResult>;
+  execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink, phases?: InvocationPhaseSink): Promise<WorkflowNodeResult>;
 }
 export interface WorkflowCatalog {
   resolve(componentId: string): { readonly component: ComponentDefinition; readonly executor: WorkflowNodeExecutor };

@@ -38,10 +38,14 @@ stdout/stderr 流式写入私有 raw 文件，默认各 1 MiB；超过上限继�
 
 invocation.recordFiles 可声明最多 16 个 state 内相对文件：`{ id: 'events', path: 'events.jsonl', maxBytes: 1048576 }`。每个可使用最多 16 MiB，所有具名记录的声明预算合计最多 16 MiB；禁止越界、符号链接和非普通文件；stdout/stderr 是保留 ID。缺失、截断、读取失败单独可见。raw 记录可能包含敏感业务内容，只供私有诊断或 Adapter 解析，不能当作普通 outputs 发布。
 
-执行后先保留 raw 文件，再删除容器；outputs 和整个私有工作区继续存在。接收方完成校验、复制或接纳以后调用 runner.release(result.resource)，才删除工作区；重复 release 幂等。容器删除失败、停止未确认或私有凭据绑定尚未完成收尾时 release 拒绝。需要手工修复时使用结果内 resource.id 定位本次资源；本版本不提供进程崩溃后的恢复协调器。
+执行后先保留 raw 文件，再删除容器；outputs 和整个私有工作区继续存在。接收方完成校验、复制或接纳以后调用 runner.release(result.resource)，才删除工作区；重复 release 幂等。容器删除失败、停止未确认或私有凭据绑定尚未完成收尾时 release 拒绝。需要手工修复时使用结果内 resource.id 定位本次资源；进程崩溃后的认领与恢复由独立的 [Workflow 恢复协调](workflow-recovery.md)调用 Runner 资源端口完成。
 
 完整需求和未覆盖项见 [#12](https://github.com/TonQiaN/Agent_flow/issues/12)；设计边界见 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)。
 
 ## 宿主系统配置映射
 
 DockerOptions.systemConfigMounts 可将本次 configFiles 中的文件只读映射到 /etc 子目录内，例如 `{ name: 'managed.json', target: '/etc/example/managed-settings.json' }`。它是宿主后端选项，不是任务可传入的挂载列表；来源不接受宿主绝对路径，目标不接受根配置文件、路径逃逸或重复/父子冲突。缺失来源在凭据准备前拒绝。适用于只读取固定系统位置的程序；/task/config 仍保留原本只读文件。
+
+[持久资源与恢复](runner-resource-recovery.md)提供显式保存端口及新进程旧资源收尾；Workflow 恢复协调另行接入。
+
+[Runner 输入物化](runner-owned-input.md)支持空输入和宿主安装的快照物化能力，继续保护原始文件与固定容器目录。

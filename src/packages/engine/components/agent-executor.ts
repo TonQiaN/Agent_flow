@@ -1,9 +1,10 @@
+import type { InvocationResourcePlan, InvocationPhaseSink } from '../runner/phases.js';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { ArtifactStore, FileManifest, FileIssue } from '../contracts/files.js';
 import { ArtifactError, FileContractRegistry } from '../contracts/files.js';
 import type { HarnessTask, HarnessResult } from '../harness/types.js';
-import type { Cancellation, RunnerResult } from '../runner/types.js';
+import type { RunnerResourceCheckpoint, RestoredRunnerResource, Cancellation, RunnerResult } from '../runner/types.js';
 import { DefinitionError } from '../errors.js';
 import { copyJson } from '../json.js';
 
@@ -23,8 +24,13 @@ export interface AgentExecutionHandle {
 export interface AgentExecutionDriver {
   readonly harness: string;
   validate(task: HarnessTask): void;
+  /** Actual installed execution definition; no credential reads or node execution. */
+  definitionSnapshot?(task: HarnessTask): Promise<JsonValue>;
+  resourcePlan?(task: HarnessTask): Promise<InvocationResourcePlan | null>;
+  restorePhaseResource?(task: HarnessTask, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource>;
+  receiptDefinition?(task: HarnessTask): Promise<{ harness: string; version: string; imageId: string }>;
   /** Materialize this exact snapshot independently before executing; retain cleanup capabilities on failure. */
-  run(task: HarnessTask, input: FileManifest, cancellation: Cancellation): Promise<AgentExecutionHandle>;
+  run(task: HarnessTask, input: FileManifest, cancellation: Cancellation, phases?: InvocationPhaseSink): Promise<AgentExecutionHandle>;
 }
 export interface AgentExecutionRequest {
   readonly componentId: string;
@@ -33,7 +39,8 @@ export interface AgentExecutionRequest {
   readonly config: JsonValue;
   readonly outcomes: Readonly<Record<string, string>>;
   readonly input: { readonly contractId: string; readonly source: string }
-    | { readonly contractId: string; readonly receiptId: string };
+    | { readonly contractId: string; readonly receiptId: string }
+    | { readonly contractId: string; readonly snapshotId: string };
 }
 export interface ExecutionReceipt {
   readonly id: string;
@@ -86,6 +93,9 @@ export class AgentExecutor {
     if (!isIdentifier(driver.harness)) throw new DefinitionError('INVALID_AGENT_DRIVER');
   }
 
+  /** Reuse is safe only for the identical installed store with a descriptor capability. */
+  canReuseSnapshot(store: ArtifactStore): boolean { return store === this.artifacts && typeof store.inspect === 'function'; }
+
   receipt(id: string): ExecutionReceipt {
     const receipt = this.#receipts.get(id); if (!receipt) throw new DefinitionError('UNKNOWN_EXECUTION_RECEIPT');
     return clone(receipt);
@@ -99,6 +109,29 @@ export class AgentExecutor {
   /** Side-effect-free definition preflight; no Attempt reservation or input capture. */
   validate(request: AgentExecutionRequest): void { this.prepare(request); }
 
+  async definitionSnapshot(request: AgentExecutionRequest): Promise<JsonValue> {
+    const { task } = this.prepare(request);
+    if (!this.driver.definitionSnapshot) throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
+    return clone(await this.driver.definitionSnapshot(clone(task)));
+  }
+
+  async resourcePlan(request: AgentExecutionRequest): Promise<InvocationResourcePlan | null> {
+    const { task } = this.prepare(request);
+    if (!this.driver.resourcePlan) return null;
+    if (!this.driver.restorePhaseResource || !this.driver.receiptDefinition) throw new DefinitionError('AGENT_PERSISTENCE_UNAVAILABLE');
+    return clone(await this.driver.resourcePlan(clone(task)));
+  }
+  async restorePhaseResource(request: AgentExecutionRequest, phase: string, record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> {
+    const { task } = this.prepare(request);
+    if (!this.driver.restorePhaseResource) throw new DefinitionError('AGENT_PERSISTENCE_UNAVAILABLE');
+    return this.driver.restorePhaseResource(clone(task), phase, clone(record));
+  }
+  async receiptDefinition(request: AgentExecutionRequest): Promise<{ harness: string; version: string; imageId: string }> {
+    const { task } = this.prepare(request);
+    if (!this.driver.receiptDefinition) throw new DefinitionError('AGENT_PERSISTENCE_UNAVAILABLE');
+    return clone(await this.driver.receiptDefinition(clone(task)));
+  }
+
   private prepare(request: AgentExecutionRequest) {
     let captured: AgentExecutionRequest;
     try { captured = clone(request); } catch { throw new DefinitionError('INVALID_AGENT_REQUEST'); }
@@ -109,8 +142,8 @@ export class AgentExecutor {
     const outcomes = Object.entries(captured.outcomes);
     if (!outcomes.length || outcomes.length > 32 || outcomes.some(([key, value]) => !isIdentifier(key) || !isIdentifier(value))) throw new DefinitionError('INVALID_AGENT_OUTCOMES');
     const input = captured.input;
-    if (!input || !isIdentifier(input.contractId) || Object.keys(input).sort().join(',') !== ('source' in input ? 'contractId,source' : 'contractId,receiptId')
-      || ('source' in input ? typeof input.source !== 'string' || !input.source || input.source.includes('\0') : !isIdentifier(input.receiptId))) throw new DefinitionError('INVALID_AGENT_INPUT');
+    if (!input || !isIdentifier(input.contractId) || Object.keys(input).sort().join(',') !== ('source' in input ? 'contractId,source' : 'receiptId' in input ? 'contractId,receiptId' : 'contractId,snapshotId')
+      || ('source' in input ? typeof input.source !== 'string' || !input.source || input.source.includes('\0') : !isIdentifier('receiptId' in input ? input.receiptId : input.snapshotId))) throw new DefinitionError('INVALID_AGENT_INPUT');
     for (const id of [input.contractId, ...outcomes.map(([, id]) => id)]) this.contracts.definition(id);
     const identity: ExecutionIdentity = Object.freeze({ runId: captured.identity.runId, nodeTaskId: captured.identity.nodeTaskId,
       attemptId: captured.identity.attemptId, attemptNumber: captured.identity.attemptNumber });
@@ -119,7 +152,7 @@ export class AgentExecutor {
     return { captured, outcomes, input, identity, task };
   }
 
-  async execute(request: AgentExecutionRequest, cancellation: Cancellation = { requested: () => false }): Promise<AgentAttempt> {
+  async execute(request: AgentExecutionRequest, cancellation: Cancellation = { requested: () => false }, phases?: InvocationPhaseSink): Promise<AgentAttempt> {
     const { captured, outcomes, input, identity, task } = this.prepare(request);
     let predecessor: ExecutionReceipt | null = null;
     if ('receiptId' in input) {
@@ -135,12 +168,18 @@ export class AgentExecutor {
     try { if (cancellation.requested()) return failed('CANCELLED'); } catch { return failed('CANCELLATION_CHECK_FAILED'); }
     let inputSnapshot: FileManifest;
     try {
-      inputSnapshot = predecessor ? clone(predecessor.output) : clone(await this.artifacts.capture((input as { source: string }).source, input.contractId));
-      if (!predecessor) ownedInput = inputSnapshot.id;
+      if ('snapshotId' in input) {
+        if (!this.artifacts.inspect) throw new DefinitionError('SNAPSHOT_INPUT_UNAVAILABLE');
+        inputSnapshot = clone(await this.artifacts.inspect(input.snapshotId));
+        if (inputSnapshot.id !== input.snapshotId) return failed('INPUT_SNAPSHOT_MISMATCH');
+      } else {
+        inputSnapshot = predecessor ? clone(predecessor.output) : clone(await this.artifacts.capture((input as { source: string }).source, input.contractId));
+        if (!predecessor) ownedInput = inputSnapshot.id;
+      }
       if (inputSnapshot.contractId !== input.contractId) return failed('INPUT_CONTRACT_MISMATCH');
     } catch (error) { return failed('INPUT_CAPTURE_FAILED', error, input.contractId); }
     try { if (cancellation.requested()) return failed('CANCELLED'); } catch { return failed('CANCELLATION_CHECK_FAILED'); }
-    try { handle = await this.driver.run(clone(task), clone(inputSnapshot), cancellation); }
+    try { handle = await this.driver.run(clone(task), clone(inputSnapshot), cancellation, phases); }
     catch (error) { return failed('AGENT_START_FAILED', error, input.contractId); }
     let facts: AgentExecutionFacts;
     try { facts = clone(handle.facts); } catch { return failed('INVALID_EXECUTION_FACTS'); }

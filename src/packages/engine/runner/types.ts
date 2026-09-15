@@ -1,4 +1,4 @@
-import type { ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 
 export const TASK_PATHS = Object.freeze({ input: '/task/input', work: '/task/work', outputs: '/task/outputs', state: '/task/state', config: '/task/config' });
 
@@ -10,10 +10,13 @@ export interface Invocation {
   /** Relative to the private state directory. Raw evidence, never business outputs. */
   readonly recordFiles?: readonly { readonly id: string; readonly path: string; readonly maxBytes: number }[];
 }
+/** Installed host capability. It materializes into a backend-owned staging path, never saved JSON. */
+export interface RunnerInputMaterializer { materialize(destination: string): Promise<void> }
 export interface RunnerRequest {
   readonly identity: ExecutionIdentity;
   readonly invocation: Invocation;
-  readonly inputSource: string;
+  /** null requests an owned empty input, or the installed backend materializer. */
+  readonly inputSource: string | null;
   readonly timeoutMs: number;
 }
 export interface Cancellation { requested(): boolean }
@@ -37,6 +40,12 @@ export interface RawCapture {
   readonly network?: { readonly kind: 'connect-proxy'; readonly proxyImageId: string | null; readonly allowedHosts: readonly string[] };
 }
 export interface ExecutionBackend {
+  /** Freeze and describe the actual installed execution environment before allocating resources. */
+  definition?(): Promise<JsonValue>;
+  /** Snapshot actual allocated ownership before any external process can be created. */
+  snapshotResource?(resource: ExecutionResource, identity: ExecutionIdentity): Promise<JsonValue>;
+  /** Reinstall ownership only. Must not prepare, create or start an old execution. */
+  restoreResource?(snapshot: JsonValue, identity: ExecutionIdentity, expected: ExecutionResource): Promise<ExecutionResource>;
   allocate(): Promise<ExecutionResource>;
   prepare(resource: ExecutionResource, request: RunnerRequest): Promise<void>;
   create(resource: ExecutionResource, request: RunnerRequest): Promise<void>;
@@ -46,6 +55,27 @@ export interface ExecutionBackend {
   capture(resource: ExecutionResource): Promise<RawCapture>;
   remove(resource: ExecutionResource): Promise<void>;
   release(resource: ExecutionResource): Promise<void>;
+}
+export interface RunnerResourceCheckpoint {
+  readonly schema: 'agentflow-runner-resource/v1';
+  readonly identity: ExecutionIdentity;
+  readonly resource: ExecutionResource;
+  readonly execution: JsonValue;
+  readonly backend: JsonValue;
+}
+export type RunnerLaunchState = 'allocated' | 'prepare_pending' | 'prepare_completed' | 'create_pending' | 'create_completed' | 'start_pending' | 'start_completed';
+export interface RunnerResourceSink {
+  save(checkpoint: RunnerResourceCheckpoint): Promise<void>;
+  /** Per-invocation durable operation journal; a rejected write prevents further launch operations. */
+  launch?(state: Exclude<RunnerLaunchState, 'allocated'>): Promise<void>;
+}
+export interface RestoredRunnerResource {
+  readonly identity: ExecutionIdentity;
+  readonly resource: ExecutionResource;
+  query(): Promise<Observation>;
+  /** Confirm both stop and removal, including a late start of a created resource. */
+  stopAndRemove(): Promise<{ readonly confirmed: boolean }>;
+  release(): Promise<void>;
 }
 export interface RunnerResult {
   readonly identity: ExecutionIdentity;

@@ -18,7 +18,7 @@ export interface CredentialBindingOptions {
 export interface BindingFinalization {
   readonly status: 'released' | 'retained';
   readonly refresh: 'not_prepared' | 'unchanged' | 'updated' | 'failed' | 'pending';
-  readonly credential: CredentialMetadata;
+  readonly credential: CredentialMetadata | null;
   readonly diagnostics: readonly string[];
 }
 

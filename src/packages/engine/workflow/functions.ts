@@ -19,6 +19,17 @@ export class JsonFunctionWorkflowCatalog implements WorkflowCatalog, WorkflowNod
     for (const id of [component.inputContract, ...Object.values(component.outcomes)]) this.contract(id);
   }
   contract(id: string): WorkflowContract { if (!this.contracts.has(id)) throw new DefinitionError('UNKNOWN_CONTRACT'); return { kind: 'json', id }; }
+  contractDefinition(id: string): import('./structure.js').WorkflowContractDefinition {
+    this.contract(id); return { kind: 'json', id, schema: this.contracts.definition(id) };
+  }
+  async executionDefinition(component: ComponentDefinition): Promise<JsonValue> {
+    this.validate(component);
+    return this.functions.definition(component.implementation);
+  }
+  /** Pure installed functions have no external execution resources to stop. */
+  async checkRecovery(component: ComponentDefinition): Promise<void> {
+    await this.executionDefinition(component);
+  }
   check(id: string, value: JsonValue): readonly WorkflowIssue[] {
     const result = this.contracts.check(id, value); return result.valid ? [] : result.issues.map(issue => ({ contractId: issue.contractId, path: issue.instancePath, rule: issue.schemaPath, code: issue.keyword }));
   }

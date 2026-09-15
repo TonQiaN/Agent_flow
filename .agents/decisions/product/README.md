@@ -2,6 +2,10 @@
 
 以下 ID 是稳定引用入口；正文位置表达生命周期，具体确认与落实范围见正文及对应 Issue。
 
+## P-20260909-run-persistence
+
+[运行状态持久化与恢复协调分离](proposed/P-20260909-run-persistence.md)
+
 ## P-20260909-harness-adapter
 
 [Harness Adapter 只生成调用并解释执行证据](proposed/P-20260909-harness-adapter.md)
