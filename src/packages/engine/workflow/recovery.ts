@@ -29,8 +29,8 @@ export async function claimWorkflowRecovery(compiled: CompiledWorkflow, runId: s
   const loaded = await loadWorkflowCheckpoint(compiled, runId, store), prior = loaded.recovery;
   try {
     const checkpoint = loaded.checkpoint, view = checkpoint.snapshot;
-    if (!['queued', 'running'].includes(view.status) || view.cancelRequested) throw new DefinitionError('WORKFLOW_NOT_RECOVERABLE');
-    const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted ? attempt : null;
+    if (!['queued', 'running', 'retry_wait'].includes(view.status) || view.cancelRequested) throw new DefinitionError('WORKFLOW_NOT_RECOVERABLE');
+    const attempt = checkpoint.attempts.at(-1), active = attempt?.resultStep === null && !attempt.interrupted && !attempt.retry ? attempt : null;
     const binding = active ? getPlan(compiled).bindings.get(active.node)! : null;
     if (active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases)) throw new DefinitionError('WORKFLOW_LAUNCH_UNCONFIRMED');
     const recomputable = binding && ['gate', 'transform'].includes(binding.component.kind)

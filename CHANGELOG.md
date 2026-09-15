@@ -6,6 +6,7 @@
 
 ### 重要变更
 
+- 文件 Workflow 将实际 Runner 超时统一映射为 EXECUTION_TIMEOUT，替代通用 Script/Agent 执行失败码；未配置重试的调用也会看到此错误码，仍默认只执行一次。
 - materials 原始内容默认不再进入 Git，仅保留五份根级管理文件；新增局部 AGENTS.md、同目录 CLAUDE.md 符号链接及选定资料通过飞书 CLI 共享的约定。已有 checkout 更新前的原件保留方式见 [资料指南](docs/development/materials.md)，关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34)。
 
 - 根 AGENTS.md 采用独立书写决定，整理为必要规则、真实仓库布局、docs 工作入口与团队约定；布局展开 src，其余目录只列入口与职责。项目内每份 AGENTS.md 配套同目录 CLAUDE.md 符号链接，本轮补齐决策目录链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
@@ -21,6 +22,8 @@
 - 修复 Claude2.1.226 未实际加载任务管理策略的问题：移除无效路径环境变量，经宿主受限配置映射挂到固定系统位置。新增真实 CLI 工具负对照与隔离回归，验证凭据拒绝、路径绕过、正常副本写入和 Bash 网络阻断；没有使用真实凭据或远端模型。
 
 ### 新增
+
+- 新增用户定义的有限节点重试：次数包含首次执行，失败与等待期限持久保存，重启不重置预算，等待释放 Worker/角色容量；输入与每次输出隔离，未知 Effect 结果拒绝重发。默认不自动重试失败执行。
 
 - 新增持久 NodeTask 队列与单节点 Worker：跨进程角色/认证容量、停止及失联恢复；Run 与调度归属条件提交，旧领取令牌不能覆盖新结果。
 - 队列在创建 Attempt 前预占实际凭据源：繁忙时留队等待，订阅连续交给所属 Runner 资源，静态 API key 取得快照后释放；恢复封存旧令牌。本地索引 v2 不迁移未发布 v1。

@@ -122,3 +122,5 @@
 [订阅资源恢复](2026-09-10-subscription-resource-recovery.md)；[Issue #13 验收对照](2026-09-10-issue13-acceptance.md)。
 
 [单机队列与 Worker 验证](2026-09-10-node-queue.md)：多进程容量竞争、实际迟到写入与 Docker 失联恢复；包含认证源预占、实际 Driver 绑定及联合恢复验收。
+
+- [节点有限重试与持久等待](2026-09-10-node-retries.md)

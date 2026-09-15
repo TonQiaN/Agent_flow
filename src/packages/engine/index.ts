@@ -64,3 +64,6 @@ export type { NodeWorkerHost, NodeWorkerResult } from './queue/worker.js';
 
 export type { AgentDispatchBinding, AdmittedCredentialStore } from './auth/types.js';
 export type { NodeCredentialAdmission } from './queue/types.js';
+
+export { retryCategories, retryCategory, validateRetryPolicy, decideRetry } from './retry/policy.js';
+export type { RetryCategory, RetryPolicy, RetryDecision } from './retry/policy.js';

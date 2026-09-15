@@ -2,7 +2,7 @@
 
 这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
 
-**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动已接通；PR 交付、重试和并行尚未完成；真实刷新、真实学生批卷、完整报告和 PDF 尚未验收。**
+**当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动已接通；节点有限重试与持久等待已接通；PR 交付和并行尚未完成；真实刷新、真实学生批卷、完整报告和 PDF 尚未验收。**
 
 | 入口 | 内容 |
 | --- | --- |
@@ -32,3 +32,5 @@
 - [持久批卷应用](guides/persistent-tutor-grading.md)：原始来源、Script 评分、用户返修、JSON 转换和当前发布授权共用正常引擎接口。已验证合成答卷与协议替身；真实学生卷、报告和 PDF 待验收。
 
 [完整指南索引](guides/README.md)保存其他能力入口；[验证索引](validation/README.md)保留各次版本、范围与失败记录。历史切片的待办不代表当前仍缺该能力，以当前指南和验收对照为准。
+
+- [节点有限重试](guides/node-retries.md)：用户策略、跨重启累计预算、等待与取消。
