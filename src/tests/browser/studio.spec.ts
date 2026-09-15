@@ -44,7 +44,7 @@ async function settled(page: Page, id: string | undefined, status: string) {
   await expect
     .poll(
       async () => {
-        latest = await (await page.request.get("/api/runs/" + id)).json();
+        latest = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
         const current = latest.runs.find(
           (r: any) => !r.view.runId.startsWith("parallel-"),
         )?.view.snapshot.status;
@@ -136,6 +136,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   const download = page.getByRole("link", { name: "下载文件 ↓", exact: true });
   const response = await page.request.get(
     (await download.getAttribute("href"))!,
+    { maxRetries: 2 },
   );
   expect((await response.body()).subarray(0, 5).toString()).toBe("%PDF-");
   await page.getByRole("button", { name: "本次设置", exact: true }).click();
@@ -152,7 +153,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     .getByRole("button", { name: "输入", exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("document-0.md");
-  const current = await (await page.request.get("/api/runs/" + id)).json();
+  const current = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
   await page.getByRole("slider", { name: "回放进度" }).fill("0");
   await expect(page.getByText("历史回放", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "结果与报告", exact: true }).click();
@@ -169,7 +170,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     )
     .toBeGreaterThan(1);
   await page.getByRole("button", { name: "暂停", exact: true }).click();
-  const unchanged = await (await page.request.get("/api/runs/" + id)).json();
+  const unchanged = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
   expect(unchanged.runs.map((r: any) => [r.key, r.view.revision])).toEqual(
     current.runs.map((r: any) => [r.key, r.view.revision]),
   );
@@ -233,7 +234,7 @@ for (const scenario of ["rework", "retry", "failure", "cancel"])
         "不等于候选人被判不通过",
       );
     } else {
-      const detail = await (await page.request.get("/api/runs/" + id)).json();
+      const detail = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
       if (scenario === "rework")
         expect(
           detail.runs

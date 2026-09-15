@@ -28,6 +28,8 @@ DeepSeek 的隔离文件服务属于容器内应用，放在 src/apps/deepseek-t
 
 测试夹具容器向宿主目录生成文档时使用当前宿主 UID/GID，保持 Linux 非 root 开发者可读取和清理。不能依靠 Docker Desktop 的文件归属映射掩盖权限差异，也不使用宽泛 chmod 或特权容器修复测试。
 
+浏览器验收读取进度或下载文件的无副作用 GET 遇到 ECONNRESET 时允许最多两次连接重试，使用 Playwright 的有界传输重试；HTTP 错误和业务失败仍正常断言。CI 已观察到运行进程正常结束、测试复用连接重置的差异，启动操作不使用该读取策略。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
