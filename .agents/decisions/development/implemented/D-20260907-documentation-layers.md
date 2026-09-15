@@ -4,13 +4,15 @@
 
 ## 结论与边界
 
-项目决策是第一公民。产品与开发流程的取舍分别放在 .agents/decisions/product 和 development；当前架构、用法、结构、验证结果及重大事故正式复盘放在 docs；原始资料统一收容在 materials，其中可以有 artifacts、会议纪要、录音及任意其他文件。
+项目决策是第一公民。产品与开发流程的取舍分别放在 .agents/decisions/product 和 development；当前架构、用法、结构、验证结果及重大事故正式复盘放在 docs；本地原始资料统一收容在 materials，其中可以有 artifacts、会议纪要、录音及任意其他文件。
 
 决定描述期望，使用指南描述现实。即使经过完整 CI/CD、Issue/PR 和测试仍发生重大事故，也要在 docs/postmortems 永久记录影响、根因、为何既有检查遗漏及修正；结论不能只留在研究材料里。验证记录在 docs/validation，未完成的检查不能写成通过。
 
 docs/roadmap 保存当前交付规划，是 docs 中明确标识的规划区域，不代表能力已实现。它引用决策和 Issue，安排版本目标与整体验收，不复制方案取舍或详细任务状态。根目录 CHANGELOG.md 保存实际变化及发布记录；使用指南继续只说明当前现实。具体维护方式由 [版本管理决定](../README.md#d-20260908-version-management) 管理。
 
 正式知识遵循统一流程；原始资料区不要求统一文件格式、目录树、索引或反向链接，不进入普通开发的默认上下文。原始资料治理的完整否决理由仅在 [明确拒绝项](../README.md#d-20260907-mandatory-source-traceability)维护。
+
+原始内容的 Git 忽略、管理文件保留及选定资料通过飞书 CLI 共享的边界，由 [materials 管理决定](../README.md#d-20260911-materials-management) 负责。共享资料仍属原始区层次，上传不等于正式采纳，不改变决定和 docs 自足的要求。
 
 ## 方案考量（alternatives）
 
@@ -34,5 +36,6 @@ docs/roadmap 保存当前交付规划，是 docs 中明确标识的规划区域�
 
 - 2026-09-07：当前用户首次明确三层设计；随后九点补充的第 6–9 点明确唯一性、期望与现实、永久复盘及宽松原始区。
 - 本次修订扩大原始资料入口并调整正式复盘归属，旧取舍和原因已合并进 alternatives。
-- 目录命名及阅读入口是本轮实现细化，未约定多人批准权或资料 Git 共享策略。
+- 目录命名及阅读入口是启动时的实现细化，当时未约定多人批准权或资料 Git 共享策略。
 - 2026-09-08：[Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4) 授权版本管理骨架；增加 docs/roadmap 与根 CHANGELOG 的职责，保持规划、取舍和现实分离。
+- 2026-09-11：[Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34) 按用户确认新增资料保存与团队共享的独立决定；本分层决定补充其职责入口，保留原始区宽松和正式知识自足的边界。
