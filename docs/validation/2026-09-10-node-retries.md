@@ -67,3 +67,10 @@ AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_DOCKER_TESTS=1 node --import tsx --test --tes
 ## 2026-09-11 完整 Docker 集合的兼容断言
 
 最终组合扩大为基础 Docker 全集时，原 Workflow 超时 E2E 仍断言旧 SCRIPT_EXECUTION_FAILED，导致失败。决定和生产实现此前已明确将真实 timed_out 映射为 EXECUTION_TIMEOUT（包括没有 retry 的普通调用）；本次将这条旧断言同步为确切结构化超时码，保留取消阻断后继、失败状态、清理与输入释放断言。不是放宽为任意失败，也没有更改超时或产品行为。此前三项重试 Docker 定向验证未包含这条基础脚本回归，不再将其解释为全 Docker 集合通过。
+
+
+## 2026-09-15 合入审查：正常队列回合的租约夹具
+
+Node 24 CI 中正常回合测试在繁忙宿主机耗时 564 ms，300 ms 夹具租约过期并返回 QUEUE_CLAIM_LOST。参考 Blackbox Agent Workflow 的 test_expired_worker_recovers_without_repeating_completed_node：只有故障 Worker 使用短租约，正常接管者使用更长租约。本次正常回合使用 NodeWorker 既有默认 30 秒租约，并在 open 阶段同步阻塞 350 ms；原 300 ms 夹具稳定失败，修复后必须仍完成一个节点、原子插入后继、拒绝重复提交和执行取消。生产租约、独立过期与旧写者隔离测试均未改变。
+
+同轮 CI 另有一次 Docker 恢复 setup 在 20 秒就绪期限内未发消息；本地原源码两个 resume-running 场景复跑均通过。该次超时原因尚未确定，保留失败证据；不通过加长超时、重试包装或跳过断言掩盖它，合入仍要求最终提交的全套 CI 成功。
