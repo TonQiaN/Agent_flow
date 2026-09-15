@@ -45,7 +45,9 @@ export interface DockerInteraction {
   output(channel: 'stdout' | 'stderr', bytes: Uint8Array): void;
 }
 
-export function attach(name: string, stdoutPath: string, stderrPath: string, maxBytes: number, interaction?: DockerInteraction): AttachedProcess {
+export interface DockerLogObserver { output(channel: 'stdout' | 'stderr', bytes: Uint8Array): void; close(): void }
+
+export function attach(name: string, stdoutPath: string, stderrPath: string, maxBytes: number, interaction?: DockerInteraction, observer?: DockerLogObserver): AttachedProcess {
   const stdoutFd = openSync(stdoutPath, 'wx', 0o600);
   let stderrFd: number;
   try { stderrFd = openSync(stderrPath, 'wx', 0o600); }
@@ -80,6 +82,7 @@ export function attach(name: string, stdoutPath: string, stderrPath: string, max
   let ended = false, inputBytes = 0;
   const forward = (channel: 'stdout' | 'stderr', fd: number, result: typeof stdout, chunk: Buffer) => {
     capture(fd, result, chunk);
+    if (observer) { try { observer.output(channel, new Uint8Array(chunk)); } catch { process.failed = true; } }
     if (interaction && (result.truncated || result.error)) process.failed = true;
     if (interaction && !process.failed) {
       try { interaction.output(channel, new Uint8Array(chunk)); } catch { process.failed = true; }
@@ -107,7 +110,7 @@ export function attach(name: string, stdoutPath: string, stderrPath: string, max
     process.failed ||= code === null;
     process.exitCode = code;
     process.settled = true;
-    try { dispose?.(); } catch { process.failed = true; }
+    try { dispose?.(); observer?.close(); } catch { process.failed = true; }
     stdout.complete = !process.failed && !stdout.error && !stdout.truncated;
     stderr.complete = !process.failed && !stderr.error && !stderr.truncated;
     try { closeSync(stdoutFd); } catch { stdout.error = 'CAPTURE_CLOSE_FAILED'; stdout.complete = false; }

@@ -1,3 +1,5 @@
+import { ExecutionLogCapture } from '../observability/logs.js';
+import type { ExecutionEventSink } from '../observability/logs.js';
 import { Runner, snapshotJson, canonicalJson } from '@agentflow/engine';
 import type { Cancellation, CredentialIdentity, CredentialStore, HarnessAdapter, HarnessPlan, HarnessResult, HarnessTask, RunnerResult, Invocation, RunnerInputMaterializer, RunnerResourceCheckpoint, RunnerResourceSink, RunnerLaunchState, RestoredRunnerResource } from '@agentflow/engine';
 import type { JsonValue } from '@agentflow/domain';
@@ -12,6 +14,8 @@ import type { BindingFinalization, ExecutionCredentialBinding } from '../auth/ex
 import { readCapturedBytes } from './capture-reader.js';
 import { systemClock } from '../system-clock.js';
 
+
+export interface CredentialRunnerOptions { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number; events?: ExecutionEventSink }
 
 export interface CredentialRedactor { remember(content: string): void; redact(text: string): string }
 /** Internal trusted host composition, not a workflow configuration or plugin-loading API. */
@@ -65,14 +69,14 @@ export interface CredentialRunPersistence {
 /** Environment composition. Engine Runner and the pure Adapter have no provider-auth branches. */
 export class CredentialHarnessRunner<P extends CredentialIdentity> {
   readonly #store: CredentialStore;
-  readonly #options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number };
+  readonly #options: CredentialRunnerOptions;
   readonly #recipe: CredentialRecipe<P>;
   readonly #executionDefinitions = new Map<string, Promise<JsonValue>>();
   #started = false;
   #images: { image: string; proxyImage: string } | undefined;
   #imagesPending: Promise<{ image: string; proxyImage: string }> | undefined;
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }, recipe: CredentialRecipe<P>) {
-    if (!options || Object.keys(options).filter(key => key !== 'maxInputBytes').sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
+  constructor(store: CredentialStore, options: CredentialRunnerOptions, recipe: CredentialRecipe<P>) {
+    if (!options || Object.keys(options).filter(key => !['maxInputBytes', 'events'].includes(key)).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
     this.#recipe = Object.freeze({ ...recipe, hosts: Object.freeze([...recipe.hosts]), versionCommand: Object.freeze([...recipe.versionCommand]),
       ...(recipe.resourceEnvironment ? { resourceEnvironment: Object.freeze({ ...recipe.resourceEnvironment }) } : {}),
       ...(recipe.systemConfigMounts ? { systemConfigMounts: Object.freeze(recipe.systemConfigMounts.map(m => Object.freeze({ ...m }))) } : {}) });
@@ -221,15 +225,16 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
       ? await EnvironmentExecutionCredentialBinding.acquire(this.#store, { identity: task.identity, credential }, this.#recipe.secretEnvironment, 0, content => redactor.remember(content))
       : await FileExecutionCredentialBinding.acquire(
         this.#store, { identity: task.identity, credential, stateFile: this.#recipe.stateFile, environment: this.#recipe.stateEnvironment(plan) }, 0, content => redactor.remember(content));
+    const logs = this.#options.events ? new ExecutionLogCapture(task.identity, this.#options.events, text => redactor.redact(text)) : undefined;
     let backend: DockerBackend; let runner: Runner; let result: RunnerResult;
     try {
       await persistence?.acquisition?.complete();
-      backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding, undefined, inputMaterializer);
+      backend = new DockerBackend(this.#backendOptions(imageId, this.#images?.proxyImage ?? this.#options.proxyImage), binding, undefined, inputMaterializer, logs);
       if (expectedEnvironment && canonicalJson(await backend.definition()) !== canonicalJson(expectedEnvironment)) throw new Error('CREDENTIAL_RESOURCE_DEFINITION_MISMATCH');
       runner = new Runner(backend, systemClock);
       result = await runner.run({ identity: task.identity, inputSource, timeoutMs, invocation }, cancellation, persistence?.execution);
     } catch { await binding.abandon(); throw new Error('SUBSCRIPTION_EXECUTION_NOT_PREPARED'); }
-    const execution = new CredentialExecution('execution', result, backend, runner, version, binding, redactor, task, [], adapter, invocation.recordFiles ?? []);
+    const execution = new CredentialExecution('execution', result, backend, runner, version, binding, redactor, task, [], adapter, invocation.recordFiles ?? [], logs);
     await execution.interpret(); return execution;
   }
 }
@@ -250,7 +255,7 @@ export class CredentialExecution {
   #interpreted = false;
   constructor(stage: CredentialExecutionResult['stage'], result: RunnerResult, backend: DockerBackend, runner: Runner,
     version: CredentialExecutionResult['version'], binding: ExecutionCredentialBinding | null, redactor: CredentialRedactor | null,
-    task: HarnessTask | null, diagnostics: string[], private readonly adapter?: HarnessAdapter, private readonly recordFiles: NonNullable<Invocation['recordFiles']> = []) {
+    task: HarnessTask | null, diagnostics: string[], private readonly adapter?: HarnessAdapter, private readonly recordFiles: NonNullable<Invocation['recordFiles']> = [], private readonly logs?: ExecutionLogCapture) {
     this.#stage = stage; this.#result = result; this.#backend = backend; this.#runner = runner; this.#version = version;
     this.#binding = binding; this.#redactor = redactor; this.#task = task; this.#diagnostics = diagnostics;
   }
@@ -268,9 +273,9 @@ export class CredentialExecution {
     if (this.#interpreted) return;
     this.#interpreted = true; await this.#finalize();
     if (!this.#task || !this.#redactor || this.#authentication?.status !== 'released' || this.#authentication.refresh === 'failed') {
-      this.#diagnostics.push('AUTHENTICATION_NOT_FINALIZED'); return;
+      this.#diagnostics.push('AUTHENTICATION_NOT_FINALIZED'); await this.#logResult(); return;
     }
-    if (this.#result.capture?.imageId !== this.#version.imageId) { this.#diagnostics.push('EXECUTION_IMAGE_MISMATCH'); return; }
+    if (this.#result.capture?.imageId !== this.#version.imageId) { this.#diagnostics.push('EXECUTION_IMAGE_MISMATCH'); await this.#logResult(); return; }
     try {
       const stdout = this.#result.capture.stdout.complete ? await readCapturedBytes(this.#result.capture.stdout, 16 * 1024 * 1024) : new Uint8Array();
       const records: Record<string, Uint8Array> = {};
@@ -278,8 +283,20 @@ export class CredentialExecution {
         const file = this.#result.capture.files[spec.id];
         if (file?.complete && !file.truncated && !file.error) records[spec.id] = await readCapturedBytes(file, spec.maxBytes);
       }
+      for (const [name, bytes] of Object.entries(records)) this.logs?.emit('session', { name, text: this.#redactor.redact(new TextDecoder().decode(bytes)) });
       this.#harness = this.adapter!.interpret({ task: this.#task, runner: this.#result, version: this.#version.actual!, stdout, records, redact: value => this.#redactor!.redact(value) });
     } catch { this.#diagnostics.push('HARNESS_INTERPRETATION_FAILED'); }
+    await this.#logResult();
+  }
+  async #logResult(): Promise<void> {
+    if (this.logs) {
+      this.logs.emit('capture', { capture: this.#result.capture, harness: this.#harness, diagnostics: this.#diagnostics });
+      const integrity = await this.logs.finish();
+      if (!integrity.complete) {
+        this.#diagnostics.push('LOG_CAPTURE_INCOMPLETE');
+        if (this.#harness) this.#harness = { ...this.#harness, status: 'failed', outcome: null, diagnostics: [...this.#harness.diagnostics, 'LOG_CAPTURE_INCOMPLETE'] };
+      }
+    }
   }
   async retryCleanup(): Promise<void> {
     const resource = this.#result.resource;

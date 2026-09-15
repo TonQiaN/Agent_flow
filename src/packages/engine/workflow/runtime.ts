@@ -22,6 +22,12 @@ interface Run {
   persistent: boolean; ready: boolean; writer: CheckpointWriter | null;
   nextAttempt: number; records:RunRecordStore|null; pendingParallel?:ParallelCheckpoint;
 }
+export interface WorkflowObservation {
+  readonly snapshot: WorkflowSnapshot;
+  readonly value: JsonValue;
+}
+/** Persistence for viewing only; it confers no recovery authority. */
+export type WorkflowObserver = (observation: WorkflowObservation) => Promise<void>;
 export interface WorkflowRunHandle { readonly completion: Promise<WorkflowSnapshot>; query(): WorkflowSnapshot; cancel(): boolean }
 export interface WorkflowPersistentRunHandle { readonly completion: Promise<WorkflowSnapshot>; query(): WorkflowSnapshot; cancel(): Promise<boolean> }
 export interface WorkflowResumedRunHandle extends WorkflowPersistentRunHandle { dispose(): Promise<void> }
@@ -34,7 +40,7 @@ const issuesValid = (issues: readonly WorkflowIssue[]): boolean => Array.isArray
 /** One serial execution path. Optional checkpoints persist facts without introducing another scheduler. */
 export class WorkflowRuntime {
   readonly #runs = new Map<string, Run>();
-  constructor(private readonly clock: { now(): number } = { now: () => Date.now() }) {}
+  constructor(private readonly clock: { now(): number } = { now: () => Date.now() }, private readonly observer?: WorkflowObserver) {}
   query(runId: string): WorkflowSnapshot { return snapshot(this.#require(runId).view); }
   cancel(runId: string): boolean {
     const run = this.#require(runId);
@@ -183,6 +189,7 @@ export class WorkflowRuntime {
     await this.#checkpoint(run); return true;
   }
   async #checkpoint(run: Run): Promise<void> {
+    await this.observer?.({ snapshot: snapshot(run.view), value: snapshot(run.value) });
     if (run.writer) await run.writer.write(run.view, { node: run.node, value: run.value, traversals: Object.fromEntries(run.traversals) });
   }
   async #execute(compiled: CompiledWorkflow, run: Run, yieldAfterNode = false): Promise<WorkflowSnapshot> {
@@ -201,6 +208,7 @@ export class WorkflowRuntime {
       return snapshot(run.view);
     };
     try {
+      if (this.observer) await this.#checkpoint(run);
       while (true) {
         if (run.view.cancelRequested && !run.pendingParallel) return end('cancelled', 'CANCEL_REQUESTED');
         if (run.steps.length >= plan.definition.maxSteps) return end('exhausted', 'MAX_STEPS_EXCEEDED');
