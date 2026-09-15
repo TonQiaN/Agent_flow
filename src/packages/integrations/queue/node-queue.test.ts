@@ -142,9 +142,11 @@ test('host startup failure releases capacity without creating an Attempt or auto
     assert.equal((await queue.claim('next', ['json'], 300))!.runId, 'b');
 });
 test('an unconfirmed later node never releases capacity using the previous accepted step', async (t) => {
-    const { queue } = await setup(t);
+    const { store } = await setup(t);
+    // Ownership retention is independent of wall-clock speed; expiry has its own tests.
+    const clock = { ...systemClock, now: () => 1000 }, queue = new PersistentNodeQueue(store, configuration, clock);
     await submit(queue, 'a');
-    const worker = () => new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'worker', ['json'], 300);
+    const worker = () => new NodeWorker(queue, { open: async () => application('shared') }, clock, 'worker', ['json'], 300);
     await worker().runOnce();
     const claim = (await queue.claim('next', ['json'], 300))!, row = (await queue.records().read('a'))!, c = structuredClone(row.content) as any;
     c.snapshot.status = 'failed';
