@@ -68,7 +68,7 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 
 [Runner 输入物化](runner-owned-input.md)：在已登记资源目录内准备 ArtifactStore 快照或空输入。
 
-[确定性 JSON 函数](deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通宿主函数仍须使用其实际支持的执行边界；完整 #13 交付仍待审阅合并。
+[确定性 JSON 函数](deterministic-functions.md)已接通版本/配置快照和无资源节点恢复；普通宿主函数仍须使用其实际支持的执行边界；#13 已合入的交付与验收入口见 [0.1.2 计划](../roadmap/0.1.2.md)。
 
 [批卷文件 Script](tutor-file-scripts.md)：复用现有 Runner 的 intake/Gate 绑定。
 

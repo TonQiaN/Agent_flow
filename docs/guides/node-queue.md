@@ -1,6 +1,6 @@
 # 单机 NodeTask 队列与 Worker
 
-本地队列已接通持久 Run、单节点执行和共同恢复接口。当前提供程序 API，已接通认证源预占与实际 Driver 调度绑定；PR 交付尚未完成。取舍见 [P-20260910-node-queue](../../.agents/decisions/product/README.md#p-20260910-node-queue)。
+本地队列已接通持久 Run、单节点执行和共同恢复接口。当前提供程序 API，已接通认证源预占与实际 Driver 调度绑定；已合入的交付及验收入口见 [0.1.2 计划](../roadmap/0.1.2.md)。取舍见 [P-20260910-node-queue](../../.agents/decisions/product/README.md#p-20260910-node-queue)。
 
 ## 准备与提交
 
