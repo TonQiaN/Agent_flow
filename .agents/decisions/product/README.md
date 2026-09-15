@@ -2,6 +2,10 @@
 
 以下 ID 是稳定引用入口；正文位置表达生命周期，具体确认与落实范围见正文及对应 Issue。
 
+## P-20260909-run-persistence
+
+[运行状态持久化与恢复协调分离](proposed/P-20260909-run-persistence.md)
+
 ## P-20260909-harness-adapter
 
 [Harness Adapter 只生成调用并解释执行证据](proposed/P-20260909-harness-adapter.md)
@@ -21,3 +25,15 @@
 ## P-20260905-initial-direction
 
 [启动会议的产品方向提炼候选](proposed/P-20260905-initial-direction.md)
+
+## P-20260910-node-queue
+
+[按 NodeTask 调度及原子归属校验](proposed/P-20260910-node-queue.md)
+
+## P-20260910-node-retries
+
+[同一 NodeTask 的有限重试与持久等待](proposed/P-20260910-node-retries.md)
+
+## P-20260910-json-parallel
+
+[单层 JSON Map/Fork 与持久汇合](proposed/P-20260910-json-parallel.md)

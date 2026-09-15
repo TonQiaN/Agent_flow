@@ -1,9 +1,9 @@
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
-import type { ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import { DefinitionError } from '../errors.js';
 import { copyJson } from '../json.js';
 import { Runner } from '../runner/runner.js';
-import type { Cancellation, CapturedFile, Clock, ExecutionBackend, RunnerResult } from '../runner/types.js';
+import type { Cancellation, CapturedFile, Clock, ExecutionBackend, RunnerResult, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '../runner/types.js';
 
 export const SCRIPT_RESULT_SCHEMA = 'agentflow-script-result/v1';
 export const SCRIPT_RESULT_MAX_BYTES = 65536;
@@ -82,7 +82,19 @@ export class ScriptExecutor {
       || !Number.isSafeInteger(d.timeoutMs) || d.timeoutMs < 1 || d.timeoutMs > 86400000 || !Array.isArray(d.outcomes)
       || !d.outcomes.length || d.outcomes.length > 32 || d.outcomes.some(id => !isIdentifier(id)) || new Set(d.outcomes).size !== d.outcomes.length) throw new DefinitionError('INVALID_SCRIPT_DEFINITION');
   }
-  async execute(request: ScriptRequest, cancellation: Cancellation = { requested: () => false }): Promise<ScriptAttempt> {
+  async definitionSnapshot(definition: ScriptDefinition): Promise<JsonValue> {
+    const saved = clone(definition); this.validate(saved);
+    return copyJson({ schema: 'agentflow-script-execution/v1', definition: saved, backend: await this.resourceDefinition() });
+  }
+  async resourceDefinition(): Promise<JsonValue> {
+    if (!this.backend.definition) throw new DefinitionError('EXECUTION_DEFINITION_UNAVAILABLE');
+    const backend = copyJson(await this.backend.definition());
+    if (backend === null || typeof backend !== 'object' || Array.isArray(backend) || typeof backend['schema'] !== 'string' || !backend['schema']) throw new DefinitionError('INVALID_EXECUTION_DEFINITION');
+    return backend;
+  }
+  /** Reinstall the actual backend's ownership for common recovery, never execute an old session. */
+  async restoreResource(record: RunnerResourceCheckpoint): Promise<RestoredRunnerResource> { return this.#runner.restore(record); }
+  async execute(request: ScriptRequest, cancellation: Cancellation = { requested: () => false }, persistence?: RunnerResourceSink): Promise<ScriptAttempt> {
     let r: ScriptRequest;
     try { r = clone(request); } catch { throw new DefinitionError('INVALID_SCRIPT_REQUEST'); }
     if (!r || Object.keys(r).sort().join(',') !== 'definition,identity,inputSource' || !isExecutionIdentity(r.identity)
@@ -91,7 +103,7 @@ export class ScriptExecutor {
     const key = identityKey(r.identity); if (this.#attempts.has(key)) throw new DefinitionError('DUPLICATE_SCRIPT_ATTEMPT'); this.#attempts.add(key);
     let facts: RunnerResult | null = null;
     const failed = (code: string): ScriptAttempt => new ScriptAttempt({ identity: r.identity, status: 'failed', code }, facts, this.backend);
-    try { facts = clone(await this.#runner.run({ identity: r.identity, inputSource: r.inputSource, invocation: { argv: r.definition.argv }, timeoutMs: r.definition.timeoutMs }, cancellation)); }
+    try { facts = clone(await this.#runner.run({ identity: r.identity, inputSource: r.inputSource, invocation: { argv: r.definition.argv }, timeoutMs: r.definition.timeoutMs }, cancellation, persistence)); }
     catch { return failed('SCRIPT_START_UNCONFIRMED'); }
     if (!isExecutionIdentity(facts.identity) || !sameIdentity(facts.identity, r.identity)) return failed('SCRIPT_IDENTITY_MISMATCH');
     if (facts.phase !== 'exited' || facts.exitCode !== 0 || facts.stop !== 'confirmed' || facts.cleanup !== 'removed' || !facts.resource || facts.diagnostics.length) return failed('SCRIPT_EXECUTION_FAILED');

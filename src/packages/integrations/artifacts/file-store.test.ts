@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, link, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, link, stat, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
@@ -10,6 +10,28 @@ import { FileArtifactStore, ArtifactError } from './file-store.js';
 
 const definition: FileContract = { rules: [{ id: 'bundle', kind: 'tree', match: 'bundle', minCount: 1, maxCount: 1,
   minFiles: 1, maxFiles: 5, maxBytes: 1024, mediaTypes: ['application/json'], jsonContract: 'json' }], maxFiles: 10, maxTotalBytes: 4096, unmatched: 'reject' };
+
+test('host snapshot budget supports full-resolution bundles while preserving default and contract limits', { timeout: 120000 }, async t => {
+  const root = await mkdtemp(join(tmpdir(), 'af-large-artifacts-')); t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, 'source'); await mkdir(join(source, 'bundle'), { recursive: true });
+  for (let i = 0; i < 5; i++) { const file = await open(join(source, 'bundle', `${i}.bin`), 'wx'); try { await file.truncate(54 * 1024 ** 2); } finally { await file.close(); } }
+  const contracts = new FileContractRegistry(new ContractRegistry());
+  const large = { rules: [{ id: 'data', kind: 'tree' as const, match: 'bundle', minCount: 1, maxCount: 1, minFiles: 5, maxFiles: 5, maxBytes: 300 * 1024 ** 2, mediaTypes: ['application/octet-stream'] }], maxFiles: 5, maxTotalBytes: 300 * 1024 ** 2, unmatched: 'reject' as const };
+  contracts.register('large', large); contracts.register('small', { ...large, maxTotalBytes: 256 * 1024 ** 2 });
+  const defaults = new FileArtifactStore(join(root, 'default'), contracts);
+  await assert.rejects(defaults.capture(source, 'large'), /INVALID_FILE/);
+  assert.deepEqual(await readdir(join(root, 'default')), []);
+  const options = { maxTotalBytes: 300 * 1024 ** 2 }, store = new FileArtifactStore(join(root, 'large'), contracts, options); options.maxTotalBytes = 1;
+  const captured = await store.capture(source, 'large');
+  assert.equal(captured.files.reduce((sum, file) => sum + file.bytes, 0), 270 * 1024 ** 2);
+  const receiving = new FileArtifactStore(join(root, 'receiving'), contracts, { maxTotalBytes: 300 * 1024 ** 2 });
+  const direct = await receiving.captureMaterialized({ materialize: destination => store.materialize(captured.id, destination) }, 'large');
+  assert.deepEqual(direct.files, captured.files);
+  await assert.rejects(store.capture(source, 'small'), /INVALID_FILE/);
+  await store.release(captured.id); await receiving.release(direct.id);
+  assert.deepEqual(await readdir(join(root, 'large')), []); assert.deepEqual(await readdir(join(root, 'receiving')), []);
+  for (const maxTotalBytes of [0, NaN, 1024 ** 3 + 1]) assert.throws(() => new FileArtifactStore(join(root, 'invalid'), contracts, { maxTotalBytes }), /INVALID_STORE_BYTE_BUDGET/);
+});
 async function fixture(t: { after(fn: () => Promise<void>): void }, contract: FileContract = definition) {
   const root = await mkdtemp(join(tmpdir(), 'af-artifacts-')); t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, 'outputs'); await mkdir(join(source, 'bundle', 'nested'), { recursive: true });
@@ -93,4 +115,13 @@ test('unclaimed empty helper directories are omitted, while declared empty trees
   const empty = await fixture(t, { ...definition, rules: [{ ...definition.rules[0]!, minFiles: 0 }] });
   await rm(join(empty.source, 'bundle/nested/answer.json'));
   const declared = await empty.store.capture(empty.source, 'files'); assert.deepEqual(declared.directories, ['bundle', 'bundle/nested']);
+});
+
+test('snapshot inspection only describes entries actually owned by this store and returns copies', async t => {
+  const f = await fixture(t), manifest = await f.store.capture(f.source, 'files');
+  const view = await f.store.inspect(manifest.id); (view.files[0] as { sha256: string }).sha256 = 'changed';
+  assert.deepEqual(await f.store.inspect(manifest.id), manifest);
+  const other = new FileArtifactStore(join(f.root, 'other'), f.store.contracts);
+  await assert.rejects(other.inspect(manifest.id), /UNKNOWN_SNAPSHOT/);
+  await f.store.release(manifest.id); await assert.rejects(f.store.inspect(manifest.id), /UNKNOWN_SNAPSHOT/);
 });

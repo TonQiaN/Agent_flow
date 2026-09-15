@@ -18,9 +18,10 @@ export class CodexAdapter implements HarnessAdapter {
     if (!isExecutionIdentity(task.identity) || typeof task.prompt !== 'string' || !task.prompt.trim() || task.prompt.includes('\0')
       || task.prompt.length > 64 * 1024 || Object.keys(task).some(key => !['identity', 'prompt', 'config', 'outcomes'].includes(key))) throw new Error('INVALID_HARNESS_TASK');
     const config = task.config;
-    if (!record(config) || Object.keys(config).some(key => !['model', 'reasoning', 'subagents', 'search'].includes(key))
+    if (!record(config) || Object.keys(config).some(key => !['model', 'reasoning', 'subagents', 'search', 'inputImages'].includes(key))
       || !validToken(config['model']) || config['subagents'] !== false || config['search'] !== false
       || config['reasoning'] !== undefined && !['low', 'medium', 'high', 'xhigh'].includes(String(config['reasoning']))) throw new Error('UNSUPPORTED_CODEX_CONFIGURATION');
+    const images = codexInputImages(config);
     if (task.outcomes !== undefined && (!Array.isArray(task.outcomes) || task.outcomes.length < 2 || task.outcomes.length > 32
       || !Array.from(task.outcomes).every(isIdentifier) || new Set(task.outcomes).size !== task.outcomes.length)) throw new Error('INVALID_HARNESS_OUTCOMES');
     const home = `${TASK_PATHS.state}/codex`;
@@ -41,6 +42,9 @@ export class CodexAdapter implements HarnessAdapter {
       configFiles.push({ name: 'outcome.schema.json', content: JSON.stringify({ type: 'object', properties: { outcome: { type: 'string', enum: [...task.outcomes] } }, required: ['outcome'], additionalProperties: false }) });
       argv.push('--output-schema', `${TASK_PATHS.config}/outcome.schema.json`);
     }
+    // Codex accepts one variadic image option, as used by Tutor's vision entrypoint.
+    // Repeating the flag could exceed Runner's 128-argument budget for valid image lists.
+    if (images.length) argv.push('--image', ...images.map(image => `${TASK_PATHS.input}/${image}`));
     // The separator prevents a user-owned prompt beginning with '-' from becoming an option.
     argv.push('--', task.prompt);
     return { harness: this.id, version: CODEX_VERSION, identity: identityOf(task.identity), argv: Object.freeze(argv), cwd: TASK_PATHS.work,
@@ -185,4 +189,14 @@ function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
   if (record(value)) return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`;
   return JSON.stringify(value);
+}
+
+/** Pure validation. Paths always refer to the task input copy, never host files. */
+export function codexInputImages(config: JsonValue): readonly string[] {
+  if (!record(config) || config['inputImages'] === undefined) return [];
+  const paths = config['inputImages'];
+  if (!Array.isArray(paths) || paths.length > 64 || new Set(paths).size !== paths.length
+    || Array.from(paths).some(path => typeof path !== 'string' || path.length > 1024
+      || !/^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:png|jpg|jpeg|webp)$/i.test(path))) throw new Error('INVALID_CODEX_INPUT_IMAGES');
+  return [...paths] as string[];
 }

@@ -55,7 +55,7 @@ test('compiler rejects invalid references, routes, contracts, reachability and b
 test('contract category participates in edge matching even when IDs are identical', () => {
   const f = fixture(); const catalog: WorkflowCatalog = { resolve(id) {
     const resolved = f.catalog.resolve(id); if (id === 'first') return resolved;
-    const executor: WorkflowNodeExecutor = { validate: c => f.catalog.validate(c), contract: id => ({ kind: 'files', id }), check: () => [], execute: (...args) => f.catalog.execute(...args) };
+    const executor: WorkflowNodeExecutor = { validate: c => f.catalog.validate(c), contract: id => ({ kind: 'files', id }), check: () => [], execute: (component, input, identity, cancellation) => f.catalog.execute(component, input, identity, cancellation) };
     return { component: resolved.component, executor };
   } };
   assert.throws(() => compileWorkflow(def(), catalog), /WORKFLOW_CONTRACT_MISMATCH/);

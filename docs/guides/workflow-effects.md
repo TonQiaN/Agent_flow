@@ -1,6 +1,6 @@
 # 模拟 Effect 与 Workflow
 
-Effect 用于受信业务动作，独立于 Agent Harness 和其认证。首期 `EffectExecutor` 实现进程内授权、操作占位、收据校验和幂等复用；`SimulatedEffectService` 只写内存，用于验证行为。当前没有真实业务服务接入或持久恢复。
+Effect 用于受信业务动作，独立于 Agent Harness 和其认证。首期 `EffectExecutor` 实现进程内授权、操作占位、收据校验和幂等复用；`SimulatedEffectService` 只写内存，用于验证行为。可选持久日志及固定操作的 apply Workflow 恢复已实现；动态映射和真实业务服务接入仍待完成。
 
 ## 定义与接入
 
@@ -39,7 +39,56 @@ Workflow 接入可在 `register` 中显式选择 `mode: 'apply'`，并安装 `ap
 
 `effects.query(key)` 返回私有记录的只读副本：请求标识、目标、业务身份、状态及已确认收据。不返回完整输入、授权对象或凭据。公开收据包含 schema、requestId、componentId、target、key、serviceIdentity、mode、status、reference。引擎核对上下文及对应出口 contract，拒绝模型或其他请求生成的“成功收据”。
 
-这不是跨进程数字签名或跨崩溃 exactly-once。记录只属于当前实例，不能用重建执行器、清空记录或简单重发解决 unknown。后续持久化工作需要结合目标服务事实提供恢复；当前没有解除 unknown 的 API。服务抛错一律保守处理，即使服务实际上在写入前因凭据不符而拒绝。
+未安装持久日志时，记录只属于当前实例。不能用重建执行器、清空记录或简单重发解决 unknown；当前没有解除 unknown 的 API。服务抛错一律保守处理，即使服务实际上在写入前因凭据不符而拒绝。持久日志也不是跨进程数字签名或任意服务的 exactly-once 保证。
+
+## 可选持久操作日志
+
+```ts
+const journal = await SqliteEffectRecordStore.open('/absolute/private/effect-journal');
+try {
+  const effects = new EffectExecutor(contracts, components, adapter, journal);
+  const approval = effects.authorize(request); // 仍由宿主根据明确业务权限决定。
+  const result = await effects.execute(request, approval);
+  const operation = await effects.queryDurable(request.key);
+} finally {
+  journal.close();
+}
+```
+
+`SqliteEffectRecordStore` 从 integrations 导出。使用明确的专用持久目录，不能使用每次启动新建的临时目录。命名空间身份由首次事务创建并在重开时保持；`persistenceIdentity()` 返回该非秘密身份，未安装日志返回 null。持久 Workflow 将该身份纳入实际安装一致性核对；换成新建的空日志不能恢复旧 Run。
+
+EffectRecordStore 与 RunRecordStore 的业务端口分开，本机底层复用 SQLite 的事务、完整性、WAL/FULL 同步和 CAS。逻辑 key 的存储行名使用哈希，避免与命名空间元数据冲突；引擎仍验证正文中的原 key，不把哈希当成认证。持久请求的 requestId 使用逻辑 key，独立于 Attempt；Component/实现、业务身份、目标和完整 JSON 输入须一致。输入含文件时，消费方仍须把实际文件摘要明确写入 JSON 输入。
+
+apply 消费授权后，先读取日志；已确认 applied 才可复用为 already-applied，仍需本次授权及当前 contract。不存在时先唯一创建 pending，再调用适配器，核对并 CAS 写入 applied 后才返回 accepted。创建冲突或不明返回 EFFECT_RESERVATION_UNCONFIRMED，不调用 apply；读取失败/损坏返回 EFFECT_RECORD_UNAVAILABLE。pending 一律返回 EFFECT_RESULT_UNKNOWN，不能根据宿主退出或存储中没有回执推断外部动作未发生。实际动作完成而日志提交失败同样返回 unknown；后续读取若发现 applied 已真正提交，才可复用。
+
+`queryDurable(key)` 是异步只读查询；pending 是持久不确定状态，不是进程仍存活的证明。原 query 只看当前实例的内存观测。日志不保存授权对象或业务凭据，不提供删除、解锁、导入回执或盲目重试。dry-run 不读写日志。取消在等待占位期间发生时阻止 apply，但已提交占位保留，后续仍保守视为未知。
+
+独立执行器的中断边界见[日志验证](../validation/2026-09-10-effect-journal.md)，实际 Workflow 恢复见下方。
+
+## 固定操作的持久 Workflow
+
+```ts
+catalog.register('publish', {
+  mode: 'apply',
+  operation: { target: 'workout-1', key: 'publication-1' },
+  approval: request => hostPolicy(request),
+});
+const run = await new WorkflowRuntime().startPersisted(compiled, runId, input, runStore);
+// 新进程按同一实际定义组装 compiled、Effect 日志和服务适配器。
+const recovery = await claimWorkflowRecovery(compiled, runId, runStore);
+await recovery.cleanup();
+const resumed = await new WorkflowRuntime().resumePersisted(recovery);
+```
+
+这是首个支持组合：apply、明确的固定 target/key、持久日志以及实际适配器的 `definition()`。该方法返回含 schema 的版本化 JSON，描述实际服务实现，不读取业务凭据、不执行外部动作。内存模拟服务已提供固定实现描述；其他服务须由其受信适配器提供真实描述，不另传一份无关配置冒充实现证据。快照保存固定操作、实际 implementation/serviceIdentity、适配器描述和日志命名空间身份；不保存授权对象或 approval 回调。实际定义、目标或日志身份改变时拒绝恢复。
+
+任意 operation 函数和 dry-run 继续支持普通运行；缺少可比较的实际定义时拒绝持久启动，在写 Run、请求授权或调用服务之前返回错误。固定描述在注册时复制，已编译方法和已安装适配器描述方法固定；调用方修改原对象不能改写已安装组合。此处固定 key 代表本逻辑操作，同一 Run 的新 Attempt 不更换它；新业务操作需要明确的新 key。
+
+严格加载器对已接纳 Effect 也签发一次性校验请求，由 Effect 适配层将前序输入、固定操作、outcome 和完整回执与持久日志核对。读操作不调用服务、不请求授权、不导入模型提交的回执；日志缺失、输入冲突或回执不符拒绝。已完成 A 保留，B 恢复使用同一 NodeTask 的新 Attempt。
+
+活动 Effect 在 Run CAS 认领之前只读检查日志。pending 返回 EFFECT_RESULT_UNKNOWN，保留原 Run；无占位或已有 applied 回执才进入共享正常恢复路径。初始只读检查不能代替并发约束，后续正常执行仍由唯一占位防止旧宿主和新 Attempt 双重 apply。已保存回执由普通 EffectExecutor 复用，仍须当前宿主明确授权；旧授权不会复活。迟到的旧 Run 写入与两个恢复者的竞争继续由同一 CAS 保护。
+
+这是操作回执核对，不是接管服务内部会话。没有外部结果核对能力时，未知操作仍阻塞；也没有声明任意服务 exactly-once。[实际 Workflow 验证](../validation/2026-09-10-effect-workflow.md)。
 
 ## 取消与控制
 

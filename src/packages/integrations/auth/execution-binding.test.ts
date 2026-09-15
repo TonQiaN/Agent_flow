@@ -34,7 +34,7 @@ test('binding holds one lease, keeps sources out of JSON and only commits after 
       await assert.rejects(f.store.acquire(credential), /CREDENTIAL_BUSY/);
     }
     const result = await f.binding.finish(proof({ phase: 'cancelled', exitCode: null }));
-    assert.equal(result.status, 'released'); assert.equal(result.refresh, 'updated'); assert.equal(result.credential.revision, 2);
+    assert.equal(result.status, 'released'); assert.equal(result.refresh, 'updated'); assert.equal(result.credential?.revision, 2);
     await assert.rejects(readFile(f.copy), { code: 'ENOENT' });
     const lease = await f.store.acquire(credential); assert.equal(await lease.readSecret(), 'fixture-refreshed'); await lease.release();
     assert.deepEqual(await f.binding.finish(proof()), result);
@@ -131,5 +131,21 @@ test('cleanup retry after a committed refresh does not replay the old revision; 
     const [first, second] = await Promise.all([binding.finish(proof()), binding.finish(proof())]);
     assert.equal(first.status, 'released'); assert.deepEqual(second, first); assert.equal(commits, 1);
     const lease = await f.store.acquire(credential); assert.equal(await lease.readSecret(), 'fixture-new'); await lease.release();
+  } finally { await f.cleanup(); }
+});
+
+test('binding accepts a hidden credential basename but never traversal or unowned parents', async () => {
+  const f = await fixture();
+  try {
+    await f.binding.abandon();
+    for (const stateFile of ['.', '..', '../auth', 'claude/../auth', '/claude/.credentials.json', 'claude//auth', 'claude/..credentials', 'claude/\\auth']) {
+      await assert.rejects(FileExecutionCredentialBinding.acquire(f.store, { identity, credential, stateFile, environment: {} }), /INVALID_CREDENTIAL_BINDING/);
+    }
+    const binding = await FileExecutionCredentialBinding.acquire(f.store, { identity, credential, stateFile: 'claude/.credentials.json', environment: { CLAUDE_CONFIG_DIR: '/task/state/claude' } });
+    await binding.prepare({ id: 'resource' }, f.state);
+    const file = join(f.state, 'claude/.credentials.json'); assert.equal((await stat(file)).mode & 0o777, 0o600);
+    await writeFile(file, 'fixture-refreshed'); assert.equal((await binding.finish(proof())).refresh, 'updated');
+    await assert.rejects(readFile(file), { code: 'ENOENT' });
+    const lease = await f.store.acquire(credential); assert.equal(await lease.readSecret(), 'fixture-refreshed'); await lease.release();
   } finally { await f.cleanup(); }
 });

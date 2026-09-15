@@ -34,3 +34,10 @@ export function copyJson(value: unknown, ancestors = new Set<object>()): JsonVal
     ancestors.delete(value);
   }
 }
+
+/** Deterministic comparison encoding; call after strict JSON snapshotting. */
+export function canonicalJson(value: JsonValue): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key]!)}`).join(',')}}`;
+  return JSON.stringify(value);
+}

@@ -46,7 +46,7 @@ test('Docker: credential copy refresh is finalized after nonzero, cancelled and 
       await assert.rejects(runner.release(run.resource!), /BINDING_NOT_FINALIZED/);
       await assert.rejects(store.acquire(credential), /CREDENTIAL_BUSY/);
       const final = await binding.finish(run);
-      assert.equal(final.status, 'released'); assert.equal(final.refresh, 'updated'); assert.equal(final.credential.revision, 2);
+      assert.equal(final.status, 'released'); assert.equal(final.refresh, 'updated'); assert.equal(final.credential?.revision, 2);
       const lease = await store.acquire(credential); assert.equal(await lease.readSecret(), 'fixture-refreshed'); await lease.release();
       const raw = await readFile(run.capture!.stdout.path, 'utf8'); assert.equal(raw, '');
       assert.ok(!JSON.stringify({ run, final, binding }).includes('fixture-refreshed'));
