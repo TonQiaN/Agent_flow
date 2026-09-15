@@ -30,7 +30,7 @@ Roadmap 放在 docs/roadmap：README.md 展示阶段边界、版本、核心目�
 
 ## 影响与验证
 
-新增 roadmap、CHANGELOG 和 [版本维护指南](../../../../docs/development/versioning.md)，同步开发流程、PR 模板和文档入口。规划的存放边界由 [分层决定](../README.md#d-20260907-documentation-layers) 管理；根指令的入口书写沿用 [唯一书写决定](../README.md#d-20260907-agents-writing)。本决定不共同负责 AGENTS.md。
+新增 roadmap、CHANGELOG 和 [版本维护指南](../../../../docs/development/versioning.md)，同步开发流程、PR 模板和文档入口。规划的存放边界由 [分层决定](../README.md#d-20260907-documentation-layers) 管理；根指令的入口书写沿用 [根入口书写决定](../README.md#d-20260910-root-agents-writing)。本决定不共同负责 AGENTS.md。
 
 本决定的落实范围仅为管理文档骨架。目录与入口、计划和现实的区分、维护时点、发布提交与 tag 的对应关系、链接及事实一致性已核对，见 [版本管理骨架验证](../../../../docs/validation/2026-09-08-version-management.md)。实际发布尚未演练，不以静态检查冒充发布成功；未来首次发布另行记录验证。
 
@@ -42,3 +42,4 @@ Roadmap 放在 docs/roadmap：README.md 展示阶段边界、版本、核心目�
 
 - 2026-09-08：用户在讨论目录组织和维护方式后要求创建 [Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4)，随后明确授权实现并提交 PR。确认范围为最小版本管理骨架，首发安排和具体产品验收不在本次范围。
 - Codex 按该范围整理、实施和自查；实际验证留在验证记录与 PR，未进行其他开发者独立审阅，不创建发布 tag。
+- 2026-09-14：按用户确认的 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20) R4 修复方案，将当前根入口负责引用修正为 D-20260910-root-agents-writing，反映 2026-09-10 已完成的归属迁移；历史记录及版本管理取舍不变。Codex 自查，未新增其他开发者审阅。
