@@ -9,7 +9,7 @@ export type ClaudeRunRequest = CredentialRunRequest<ClaudeSubscriptionProfile>;
 export type ClaudeExecutionResult = CredentialExecutionResult;
 
 export class ClaudeSubscriptionRunner extends CredentialHarnessRunner<ClaudeSubscriptionProfile> {
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }) {
+  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }) {
     super(store, options, {
       binding: 'exclusive',
       resourceEnvironment: { CLAUDE_CONFIG_DIR: '/task/state/claude' },

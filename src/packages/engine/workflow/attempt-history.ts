@@ -19,7 +19,7 @@ export function validateAttemptHistory(attempts: readonly WorkflowAttemptCheckpo
   let number = 1, open: WorkflowAttemptCheckpoint | null = null;
   for (const [index, attempt] of attempts.entries()) {
     valid(attempt && typeof attempt === 'object' && !Array.isArray(attempt)
-      && Object.keys(attempt).sort().join(',') === ['identity','interrupted','launch','node','resource','resultStep', ...(Object.hasOwn(attempt, 'phases') ? ['phases'] : []), ...(Object.hasOwn(attempt, 'retry') ? ['retry'] : [])].sort().join(',')
+      && Object.keys(attempt).sort().join(',') === ['identity','interrupted','launch','node','resource','resultStep', ...(Object.hasOwn(attempt, 'phases') ? ['phases'] : []), ...(Object.hasOwn(attempt, 'retry') ? ['retry'] : []), ...(Object.hasOwn(attempt, 'parallel') ? ['parallel'] : [])].sort().join(',')
       && typeof attempt.node === 'string' && typeof attempt.interrupted === 'boolean'
       && equal(attempt.identity, workflowAttemptIdentity(runId, completed.length + 1, number)));
     positions.push(completed.length);
@@ -29,6 +29,7 @@ export function validateAttemptHistory(attempts: readonly WorkflowAttemptCheckpo
       valid(equal(resource.identity, attempt.identity) && !resources.has(resource.resource.id)); resources.add(resource.resource.id);
       valid(attempt.launch !== null && runnerLaunchStates.includes(attempt.launch));
     } else valid(attempt.launch === null);
+    if(attempt.parallel!==undefined)valid(!attempt.retry&&!attempt.interrupted&&attempt.resource===null&&attempt.phases===undefined);
     if (attempt.retry !== undefined) {
       valid(attempt.resultStep === null && !attempt.launch?.endsWith('_pending') && !phaseUnconfirmed(attempt.phases));
       number++; valid(Number.isSafeInteger(number));

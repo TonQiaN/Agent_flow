@@ -1,3 +1,4 @@
+import type { ParallelExpansion } from '../parallel/types.js';
 import type { RetryPolicy } from '../retry/policy.js';
 import type { AgentDispatchBinding } from '../auth/types.js';
 import type { InvocationResourcePlan, InvocationPhaseSink } from './phases.js';
@@ -29,6 +30,7 @@ export type WorkflowNodeResult = { readonly identity: ExecutionIdentity; readonl
   | { readonly status: 'failed'; readonly code: string; readonly stopped: boolean; readonly issues: readonly WorkflowIssue[] });
 /** Installed trusted code. A settled accepted result guarantees execution ended. */
 export interface WorkflowNodeExecutor {
+  parallel?(component: ComponentDefinition, input: JsonValue): ParallelExpansion;
   validate(component: ComponentDefinition): void;
   dispatchBinding?(component: ComponentDefinition): AgentDispatchBinding | undefined;
   contract(id: string): WorkflowContract;
@@ -66,7 +68,7 @@ export interface WorkflowSnapshot {
   readonly retry?: { readonly nodeTaskId: string; readonly attemptNumber: number; readonly code: string; readonly nextAt: number };
   readonly runId: string;
   readonly workflowId: string;
-  readonly status: 'queued' | 'running' | 'cancelling' | 'retry_wait' | 'succeeded' | 'failed' | 'cancelled' | 'exhausted';
+  readonly status: 'queued' | 'running' | 'cancelling' | 'retry_wait' | 'parallel_wait' | 'succeeded' | 'failed' | 'cancelled' | 'exhausted';
   readonly currentNode: string | null;
   readonly currentIdentity: ExecutionIdentity | null;
   readonly cancelRequested: boolean;

@@ -46,3 +46,7 @@ Agent 的跨 Gate 来源由 Workflow receipt 连接。适配器先从私有快�
 取消仍由 Workflow 控制；可信函数只能合作结束。已完成并接纳的步骤可能在最终 cancelled Run 的 lastAccepted 中保留，调用方同样须管理其文件生命周期。未知执行停止状态保留为 failed/EXECUTION_STOP_UNCONFIRMED。
 
 合成驱动测试覆盖 Agent → Gate → Fixer → Gate；同一应用的 [真实 Codex 合成材料验收](tutor-grading-codex.md) 已独立通过，两类证据分别记录。参见 [验证记录](../validation/2026-09-09-workflow-files.md) 与 [串行控制](workflow.md)。
+
+FileArtifactStore 可由受信宿主传入第三个参数 `{ maxTotalBytes }`，默认 256 MiB、上限 1 GiB，始终和 contract 总量取较小值；单文件仍为 64 MiB、JSON 为 1 MiB。此选项同时覆盖普通复制和直接物化捕获，不改变 FileArtifactArchive 的 256 MiB 限额。DockerBackend 的独立 maxInputBytes 也须足以容纳下游输入，默认 256 MiB、上限 1 GiB，保存于执行定义；业务 Agent 不能自行提升预算。
+
+Docker 默认预算沿用旧执行定义的隐含表示；显式配置同一默认值也保持原定义。只有非默认预算增加 maxInputBytes 字段并参与恢复比对，不能在恢复时更换预算。

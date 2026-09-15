@@ -65,14 +65,14 @@ export interface CredentialRunPersistence {
 /** Environment composition. Engine Runner and the pure Adapter have no provider-auth branches. */
 export class CredentialHarnessRunner<P extends CredentialIdentity> {
   readonly #store: CredentialStore;
-  readonly #options: { workspaceRoot: string; image: string; proxyImage: string };
+  readonly #options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number };
   readonly #recipe: CredentialRecipe<P>;
   readonly #executionDefinitions = new Map<string, Promise<JsonValue>>();
   #started = false;
   #images: { image: string; proxyImage: string } | undefined;
   #imagesPending: Promise<{ image: string; proxyImage: string }> | undefined;
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string }, recipe: CredentialRecipe<P>) {
-    if (!options || Object.keys(options).sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
+  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }, recipe: CredentialRecipe<P>) {
+    if (!options || Object.keys(options).filter(key => key !== 'maxInputBytes').sort().join(',') !== 'image,proxyImage,workspaceRoot') throw new Error('INVALID_SUBSCRIPTION_RUNNER');
     this.#recipe = Object.freeze({ ...recipe, hosts: Object.freeze([...recipe.hosts]), versionCommand: Object.freeze([...recipe.versionCommand]),
       ...(recipe.resourceEnvironment ? { resourceEnvironment: Object.freeze({ ...recipe.resourceEnvironment }) } : {}),
       ...(recipe.systemConfigMounts ? { systemConfigMounts: Object.freeze(recipe.systemConfigMounts.map(m => Object.freeze({ ...m }))) } : {}) });
@@ -83,6 +83,7 @@ export class CredentialHarnessRunner<P extends CredentialIdentity> {
   }
   #backendOptions(image: string, proxyImage: string): DockerOptions {
     return { workspaceRoot: this.#options.workspaceRoot, image, sandbox: 'nested-userns-v1',
+      ...(this.#options.maxInputBytes === undefined ? {} : { maxInputBytes: this.#options.maxInputBytes }),
       ...(this.#recipe.memoryMiB ? { memoryMiB: this.#recipe.memoryMiB } : {}),
       ...(this.#recipe.systemConfigMounts ? { systemConfigMounts: this.#recipe.systemConfigMounts } : {}),
       network: { kind: 'connect-proxy', proxyImage, allowedHosts: this.#recipe.hosts } };

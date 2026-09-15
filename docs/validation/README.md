@@ -1,5 +1,9 @@
 # 验证记录
 
+- [Tutor 报告消费端](2026-09-10-tutor-report-consumer.md)：真实业务 validator/renderer、合成扫描页及三页 A3 PDF。
+
+- [JSON Map/Fork 作者验收](2026-09-10-json-parallel.md)：有序汇合、共享容量、部分恢复与真实 Docker 隔离。
+
 - [Codex 临时元数据权限与启动](2026-09-09-codex-startup.md)
 
 这里记录实际执行的项目验证：对象和版本/范围、环境与方法、结果、限制及关联决定。大体积输出不必原样复制，但关键证据和结论必须在正式记录中自足。
@@ -43,7 +47,7 @@
 | 2026-09-07 | [文档管理骨架验证](2026-09-07-documentation-foundation.md) |
 | 2026-09-07 | [开发流程文档与模板验证](2026-09-07-development-workflow.md) |
 
-当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow、文件到 JSON 转换及 Tutor 合成 Agent/Gate/Fixer/模拟 Effect 闭环；真实批卷、报告和 PDF 验收仍未完成。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
+当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow、文件到 JSON 转换及 Tutor 合成 Agent/Gate/Fixer/模拟 Effect 闭环；真实 Codex 已完成一份学生样本的分阶段批卷、报告和18页 PDF 验收，具体范围见多页学生记录。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
 
 - [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
 
@@ -124,3 +128,9 @@
 [单机队列与 Worker 验证](2026-09-10-node-queue.md)：多进程容量竞争、实际迟到写入与 Docker 失联恢复；包含认证源预占、实际 Driver 绑定及联合恢复验收。
 
 - [节点有限重试与持久等待](2026-09-10-node-retries.md)
+
+- [2026-09-10 Tutor 扫描件批改与报告串接](2026-09-10-tutor-scanned-marking.md)：合成来源、复核哈希/质量、用户返修和 PDF。
+
+- [Codex 初始图片执行验证](2026-09-10-codex-input-images.md)：参数、manifest、既有 Docker 组合及真实扫描件尝试。
+
+- [多页学生输入接线](2026-09-10-tutor-student-input.md)：显式材料与预算、准备失败收尾、存储/容器及完整消费端回归；已完成真实 Codex 整卷、独立复核、报告单独续跑及18页 PDF 验收。

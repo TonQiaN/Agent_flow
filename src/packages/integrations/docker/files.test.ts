@@ -54,4 +54,11 @@ test('Docker configuration explicitly rejects unsupported network, root and unbo
   assert.throws(() => new DockerBackend({ ...options, sandbox: 'unconfined' as 'standard' }), /INVALID_DOCKER_OPTIONS/);
   assert.throws(() => new DockerBackend({ ...options, uid: 0 }), /INVALID_DOCKER_OPTIONS/);
   assert.throws(() => new DockerBackend({ ...options, logBytes: Infinity }), /INVALID_DOCKER_OPTIONS/);
+  for (const maxInputBytes of [0, NaN, 1024 ** 3 + 1]) assert.throws(() => new DockerBackend({ ...options, maxInputBytes }), /INVALID_DOCKER_OPTIONS/);
+  const large = new DockerBackend({ ...options, maxInputBytes: 640 * 1024 ** 2 });
+  assert.equal((large.configurationSnapshot() as any).options.maxInputBytes, 640 * 1024 ** 2);
+  const implicit = new DockerBackend(options).configurationSnapshot();
+  assert.equal(Object.hasOwn((implicit as any).options, 'maxInputBytes'), false);
+  assert.deepEqual(new DockerBackend({ ...options, maxInputBytes: 256 * 1024 ** 2 }).configurationSnapshot(), implicit);
+  assert.notDeepEqual(large.configurationSnapshot(), implicit);
 });

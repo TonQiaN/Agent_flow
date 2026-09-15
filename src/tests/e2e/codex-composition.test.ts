@@ -82,6 +82,17 @@ test('Codex composition: synthetic executable exercises version, binding, refres
         maxFiles: 1, maxTotalBytes: 1024, unmatched: 'reject',
       });
       const artifacts = new FileArtifactStore(join(root, 'artifacts'), files);
+      const limited = new CodexSubscriptionRunner(store, { workspaceRoot: join(root, 'limited'), image: tag, proxyImage: 'node:22-bookworm-slim', maxInputBytes: 1 });
+      const limitedDriver = new CodexAgentDriver(limited, artifacts, profile, { timeoutMs: 10000 });
+      const tooLarge = await new AgentExecutor(files, artifacts, limitedDriver).execute({ componentId: 'sum', identity: { runId: 'prepare-failed', nodeTaskId: 'sum', attemptId: 'first', attemptNumber: 1 },
+        prompt: 'never starts', config: { model: 'fixture-model', subagents: false, search: false }, input: { source: input, contractId: 'input' }, outcomes: { completed: 'answer' } });
+      assert.equal(tooLarge.result.status, 'failed');
+      assert.equal(tooLarge.executionFacts()?.finalized, true);
+      assert.equal(tooLarge.executionFacts()?.runner.exitCode, null);
+      assert.ok(tooLarge.executionFacts()?.runner.diagnostics.includes('PREPARE_FAILED'));
+      await tooLarge.retryCleanup(); await tooLarge.releaseExecution();
+      assert.deepEqual(await readdir(join(root, 'limited')), []);
+      const available = await store.acquire(credential); await available.release();
       const driver = new CodexAgentDriver(runtime, artifacts, { id: 'test', ...credential, service: 'openai', method: 'subscription', endpoint: 'official', capacity: 1 },
         { timeoutMs: 10_000 });
       const coordinator = new AgentExecutor(files, artifacts, driver);

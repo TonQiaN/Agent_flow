@@ -1,4 +1,4 @@
-import type { JsonValue } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 
 /** Storage envelope only. The engine owns versioned content, history and recovery semantics. */
 export interface RunRecord {
@@ -6,7 +6,12 @@ export interface RunRecord {
   readonly revision: number;
   readonly content: JsonValue;
 }
+export interface ParallelRecordPort {
+  childRunId(parent: ExecutionIdentity, index: number): string;
+  expand(runId: string, expectedRevision: number, content: JsonValue, children: readonly {runId:string;content:JsonValue}[]): Promise<RunRecord>;
+}
 export interface RunRecordStore {
+  readonly parallel?: ParallelRecordPort;
   create(runId: string, content: JsonValue): Promise<RunRecord>;
   read(runId: string): Promise<RunRecord | null>;
   compareAndSwap(runId: string, expectedRevision: number, content: JsonValue): Promise<RunRecord>;

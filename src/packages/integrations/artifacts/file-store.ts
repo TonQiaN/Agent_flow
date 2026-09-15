@@ -2,23 +2,25 @@ import { isAbsolute } from 'node:path';
 import { rm } from 'node:fs/promises';
 import { ArtifactError, FileContractRegistry } from '@agentflow/engine';
 import type { ArtifactMaterializer, ArtifactStore, FileManifest } from '@agentflow/engine';
-import { captureSnapshot, materializeSnapshot } from './snapshot-io.js';
+import { captureSnapshot, materializeSnapshot, snapshotByteBudget } from './snapshot-io.js';
 import type { StoredSnapshot } from './snapshot-io.js';
 export { ArtifactError } from '@agentflow/engine';
 
 /** Host-owned, process-local snapshots. Call only after all source writers have stopped. */
 export class FileArtifactStore implements ArtifactStore {
   readonly #snapshots = new Map<string, StoredSnapshot>();
-  constructor(readonly root: string, readonly contracts: FileContractRegistry) {
+  readonly #maxTotalBytes: number;
+  constructor(readonly root: string, readonly contracts: FileContractRegistry, options: { maxTotalBytes?: number } = {}) {
     if (!isAbsolute(root)) throw new ArtifactError('INVALID_STORE_ROOT');
+    this.#maxTotalBytes = snapshotByteBudget(options.maxTotalBytes);
   }
   async capture(source: string, contractId: string): Promise<FileManifest> {
-    const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId);
+    const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId, this.#maxTotalBytes);
     this.#snapshots.set(snapshot.manifest.id, snapshot);
     return structuredClone(snapshot.manifest);
   }
   async captureMaterialized(source: ArtifactMaterializer, contractId: string): Promise<FileManifest> {
-    const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId);
+    const snapshot = await captureSnapshot(this.root, this.contracts, source, contractId, this.#maxTotalBytes);
     this.#snapshots.set(snapshot.manifest.id, snapshot);
     return structuredClone(snapshot.manifest);
   }

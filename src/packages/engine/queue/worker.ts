@@ -40,13 +40,19 @@ export class NodeWorker {
         worker: string;
         state: 'idle' | 'working' | 'draining' | 'stopped';
     } { return { worker: this.worker, state: this.#stopping ? (this.#busy ? 'draining' : 'stopped') : (this.#busy ? 'working' : 'idle') }; }
+    async #cancelActive():Promise<void> {
+        const view=this.#active?.query();
+        if(!view || ['retry_wait','parallel_wait','succeeded','failed','cancelled','exhausted'].includes(view.status)
+          || view.status==='cancelling'&&view.currentIdentity===null)return;
+        await this.#active!.cancel();
+    }
     async stop(mode: 'drain' | 'cancel' = 'drain'): Promise<void> {
         if (mode !== 'drain' && mode !== 'cancel')
             throw new DefinitionError('INVALID_WORKER_STOP');
         this.#stopping = true;
         if (mode === 'cancel') {
             this.#cancel = true;
-            await this.#active?.cancel();
+            await this.#cancelActive();
         }
     }
     async runOnce(): Promise<NodeWorkerResult | null> {
@@ -69,10 +75,14 @@ export class NodeWorker {
                     try {
                         if (!await this.queue.heartbeat(selected, this.leaseMs))
                             break;
+                        if(await this.queue.cancellationRequested?.(selected))await this.#cancelActive();
                     }
                     catch {
+                        const view=this.#active?.query();
+                        // A completed/waiting node may release ownership between heartbeat and the cancellation read.
+                        if(view&&(['retry_wait','parallel_wait','succeeded','failed','cancelled','exhausted'].includes(view.status)||view.status==='cancelling'&&view.currentIdentity===null))break;
                         lost = true;
-                        await this.#active?.cancel().catch(() => { });
+                        await this.#cancelActive().catch(() => { });
                         break;
                     }
                 }
@@ -100,12 +110,13 @@ export class NodeWorker {
                 await this.queue.waitForCredential(selected);
                 return { claim, snapshot: null, error: null, waiting: 'CREDENTIAL_SOURCE_BUSY' };
             }
-            this.#active = await opened.runtime.resumePersistedNode(recovery);
+            this.#active = await opened.runtime.resumePersistedNode(recovery,this.#cancel||await this.queue.cancellationRequested?.(selected)===true);
             if (this.#cancel)
-                await this.#active.cancel();
+                await this.#cancelActive();
             snapshot = await this.#active.completion;
             await opened.admission?.release();
             const task = (await this.queue.query()).find(t => t.key === selected.key);
+            if ((snapshot.status === 'parallel_wait'||snapshot.status==='cancelling') && ['waiting','ready'].includes(task?.state??'')) return {claim,snapshot,error:null,waiting:'PARALLEL_WAIT'};
             if (snapshot.status === 'retry_wait' && task?.state === 'ready') return { claim, snapshot, error: null, waiting: 'RETRY_WAIT' };
             if (task?.state !== 'done') {
                 await this.queue.block(selected, 'WORKER_RESULT_UNCONFIRMED');

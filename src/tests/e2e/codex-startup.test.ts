@@ -22,8 +22,11 @@ test('Codex: actual exec initializes single and structured tasks with empty or e
           await mkdir(join(input, '.agents'));
           await writeFile(join(input, '.agents/task.txt'), 'user-owned metadata');
         }
+        const inputImages = !existing && !structured ? Array.from({ length: 64 }, (_, i) => `page-${i}.png`) : [];
+        const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+        for (const name of inputImages) await writeFile(join(input, name), pixel);
         const identity = { runId: 'startup', nodeTaskId: id, attemptId: 'first', attemptNumber: 1 };
-        const plan = new CodexAdapter().plan({ identity, prompt: 'Say OK.', config: { model: 'gpt-5.6-sol', subagents: false, search: false },
+        const plan = new CodexAdapter().plan({ identity, prompt: 'Say OK.', config: { model: 'gpt-5.6-sol', subagents: false, search: false, inputImages },
           ...(structured ? { outcomes: ['accepted', 'rejected'] } : {}) });
         const backend = new DockerBackend({ workspaceRoot: join(root, 'attempts'), image: imageId, sandbox: 'nested-userns-v1' });
         const runner = new Runner(backend, systemClock);

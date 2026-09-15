@@ -1,3 +1,4 @@
+import {parallelMetadata,parallelEqual} from '../parallel/metadata.js';
 import { decideRetry } from '../retry/policy.js';
 import { assertPhasePlan, phaseUnconfirmed, invocationPlanFor } from './phases.js';
 import { isIdentifier } from '@agentflow/domain';
@@ -29,7 +30,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
   valid(c.schema === 'agentflow-workflow-checkpoint/v5' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted', ...(object(v) && Object.hasOwn(v, 'retry') ? ['retry'] : [])]));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
-    && ['queued', 'running', 'cancelling', 'retry_wait', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
+    && ['queued', 'running', 'cancelling', 'retry_wait', 'parallel_wait', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
     && v.steps.length <= plan.definition.maxSteps && Array.isArray(v.limits) && issues(v.issues));
   valid(Array.isArray(c.values) && c.values.length >= 1 && c.values.length <= plan.definition.maxSteps + 1);
@@ -108,7 +109,7 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   } else valid(!Object.hasOwn(v, 'retry'));
   const active = v.currentIdentity !== null && !failed;
   const cancelledPending = v.status === 'cancelled' && !failed && !terminal && v.steps.length < plan.definition.maxSteps;
-  valid(active ? !!history.open : !history.open || cancelledPending);
+  valid(active ? !!history.open : !history.open || cancelledPending || v.status==='parallel_wait'&&!!history.open?.parallel || v.status==='cancelling'&&!!history.open?.parallel);
   for (const [index, attempt] of c.attempts.entries()) {
     valid(attempt.node === (v.steps[history.positions[index]!]?.node ?? node));
     const binding = plan.bindings.get(attempt.node)!;
@@ -140,7 +141,7 @@ export interface LoadedWorkflowCheckpoint {
   dispose(): Promise<void>;
 }
 /** Loads facts and independent files. Never calls execute, writes Run state, or queries/stops a container. */
-export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: string, store: Pick<RunRecordStore, 'read'>): Promise<LoadedWorkflowCheckpoint> {
+export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: string, store: Pick<RunRecordStore, 'read'|'parallel'>): Promise<LoadedWorkflowCheckpoint> {
   if (!isIdentifier(runId)) throw new DefinitionError('INVALID_RUN_ID');
   const result = await store.read(runId); if (!result) throw new DefinitionError('RUN_NOT_FOUND');
   let record: typeof result;
@@ -151,11 +152,18 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   try { validated = validate(compiled, runId, unwrapped.record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   const { checkpoint, requests } = validated;
   if (unwrapped.recovery) {
-    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted && !last.retry ? last : null;
-    if (!['queued', 'running', 'retry_wait'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
+    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted && !last.retry && !last.parallel ? last : null;
+    if (!['queued', 'running', 'retry_wait', 'parallel_wait',...(last?.parallel?['cancelling']:[])].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested && !last?.parallel
       || active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases) || !active?.resource && !active?.phases?.some(p => p.resource) && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
   }
   await assertWorkflowExecutionMatches(compiled, checkpoint.execution);
+  for(const attempt of checkpoint.attempts)if(attempt.parallel){
+    const binding=getPlan(compiled).bindings.get(attempt.node)!,position=Number(attempt.identity.nodeTaskId.slice(5))-1;
+    valid(binding.executor.parallel&&store.parallel&&checkpoint.values[position]);
+    const expansion=binding.executor.parallel(snapshot(binding.component),snapshot(checkpoint.values[position]!.value));
+    valid(parallelEqual(attempt.parallel,parallelMetadata(expansion,attempt.identity,store.parallel)));
+  }
+  if(checkpoint.snapshot.status==='parallel_wait')valid(!!checkpoint.attempts.at(-1)?.parallel&&checkpoint.attempts.at(-1)?.resultStep===null&&checkpoint.snapshot.currentIdentity===null);
   const definitions = new Map<string, JsonValue>();
   for (const attempt of checkpoint.attempts) if (attempt.resource !== null) {
     const binding = getPlan(compiled).bindings.get(attempt.node)!;
