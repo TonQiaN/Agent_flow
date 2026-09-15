@@ -6,7 +6,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { isIdentifier } from '@agentflow/domain';
 import type { JsonValue } from '@agentflow/domain';
 import { RunStoreError, snapshotJson } from '@agentflow/engine';
-import type { RunRecord, RunRecordStore } from '@agentflow/engine';
+import type { RunRecord, AtomicRunRecordStore } from '@agentflow/engine';
 
 const application = 1095124785, version = 1, limit = 16 * 1024 * 1024;
 const schema = 'CREATE TABLE run_records (run_id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision > 0), payload TEXT NOT NULL, digest TEXT NOT NULL) WITHOUT ROWID';
@@ -27,7 +27,7 @@ async function privatePath(path: string, directory: boolean, absent = false): Pr
 }
 
 /** Single-host state storage. No executor, credentials, artifacts or Docker operations. */
-export class SqliteRunRecordStore implements RunRecordStore {
+export class SqliteRunRecordStore implements AtomicRunRecordStore {
   #closed = false;
   readonly #database: DatabaseSync;
   private constructor(readonly root: string, database: DatabaseSync) { this.#database = database; }
@@ -107,6 +107,29 @@ export class SqliteRunRecordStore implements RunRecordStore {
         .run(revision, payload, checksum(runId, revision, payload), runId, expectedRevision);
       if (result.changes !== 1) throw new RunStoreError('RUN_REVISION_CONFLICT');
       return { runId, revision, content: JSON.parse(payload) as JsonValue };
+    }); } catch (error) { throw mapped(error); }
+  }
+  async commitRecords(checks: readonly { runId: string; revision: number | null }[], writes: readonly { runId: string; content: JsonValue }[]): Promise<readonly RunRecord[]> {
+    if (!Array.isArray(checks) || !checks.length || checks.length > 64 || !Array.isArray(writes) || !writes.length || writes.length > checks.length
+      || new Set(checks.map(c => c.runId)).size !== checks.length || new Set(writes.map(w => w.runId)).size !== writes.length) throw new RunStoreError('INVALID_RUN_RECORD');
+    const expected = new Map<string, number | null>();
+    for (const check of checks) {
+      id(check.runId);
+      if (check.revision !== null && (!Number.isSafeInteger(check.revision) || check.revision < 1 || check.revision >= Number.MAX_SAFE_INTEGER)) throw new RunStoreError('INVALID_RUN_RECORD');
+      expected.set(check.runId, check.revision);
+    }
+    const payloads = writes.map(write => {
+      if (!expected.has(write.runId)) throw new RunStoreError('INVALID_RUN_RECORD');
+      return { runId: write.runId, payload: encode(write.content) };
+    });
+    try { return this.#transaction(() => {
+      for (const [runId, revision] of expected) if ((this.#load(runId)?.revision ?? null) !== revision) throw new RunStoreError('RUN_REVISION_CONFLICT');
+      return payloads.map(({ runId, payload }) => {
+        const revision = (expected.get(runId) ?? 0) + 1;
+        this.#database.prepare('INSERT INTO run_records (run_id, revision, payload, digest) VALUES (?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,digest=excluded.digest')
+          .run(runId, revision, payload, checksum(runId, revision, payload));
+        return { runId, revision, content: JSON.parse(payload) as JsonValue };
+      });
     }); } catch (error) { throw mapped(error); }
   }
   close(): void { if (this.#closed) return; try { this.#database.close(); this.#closed = true; } catch (error) { throw mapped(error); } }

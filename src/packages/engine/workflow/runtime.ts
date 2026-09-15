@@ -63,17 +63,30 @@ export class WorkflowRuntime {
   }
   /** Start a new durable Run; use resumePersisted with a claimed recovery handle to continue one. */
   async startPersisted(compiled: CompiledWorkflow, runId: string, input: JsonValue, store: RunRecordStore): Promise<WorkflowPersistentRunHandle> {
+    await this.preparePersisted(compiled, runId, input, store);
+    const run = this.#require(runId);
+    const completion = Promise.resolve().then(() => this.#execute(compiled, run));
+    return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancelPersisted(runId) });
+  }
+  /** Save the initial input and ready position without executing an Attempt. */
+  async preparePersisted(compiled: CompiledWorkflow, runId: string, input: JsonValue, store: RunRecordStore): Promise<WorkflowSnapshot> {
     const run = this.#create(compiled, runId, input, true), plan = getPlan(compiled);
     try {
       run.writer = await CheckpointWriter.prepare(compiled, runId, store);
       run.writer.acceptValue(await run.writer.saveValue(plan.definition.start, plan.definition.input, run.value));
       await this.#checkpoint(run); run.ready = true;
     } catch (error) { this.#runs.delete(runId); throw error; }
-    const completion = Promise.resolve().then(() => this.#execute(compiled, run));
-    return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancelPersisted(runId) });
+    return this.query(runId);
   }
   /** Consume actual recovery ownership and reuse the normal execution loop with a new Attempt. */
   async resumePersisted(recovery: WorkflowRecoveryHandle): Promise<WorkflowResumedRunHandle> {
+    return this.#resume(recovery, false);
+  }
+  /** A Worker returns after one node; normal acceptance and routing still own the successor. */
+  async resumePersistedNode(recovery: WorkflowRecoveryHandle): Promise<WorkflowResumedRunHandle> {
+    return this.#resume(recovery, true);
+  }
+  async #resume(recovery: WorkflowRecoveryHandle, yieldAfterNode: boolean): Promise<WorkflowResumedRunHandle> {
     const data = consumeRecoveryHandoff(recovery), { compiled, checkpoint, store } = data, runId = checkpoint.snapshot.runId;
     let installed = false;
     try {
@@ -88,7 +101,7 @@ export class WorkflowRuntime {
       this.#runs.set(runId, run); installed = true;
       run.writer = await CheckpointWriter.resume(compiled, checkpoint, store, data.revision);
       await this.#checkpoint(run); run.ready = true;
-      const completion = Promise.resolve().then(() => this.#execute(compiled, run));
+      const completion = Promise.resolve().then(() => this.#execute(compiled, run, yieldAfterNode));
       let disposing: Promise<void> | null = null;
       return Object.freeze({ completion, query: () => this.query(runId), cancel: () => this.cancelPersisted(runId),
         dispose: () => {
@@ -105,7 +118,7 @@ export class WorkflowRuntime {
   async #checkpoint(run: Run): Promise<void> {
     if (run.writer) await run.writer.write(run.view, { node: run.node, value: run.value, traversals: Object.fromEntries(run.traversals) });
   }
-  async #execute(compiled: CompiledWorkflow, run: Run): Promise<WorkflowSnapshot> {
+  async #execute(compiled: CompiledWorkflow, run: Run, yieldAfterNode = false): Promise<WorkflowSnapshot> {
     const plan = getPlan(compiled);
     const end = async (status: MutableRun['status'], reason: string | null = null, issues: readonly WorkflowIssue[] = []): Promise<WorkflowSnapshot> => {
       const priorNode = run.view.currentNode, priorIdentity = run.view.currentIdentity;
@@ -173,6 +186,7 @@ export class WorkflowRuntime {
         run.node = to.node; run.view.currentNode = to.node; run.view.currentIdentity = null;
         run.nextAttempt = 1;
         await this.#checkpoint(run);
+        if (yieldAfterNode) return snapshot(run.view);
       }
     } catch { return end('failed', 'WORKFLOW_INTERNAL_ERROR'); }
   }
