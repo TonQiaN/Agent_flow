@@ -38,6 +38,7 @@ function checkReferences(schema: JsonValue): void {
 
 export class ContractRegistry {
   readonly #validators = new Map<string, ValidateFunction>();
+  readonly #definitions = new Map<string, JsonValue>();
 
   register(id: string, schema: unknown): void {
     if (!isIdentifier(id)) throw new DefinitionError('INVALID_CONTRACT_ID');
@@ -48,14 +49,21 @@ export class ContractRegistry {
       const ajv = new Ajv2020({ strict: true, allErrors: true, validateFormats: true, ownProperties: true });
       // CommonJS export exposes this typed function under Node ESM interop.
       addFormatsModule.default(ajv);
+      const definition = copyJson(snapshot);
       const validate = ajv.compile(snapshot as AnySchema);
       this.#validators.set(id, validate);
+      this.#definitions.set(id, definition);
     } catch {
       throw new DefinitionError('INVALID_CONTRACT_SCHEMA');
     }
   }
 
   has(id: string): boolean { return this.#validators.has(id); }
+
+  definition(id: string): JsonValue {
+    if (!this.#definitions.has(id)) throw new DefinitionError('UNKNOWN_CONTRACT');
+    return copyJson(this.#definitions.get(id));
+  }
 
   check(id: string, value: unknown): ContractCheck {
     const validate = this.#validators.get(id);

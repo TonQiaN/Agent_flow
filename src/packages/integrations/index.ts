@@ -6,7 +6,7 @@ export type { DockerEgressOptions } from './docker/egress.js';
 export { systemClock } from './system-clock.js';
 export { CodexAdapter, CODEX_VERSION } from './harness/codex.js';
 export { FileCredentialStore, CredentialError } from './auth/file-store.js';
-export type { CredentialCodec } from './auth/file-store.js';
+export type { CredentialCodec, ExecutionCredentialStore, ExecutionCredentialFinalization } from './auth/file-store.js';
 export { FileExecutionCredentialBinding } from './auth/execution-binding.js';
 export type { CredentialBindingOptions, BindingFinalization } from './auth/execution-binding.js';
 export { CodexSubscriptionCodec, CodexCredentialRedactor, codexSubscriptionProfile, CODEX_SUBSCRIPTION_HOSTS } from './auth/codex-subscription.js';
@@ -23,7 +23,7 @@ export { FileScriptRecordReader } from './execution/script-record-reader.js';
 export { SimulatedEffectService } from './effects/simulated-service.js';
 
 export { FileJsonWorkflowCatalog } from './workflow/file-json.js';
-export type { FileJsonContext, FileJsonTransform, FileJsonReceipt } from './workflow/file-json.js';
+export type { FileJsonContext, FileJsonTransform, FileJsonReceipt, JsonFileProjection } from './workflow/file-json.js';
 
 export { ClaudeAdapter, CLAUDE_VERSION } from './harness/claude.js';
 
@@ -52,3 +52,10 @@ export type { SubscriptionLoginDriver, SubscriptionLoginAttempt, SubscriptionLog
 export { CodexSubscriptionLoginDriver, ClaudeSubscriptionLoginDriver, CODEX_LOGIN_HOSTS, CLAUDE_LOGIN_HOSTS } from './auth/native-login.js';
 export type { DockerLoginOptions } from './auth/docker-login.js';
 export type { DockerInteraction } from './docker/process.js';
+
+export { SqliteRunRecordStore } from './persistence/sqlite-store.js';
+export { FileArtifactArchive } from './artifacts/file-archive.js';
+
+export type { CredentialVersionResourceCheckpoint, CredentialVersionResourceSink, CredentialRunPersistence } from './execution/credential-runner.js';
+
+export { SqliteEffectRecordStore } from './persistence/effect-store.js';

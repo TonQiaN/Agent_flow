@@ -15,7 +15,7 @@ const profile = {
 
 用 `new ClaudeSubscriptionRunner(store, { workspaceRoot, image, proxyImage })` 创建宿主执行入口，`run({ task, profile, inputSource, timeoutMs }, cancellation?)` 返回带 result、retryCleanup、release 的执行句柄。先确认镜像 ID 与版本，再取得凭据租约；版本不符的句柄也必须按真实停止/清理结果释放。模型参数、prompt 和 outcomes 见 [Adapter](claude-adapter.md)。
 
-`new ClaudeAgentDriver(runtime, artifactStore, profile, { inputRoot, timeoutMs })` 可作为 AgentExecutor 的 driver。文件准备、outputs contract 接纳、清理和可信收据沿用 [Agent 接纳](agent-acceptance.md)，Workflow 不需要 Claude 分支。Codex 和 Claude 的共同执行收尾及输入物化实现集中在 integrations 内，provider 配方分别提供计划、版本、认证和脱敏；没有可由 Workflow 动态配置的通用 provider 开关。
+`new ClaudeAgentDriver(runtime, artifactStore, profile, { timeoutMs })` 可作为 AgentExecutor 的 driver。文件准备、outputs contract 接纳、清理和可信收据沿用 [Agent 接纳](agent-acceptance.md)，Workflow 不需要 Claude 分支。Codex 和 Claude 的共同执行收尾及输入物化实现集中在 integrations 内，provider 配方分别提供计划、版本、认证和脱敏；没有可由 Workflow 动态配置的通用 provider 开关。
 
 cwd=/task/work；input、work 和 outputs 是本次可写副本。凭据只写入 /task/state/claude/.credentials.json，0600，父目录0700；管理 JSON 在 /task/config 只读挂载。同一管理文件通过宿主固定映射只读挂到 /etc/claude-code/managed-settings.json；发布版 CLI 不采用管理路径环境变量，不能依靠它改变加载位置。两项固定非秘密开关通过 `/usr/bin/env` 的分立 argv 参数传入；state 环境接口仍只接受 state 内路径，调用者不能任意覆盖环境。代理仅允许 api.anthropic.com 和 platform.claude.com 的443端口；登录流程不在任务执行里发生。
 
@@ -34,3 +34,5 @@ CLI 明确清除无效登录时的空 accessToken、空 refreshToken、expiresAt
 Claude Read/Edit 文件规则用双斜线标识绝对路径：Read(//task/state/**)、Edit(//task/state/**)、Edit(//task/config/**)。sandbox.filesystem 的路径仍用单斜线。旧 Blackbox 单斜线权限规则未直接复用，依据 [Claude 文件权限规范](https://code.claude.com/docs/en/permissions)。配置存在或真实 CLI 启动不单独证明工具隔离。现有 [实际工具回归](../validation/2026-09-09-claude-tool-isolation.md) 通过本地协议替身驱动真实工具，覆盖文件拒绝、链接/proc 路径、正常副本写入和 Bash 网络阻断；它仍不证明真实模型请求和远端刷新。
 
 [验证记录](../validation/2026-09-09-claude-execution.md) · [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)
+
+Driver 输入在已登记的 Runner 工作目录内物化，见[输入物化](runner-owned-input.md)。

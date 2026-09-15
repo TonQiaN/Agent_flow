@@ -23,5 +23,6 @@ export function gradingContracts() {
     ['reviewed-files', [rule('candidate', 'candidate.json', 'candidate-json'), rule('gate', 'gate-report.json', 'gate-json')]]] as const) {
     files.register(name, { rules: [...source, ...extra], maxFiles: 5, maxTotalBytes: 81920, unmatched: 'reject' });
   }
+  files.register('publishable-files', { rules: [...source, rule('candidate', 'candidate.json', 'candidate-json'), rule('gate', 'gate-report.json', 'gate-json'), rule('publication', 'publication.json', 'publication-json')], maxFiles: 6, maxTotalBytes: 98304, unmatched: 'reject' });
   return { json, files };
 }

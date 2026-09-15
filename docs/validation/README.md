@@ -61,4 +61,62 @@
 
 - [DeepSeek 偶发超时诊断](2026-09-09-deepseek-timeout-diagnostics.md)：操作/子进程证据、有界重复检查及失败捕获保留。
 
+- [Run 记录存储验证](2026-09-09-run-record-store.md)：多进程 CAS、提交前后 SIGKILL 和损坏拒绝。
+
+- [耐久文件归档](2026-09-10-artifact-archive.md)：删除原始/临时材料后新进程恢复、并发发布与 SIGKILL。
+
+- [Workflow 结构快照](2026-09-10-workflow-structure.md)：SQLite 重开核对、同名 schema 冲突及嵌套文件契约。
+
+- [断网脚本执行绑定及阶段复盘](2026-09-10-script-execution-binding.md)：实际镜像冻结、标签删除后执行及后续 checkpoint 主线。
+
 - [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：专属进程组停止、管道关闭与确定性故障反例。
+
+[共享 Workflow 检查点](2026-09-10-workflow-checkpoints.md)：提交顺序、取消落盘、写入故障与真实宿主 SIGKILL 后的归档读取。
+
+[严格检查点加载与文件引用恢复验证](2026-09-10-workflow-checkpoint-loading.md)：实际定义、历史和收据核对，独立文件副本与失败回滚；重启执行仍待接通。
+
+[Runner 资源保存与实际中断验证](2026-09-10-runner-resource-recovery.md)：实际资源先落盘、跨进程核对及停止/移除；Workflow 新 Attempt 恢复仍待接通。
+
+[Workflow Attempt 资源检查点](2026-09-10-workflow-attempt-resources.md)：资源接入正常 Workflow CAS，启动前核对以及真实中断后的共同 Runner 清理；新 Attempt 执行仍待完成。
+
+[Runner 启动操作记录](2026-09-10-runner-launch-journal.md)：正常 Workflow 的前后 CAS、异步启动观测和真实中断边界，尚未开放自动恢复。
+
+[Workflow 恢复认领与旧资源清理](2026-09-10-workflow-recovery-claim.md)：同一 Run CAS、并发与崩溃后接管、只读检查；新 Attempt 执行仍待完成。
+
+- [Workflow 新 Attempt 恢复](2026-09-10-workflow-resume.md)：保留中断历史，共享正常执行路径，真实连续 SIGKILL。
+
+- [Agent 实际执行定义](2026-09-10-agent-execution-binding.md)：非秘密 Profile、实际 Harness/资产与固定执行及代理镜像。
+
+- [联网 Runner 资源恢复](2026-09-10-network-resource-recovery.md)：完整资源归属、部分清理重试及 CONNECT Workflow 新 Attempt。
+
+[Agent 版本探针资源](2026-09-10-version-resource-recovery.md)已接通独立记录与共同 Runner 清理；完整 Agent 认证/执行恢复仍待接入。
+
+[不可变 API key 执行资源](2026-09-10-credential-resource-recovery.md)可在不读取或恢复旧密钥的情况下独立清理；完整 Agent Workflow 和订阅占用仍待接通。
+
+[Workflow 通用阶段记录与恢复](2026-09-10-workflow-phases.md)记录本轮验证和未完成边界。
+
+[实际 Agent Workflow 阶段与文件收据](2026-09-10-agent-workflow.md)。
+
+[Runner 目录内输入物化验证](2026-09-10-owned-runner-input.md)。
+
+[Catalog 借用输入快照验证](2026-09-10-catalog-snapshot-input.md)。
+
+[直接物化归档与恢复验证](2026-09-10-direct-artifact-capture.md)。
+
+[Effect 持久日志与进程中断验证](2026-09-10-effect-journal.md)。
+
+[固定操作 Effect Workflow 恢复验证](2026-09-10-effect-workflow.md)。
+
+[确定性 JSON 函数绑定与恢复验证](2026-09-10-function-binding.md)。
+
+[Tutor 持久验收链路预检](2026-09-10-tutor-persistence-preflight.md)。
+
+[批卷文件 Script 与中断恢复](2026-09-10-tutor-file-scripts.md)。
+
+[批卷来源归档重开验证](2026-09-10-tutor-source-reopening.md)。
+
+- [JSON 文件转换与来源恢复](2026-09-10-json-file-projection.md)：子进程中断、收据恢复、定义漂移、并发与回滚验证。
+
+- [完整批卷持久组合](2026-09-10-persistent-tutor-grading.md)：真实容器的 Agent、Gate、转换与发布中断联合验证。
+
+[订阅资源恢复](2026-09-10-subscription-resource-recovery.md)；[Issue #13 验收对照](2026-09-10-issue13-acceptance.md)。

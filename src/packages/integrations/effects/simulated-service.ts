@@ -17,6 +17,7 @@ export class SimulatedEffectService {
     const receipt = (r: EffectAdapterRequest, status: 'simulated' | 'applied', reference: string | null): EffectReceipt => ({ schema: EFFECT_RECEIPT_SCHEMA,
       requestId: r.requestId, componentId: r.componentId, mode: r.mode, target: r.target, key: r.key, serviceIdentity, status, reference });
     return Object.freeze({ implementation, serviceIdentity,
+      definition: async () => ({ schema: 'agentflow-simulated-effect-service/v1' }),
       simulate: async (r: EffectAdapterRequest): Promise<EffectReceipt> => {
         if (r.mode !== 'dry-run' || r.serviceIdentity !== serviceIdentity) throw new Error('INVALID_SIMULATED_CONTEXT');
         return receipt(r, 'simulated', null);

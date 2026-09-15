@@ -56,7 +56,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
           const file = result.runner.capture[stream]; if (file.complete) await cp(file.path, join(root, `first-${stream}.bin`));
         }
         assert.equal(result.stage, 'execution'); assert.equal(result.harness?.status, 'completed'); assert.equal(result.harness?.outcome, null);
-        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential.revision, 2); assert.deepEqual(result.diagnostics, []);
+        assert.equal(result.authentication?.refresh, 'updated'); assert.equal(result.authentication?.credential?.revision, 2); assert.deepEqual(result.diagnostics, []);
         assert.equal(result.runner.capture!.imageId, result.version.imageId); assert.equal(result.version.actual, '2.1.226');
         assert.equal(await readFile(join(input, 'numbers.json'), 'utf8'), original);
         assert.deepEqual(JSON.parse(await readFile(join(result.runner.capture!.outputsPath, 'answer.json'), 'utf8')), { sum: 6 });
@@ -64,6 +64,9 @@ test('Claude composition: synthetic executable exercises version, binding, refre
         const message = result.harness!.events.find(event => event.kind === 'message'); assert.deepEqual(message!.data, { blockType: 'text', text: '[redacted] [redacted]' });
         (result.runner as { cleanup: string }).cleanup = 'blocked'; assert.equal(execution.result.runner.cleanup, 'removed');
       } finally { await execution.retryCleanup(); await execution.release(); }
+      await assert.rejects(runtime.definitionSnapshot({ identity: { runId: 'snapshot', nodeTaskId: 'task', attemptId: 'attempt', attemptNumber: 1 },
+        prompt: 'synthetic protocol wiring', config: { model: 'fixture-model', subagents: false, search: false } },
+        { id: 'test', ...credential, service: 'anthropic', method: 'subscription', endpoint: 'official', capacity: 1 }, 10000), /EXECUTION_DEFINITION_AFTER_START/);
       const json = new ContractRegistry();
       json.register('input', { type: 'object', properties: { numbers: { type: 'array', items: { type: 'integer' } } }, required: ['numbers'], additionalProperties: false });
       json.register('answer', { type: 'object', properties: { sum: { type: 'integer', const: 6 } }, required: ['sum'], additionalProperties: false });
@@ -74,7 +77,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       });
       const artifacts = new FileArtifactStore(join(root, 'artifacts'), files);
       const driver = new ClaudeAgentDriver(runtime, artifacts, { id: 'test', ...credential, service: 'anthropic', method: 'subscription', endpoint: 'official', capacity: 1 },
-        { inputRoot: join(root, 'driver-inputs'), timeoutMs: 10_000 });
+        { timeoutMs: 10_000 });
       const coordinator = new AgentExecutor(files, artifacts, driver);
       for (const multi of [false, true]) {
         const attempt = await coordinator.execute({ componentId: 'sum', identity: { runId: 'coordinated', nodeTaskId: 'sum', attemptId: multi ? 'multi' : 'single', attemptNumber: 1 },
@@ -109,7 +112,7 @@ test('Claude composition: synthetic executable exercises version, binding, refre
       try { const wrong = await wrongVersion.run(base); assert.equal(wrong.result.stage, 'version'); assert.equal(wrong.result.authentication, null); await wrong.retryCleanup(); await wrong.release(); }
       finally { await held.release(); }
       assert.deepEqual(await readdir(join(root, 'attempts')), []); assert.deepEqual(await readdir(join(root, 'version-attempts')), []);
-      assert.deepEqual(await readdir(join(root, 'driver-inputs')), []); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
+      await assert.rejects(readdir(join(root, 'driver-inputs')), { code: 'ENOENT' }); assert.deepEqual(await readdir(join(root, 'artifacts')), []);
       passed = true;
     } finally {
       if (built) execFileSync('docker', ['image', 'rm', tag], { stdio: 'pipe' });

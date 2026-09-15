@@ -47,7 +47,7 @@ for (const [id, path, schema] of [['input-files', 'numbers.json', 'input'], ['an
   maxFiles: 1, maxTotalBytes: 65536, unmatched: 'reject',
 });
 const artifacts = new FileArtifactStore(join(runRoot, 'artifacts'), files);
-const coordinator = new AgentExecutor(files, artifacts, new CodexAgentDriver(runtime, artifacts, profile, { inputRoot: join(runRoot, 'driver-inputs'), timeoutMs: 120000 }));
+const coordinator = new AgentExecutor(files, artifacts, new CodexAgentDriver(runtime, artifacts, profile, { timeoutMs: 120000 }));
 const attempt = await coordinator.execute({ ...task, componentId: 'sum', input: { source: input, contractId: 'input-files' },
   outcomes: multi ? { accepted: 'answer-files', rejected: 'answer-files' } : { completed: 'answer-files' } });
 const result = attempt.result; const facts = attempt.executionFacts();

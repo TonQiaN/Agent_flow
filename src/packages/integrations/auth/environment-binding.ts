@@ -1,8 +1,10 @@
 import { isExecutionIdentity } from '@agentflow/domain';
-import type { ExecutionIdentity } from '@agentflow/domain';
+import type { ExecutionIdentity, JsonValue } from '@agentflow/domain';
 import type { CredentialIdentity, CredentialMetadata, CredentialStore, ExecutionResource, RunnerResult } from '@agentflow/engine';
 import { CredentialError } from './file-store.js';
 import type { BindingFinalization, ExecutionCredentialBinding } from './execution-binding.js';
+import { environmentResourceDefinition, environmentRecoveryBinding } from './environment-resource.js';
+import type { PrivateStateBinding } from '../execution/state-binding.js';
 import { credentialEnvironment } from '../execution/state-binding.js';
 
 /** Immutable credential snapshot, delivered only to the trusted process environment channel. No task secret file. */
@@ -10,12 +12,13 @@ export class EnvironmentExecutionCredentialBinding implements ExecutionCredentia
   readonly environment = Object.freeze({});
   readonly #identity: ExecutionIdentity;
   readonly #metadata: CredentialMetadata;
+  readonly #keys: readonly string[];
   #secrets: Readonly<Record<string, string>> | null;
   #resource: string | null = null;
   #released = false;
   #result: BindingFinalization | null = null;
   private constructor(identity: ExecutionIdentity, metadata: CredentialMetadata, secrets: Readonly<Record<string, string>>) {
-    this.#identity = Object.freeze({ ...identity }); this.#metadata = Object.freeze({ ...metadata }); this.#secrets = secrets;
+    this.#identity = Object.freeze({ ...identity }); this.#metadata = Object.freeze({ ...metadata }); this.#secrets = secrets; this.#keys = Object.freeze(Object.keys(secrets).sort());
   }
   static async acquire(store: CredentialStore, options: { readonly identity: ExecutionIdentity; readonly credential: CredentialIdentity },
     convert: (content: string) => Readonly<Record<string, string>>, waitMs = 0, remember?: (content: string) => void): Promise<EnvironmentExecutionCredentialBinding> {
@@ -32,6 +35,12 @@ export class EnvironmentExecutionCredentialBinding implements ExecutionCredentia
     } catch { throw new CredentialError('CREDENTIAL_SNAPSHOT_FAILED'); }
     finally { try { await lease.release(); } catch { throw new CredentialError('CREDENTIAL_LEASE_RELEASE_FAILED'); } }
   }
+  static recoveryBinding(credential: CredentialIdentity, keys: readonly string[]): PrivateStateBinding { return environmentRecoveryBinding(credential, keys); }
+  resourceDefinition(): JsonValue {
+    const { credentialRef, service, method } = this.#metadata;
+    return environmentResourceDefinition({ credentialRef, service, method }, this.#keys);
+  }
+  async restoreResource(_resource: ExecutionResource): Promise<void> { throw new CredentialError('RECOVERY_BINDING_REQUIRED'); }
   get metadata(): CredentialMetadata { return this.#metadata; }
   toJSON(): { credential: CredentialMetadata; released: boolean } { return { credential: this.metadata, released: this.#released }; }
   async prepare(resource: ExecutionResource, _stateDirectory: string): Promise<void> {
