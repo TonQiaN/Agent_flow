@@ -28,6 +28,76 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 
 首个联合执行入口在 integrations 中组合纯 Adapter、Profile、凭据绑定与 DockerBackend；不将 Codex 特例写入 engine Runner。先解析不可变镜像 ID，再用离线 Runner 在相同镜像内检查实际 CLI 版本，成功并清理后才申请真实租约。业务执行结果分别保留 Runner、Harness 与凭据收尾事实；正常 Harness 结束仍不代表文件 contract 接纳。失败后保留可操作的执行句柄用于可信停止/清理，不能因抛出异常丢失占用资源。
 
+### Claude 的独立调用与协议
+
+后续矩阵先实现 Claude 2.1.226 的纯 Adapter，以现有实际镜像版本和 CLI 帮助为依据。采用 print、safe-mode、no-session-persistence、严格 MCP、固定工具集合和 stream-json/verbose；不采用 bare，因为实际帮助明确 bare 不读取订阅 OAuth。用户 prompt 保持原样，以参数终止符防止任务文本成为 CLI 选项。固定 cwd 仍为 /task/work；input/work/outputs 都是可写工作副本，不沿用 Blackbox 的只读 input。
+
+首个映射接受显式 model、可选 low/medium/high/xhigh/max reasoning，并要求 subagents=false、search=false；预算、任意参数/环境及尚未验证的功能组合拒绝。多出口通过 json-schema 传递仅含 outcome 的固定结构，结果只取最终 result.structured_output，不从聊天文本猜测。协议配置与独立 CLAUDE_CONFIG_DIR 由宿主兑现；工具和内层文件权限同时拒绝 state/config 写入与凭据读取，禁止工具联网及 unsandboxed 回退。这是必须由真实集成验证的声明，不能因生成配置即声称隔离成功。
+
+接纳要求同执行身份、已验证版本、Runner 正常退出/停止/清理及完整采集；流中唯一 system/init 与同 session 的 result/success、is_error=false 构成正常终态。相同终态可去重，冲突、终态后事件、跨 session、异常子 Agent 事件、损坏或不完整字节均拒绝。已知失败 result 保留为失败终态；未知事件仅记录类型，不赋予完成意义或暴露原始载荷。
+
+普通消息仅投影经脱敏的文本和工具名称/标识；错误原文、原始工具输入、签名及未知对象不进入普通事件。usage 只取唯一终态：Claude 的未缓存 input_tokens、cache_read_input_tokens、cache_creation_input_tokens 为不重叠输入桶，三者齐全时显式相加为统一 inputTokens，缺少任何一桶则 inputTokens 为 unknown；cachedInputTokens 仅取明确缓存读取数，outputTokens 取明确输出数，推理数无独立字段则 unknown。不同消息或重复快照不递归累加。支持矩阵仍需后续认证、权限与真实任务验收，Adapter/离线样本通过不关闭 #10/#11。
+
+### DeepSeek 配置与真实能力预检
+
+DeepSeek 矩阵先固定实际镜像的 dsh 0.1.1-rc.2。模型与推理通过只读插件 patch 映射，不能把其他 CLI 的 model/effort 参数套用到 headless；重写 agent-default-model.config 时必须保留 deepseek-official provider。独立配置模块只接受已映射的 model、off/low/high/max reasoning 以及显式 search=false、subagents=false，不开放任意插件、URL、环境或参数透传。配置生成与后续协议解释、秘密注入、Runner 组合分别落实；配置模块不注册成可执行 Harness。
+
+沿用 Blackbox 已验证的 NARB_DISABLE_NATIVE_CACHE=1 和 NODE_USE_ENV_PROXY=1，保持临时目录 noexec。搜索与 fetch 在 tool-web.config 中明确关闭；子 Agent、fork 和会间接委派的 workflow/ralph 工具必须在实际模型工具目录中不可用，配置文本不能替代真实启动证据。Blackbox 历史的 disabled 无效记录需按固定版本复核，不能直接推断所有新版本仍有同一问题。
+
+默认 workspace-write 以 session cwd 为唯一工作根；单改 sandbox-policy.workspaceRoot 不覆盖已有 session cwd，原生文件读取亦不提供秘密路径 deny。第一步用断网容器、本地合成模型响应和虚假 API key 验证这些边界，并保存原生 session 事件供后续协议实现对照。遇到不满足固定 input/work/outputs 或秘密隔离的行为，记录为未解决验收缺口；不改 cwd 为 outputs、不放宽到 danger-full-access，不把退出 0 或聊天完成当作产物验收。原生会话采集、可信终态、API key 保护及真实调用仍须后续落实，当前切片不关闭 #10/#11。
+
+固定版本的 launcher 与 headless 分别解析参数，内部调用使用两个连续的参数终止符以原样保留连字符开头的任务。原生持久层显式使用 compression=none、packChunks=false，将原生事件留在独立私有 state；避免后续采集依赖压缩/打包实现，但不因配置明文就赋予文件可信性，也不公开 raw。2026-09-09 按用户已授权范围完成内部映射和实际 CLI 预检，未登记为已完成的 Harness 组合。
+
+### DeepSeek 文件工具的隔离执行世界
+
+固定 dsh 文件接口允许远程或隔离后端；使用该接口，把原生 LocalFileSystem 的实际 I/O 放入受限子进程，模型仍使用原生 read/write/edit/read_image 及文件搜索工具。保留原生文件版本、原子改写和观察策略，不在父进程用字符串前缀检查后直接读文件。隔离子进程以只读根目录、独立 PID/网络视图、空只读 state、可写 input/work/outputs 和独立临时目录运行；清空继承环境，不能取得父进程的 API key。临时目录从外层 noexec tmp 中分配，不创建新的可执行 tmpfs。
+
+第一步独立落实文件服务及真实原生工具验证，Bash 沙箱与其他原生进程路径必须随后采用同等约束，未全部完成时不装配为可执行 Harness。文件服务使用下述任务级临时空间，并在所有工具服务结束后回收；一次性文件子进程通过有界消息交换结果并在结束后返回；固定文件 worker 在服务创建的专属进程组内执行，隔离启动器不再另开 session；中断、关闭、超时或传输超限终止整个专属组，并等待 stdio close 后才完成请求，不能将 launcher exit 当作收尾成功。未确认收尾不继续文件请求，由外层 Runner 保留最终停止责任；此处不改变 Bash/搜索的进程隔离策略。对原生大文件流暂设明确的完整缓冲上限，超过上限失败而不截断成功；后续有实际需求再实现流式传输。任何后端不可用或协议异常都失败，不回退到父进程 I/O。
+
+### DeepSeek 的统一工具进程边界
+
+原生 grep/glob 直接使用 subprocess，不经过 Bash，因此统一替换工具进程服务，默认执行只读文件策略。Bash 继续使用原生 shell 的超时、输出、后台句柄和收尾语义，通过容器程序内部的不可序列化标记传递经过校验的只读或固定工作区写策略；用户环境变量或 JSON 字段不能取得这项权限，danger-full-access 与 PTY 入口拒绝。不嵌套原先仅允许 cwd 的 Bash 文件策略，也不因此取消外层内核隔离。
+
+进程服务在所有启动前清空环境，忽略调用方环境覆盖，并在内核隔离内设置少量固定非秘密环境；仅凭字段名排除 KEY/TOKEN 不足以保护其他命名的秘密。命令 cwd 在隔离视图内应用。文件与进程服务共用一个任务临时空间，允许 Bash 生成的临时文件由原生文件工具读取；原生截断输出的落盘内容也留在该空间，并将读取路径映射到相同视图。该空间包含工具数据，不能存放凭据、协议或原生会话。
+
+共享空间关闭时先确认文件请求与原生进程句柄结束，再删除目录。必须以真实 Bash、grep/glob、文件工具交接、原始环境字节、网络探针及后台/中断测试验证，不能因单独生成 bwrap 参数就声称所有路径受保护。默认政策说明也须准确列出 input/work/outputs 与临时目录，并继续将可信状态和用户 prompt 分离。文件服务显式依赖策略服务就绪，避免原生工具在异步插件加载期间看到不完整的权限组合；模型上下文继续沿用原生可追溯的动态策略消息。
+
+### DeepSeek 的原生完成证据
+
+原生 CLI 标准输出只作日志；完成证据取自私有 state 中本次全新顶层会话的原始 JSONL。容器可信采集程序只在 CLI 与工具进程停止后运行，从固定会话根选择唯一 session.jsonl，拒绝链接、压缩混用、多会话、超限和采集中变化；逐字节复制到固定私有记录，由 Runner 的既有 recordFiles 接口采集，不经 outputs 或用户可写工作区传递。不调用带崩溃修复行为的原生 load，也不补造终态。
+
+宿主解析独立于容器 SDK，限定实际 rc.2/存储版本 0、固定 cwd、无种子或委派的顶层会话，并核对 Runner 身份、完整记录及退出/清理事实。事件序号连续，turn/step 与工具调用/结果配对，正常 turn/end 必须有已结束的模型步骤；中断、崩溃修复、缺失/冲突终态及未知必需事件均不能成功。只接受本次原样用户任务的直接 user/message 作为输入关联；模型文字、工具结果或用户伪造 JSON 不提供终态。未知可忽略事件只投影类型，不泄漏载荷。
+
+用量只累计每一步的 assistant/message.usage，流式 chunk 中的同一份用量不重复累计；依实际 DeepSeek 映射把分离的缓存读取加回总输入，缺失会计字段保持未知。内部解析先支持单一正常出口；多出口必须随后提供受控的原生结构化交接，不能从最终聊天文字猜 outcome。通过真实 CLI 原始记录与恶意/不完整记录反例后才落实此切片，完整认证和可执行 Harness 仍需单独验收。
+
+### DeepSeek 的可信启动边界
+
+容器启动程序固定实际 dsh 路径、版本、headless profile、只读配置路径及工作目录；仅接收原样任务说明，不接受用户提供的程序、额外 patch、环境或工作路径。认证侧通过独立受信环境绑定向容器提供 DEEPSEEK_API_KEY；启动器只接收这个明确变量，验证有界格式后转交 dsh 子进程，不读取文件或其他环境来源。Adapter 声明变量名，不持有值；不把真实密钥放进 argv 或只读任务配置。固定非秘密开关由程序设置，代理环境只接收 Runner 已有受控代理字段，不继承其他环境。
+
+启动程序转发原始 stdout/stderr，拥有 CLI 进程组并转发取消；退出非零、取消或残留进程不能生成成功采集。只有正常退出并确认进程组结束后，调用上述原始会话采集；失败仅报告固定诊断，不能从异常文本泄漏私有文件内容。宿主仍须完成凭据 Profile/Store、网络授权、版本和 Runner 联合验证，此程序自身不取得真实账号授权。
+
+图像支持依实际原生模型目录判断；沿用已验证的 vision 模型进行字节交接测试，不把合成响应称为 OCR 质量验收。当前仅 native 工具模式，保留代码入口也必须用实际调用验证不可执行，不能只看工具目录未显示。完整多出口和实际模型验收仍单独落实。
+
+### DeepSeek Adapter 与结构化多出口
+
+纯 Adapter 只生成固定启动/权限配置、认证声明与运行资产需求，原始会话仍由宿主执行边界读取后提供，不让 Adapter 读秘密或启动进程。统一 HarnessEvidence 增加可选具名原始记录字节，与 Runner 的既有 files 元数据配对；其他 Harness 继续使用 stdout，不把 DeepSeek 会话伪装成标准输出。
+
+有多个出口时注册专用 agentflow_outcome 原生工具，其参数及输出严格限于用户声明的枚举。结果经原生 schema 校验后，以工具专属 presentationMeta 保存 schema/outcome；不新增自造会话事件，也不新增用户可写的 outcome 路径。宿主必须同时匹配模型工具声明、实际调用、成功原生 tool/result 的 metadata、枚举值和正常会话终态。成功选择后再调用任何工具或再次选择都不能接纳；失败选择可在尚未接纳时纠正。仍由引擎随后校验 outputs contract，选择 outcome 不代表产物合格。
+
+任务说明仍原样传入；工具说明负责告知“全部产物完成后选择一次并结束”。单一默认出口不注册工具，也不要求选择。首期关闭无关的自动标题模型插件；若原生记录包含尚未计入的辅助模型工作或重试，则用量整体为未知，不用主步骤计数冒充完整账单。
+
+### 执行组合与容器资产
+
+三个 Harness 复用 integrations 内的凭据执行组合，通过独立配方选择订阅租约或静态快照，以及原始记录声明；公共 Codex/Claude API 保持兼容，engine 和 Docker 不增加服务分支。DeepSeek 仍需同一不可变镜像的实际版本预检、受控代理、原生会话字节核对与凭据收尾，清理恢复不能把原失败升级为业务成功。
+
+容器工具程序由 src/apps/deepseek-tools 的固定打包程序导出为受信部署资产，宿主单独传给 DeepSeek 执行入口；仅接受精确版本、固定文件集合和有界文件内容。资产不是 Workflow 配置，库不通过路径搜索或模块导入加载应用源码。打包元数据只核对结构与兼容性，来源可信性由宿主部署边界负责，不能把用户自报版本当作签名认证。只读配置和固定启动路径继续生效，缺失或重复资产在执行前拒绝。
+
+### 共用业务验收的组装边界
+
+同一业务 contract 的联合验收通过 examples 中的组合入口切换独立 Driver；Workflow、Gate、返修规则和引擎不按 provider 分支。凭据 store/ref、镜像和模型由受信宿主显式选择，固定部署资产只在该组装层加载。保留旧 Codex 入口，避免调用者迁移配置才能重跑同一验收。
+
+预检只证明配置可生成计划，不证明凭据、镜像、网络或真实模型可用；真实执行保留实际版本/镜像、终态、具名原始捕获与产物证据。选择真实 CLI 镜像或从入口返回成功都不能单独证明官方调用：受控合成服务和协议替身须继续单列。共用 JSON 批卷样例不替代图像、多出口、真实登录/刷新或真实学生报告/PDF 验收。此处细化已确认的解耦与联合验收范围，没有增加公共引擎配置或改变用户路由权。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
@@ -42,6 +112,8 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 
 对应 #10 及 #9/#11/#12 联合边界。先验证注册、参数拒绝、原样 prompt、身份关联、畸形/截断/未知事件、终态冲突与 usage；随后用选定真实版本验证调用、文件权限、认证/网络和正常交付。仅 parser/替身测试不能关闭 #10，也不能称整个首个真实组合已完成。
 
+2026-09-11 验收顺序调整：用户明确要求先不执行 Claude/DeepSeek 真实官方组合验收，继续推进交付。因此该联合验收延期至用户重新安排，不再作为本批 PR 合入的前置条件；基础测试、真实 CLI 离线隔离验证及各层 CI 仍按变更范围执行。该调整只改变验收时机，不把替身或离线结果认定为官方账号、真实登录或续期成功，也不据此关闭尚有该验收缺口的完整 Issue 或宣布版本发布。
+
 2026-09-09 的真实离线探测要求 filesystem 使用 TOML inline table 与 deny 枚举，已修正映射。严格配置通过后仍遇 bwrap namespace 初始化失败，须在执行集成层兑现内部沙箱需求；不通过关闭沙箱规避。当前接口/parser 与存储共 46 组检查通过（含 Docker），真实模型调用未完成，详见 docs 对应验证记录。
 
 ## 重开条件
@@ -55,3 +127,9 @@ stdout JSONL 的 turn.completed 是 Harness 正常终态证据，turn.failed 是
 - 2026-09-09：按开发流程核对 Blackbox Agent Flow 的独立 provider-state 与订阅 egress 修复；真实 0.153.4 流暴露的初始化警告和失败终态按上述边界补充回归。
 
 - 2026-09-09：在用户已授权的可写隔离输入与首个真实组合修复范围内，补充临时任务元数据映射；先核对 Blackbox，再参考实际版本官方权限实现，保留敏感目录 deny 与输出 contract 验证。
+
+2026-09-09 执行组合核对：Claude 的 Read/Edit 文件规则以双斜线锚定绝对路径（如 Read(//task/state/**)），不复制旧单斜线规则；sandbox.filesystem 使用普通绝对路径，两者语法不能混用。Grep/Glob 的文件拒绝由 Read 规则表达；实际版本的工具执行隔离仍须独立验收。
+
+2026-09-09 实际工具探针修正：固定 Claude2.1.226 发布程序在 Linux 读取 /etc/claude-code/managed-settings.json，并未采用计划里的管理路径环境变量；仅生成 /task/config 文件和设置环境变量不能证明策略生效。通过断网、本地合成模型响应驱动真实 CLI 的 Read 请求已复现凭据副本可读。后续组合需把同一只读配置显式挂到实际系统位置，移除无效环境声明，并验证真实内置工具和 Bash 行为；不能以自建 bwrap 探针替代 CLI 自己的工具执行。
+
+2026-09-09：隔离文件服务使用原生插件的禁用加 insert 机制；SDK 依赖在独立容器应用中声明，并在固定安装根解析后以异步 ESM 导入，避免与原生并发加载冲突。服务方法绑定持有显式 policy 的实例，兼容 Cordis 上下文代理；只读模式拒绝全部文件修改，包括临时文件。真实原生工具与独立接口均验证后落实此切片，Bash/搜索与完整组合仍未完成。

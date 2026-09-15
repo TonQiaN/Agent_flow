@@ -9,6 +9,19 @@
 | 2026-09-14 | [项目代理指令与技能相关内容审查](2026-09-14-agent-instructions-audit.md)（含 PR #35 合并后复查、R1–R4 修复验收及待讨论取舍） |
 | 2026-09-11 | [materials 管理、原件保留与飞书 CLI 核对](2026-09-11-materials-management.md) |
 | 2026-09-10、11 | [根 AGENTS.md 与同目录指令链接验证](2026-09-10-root-agents.md)（含布局粒度修订） |
+| 2026-09-09 | [订阅登录管理与协调](2026-09-09-subscription-login-coordination.md) |
+| 2026-09-09 | [本地认证管理与真实终端验证](2026-09-09-auth-management.md) |
+| 2026-09-09 | [凭据环境注入与 DeepSeek 无密钥文件执行](2026-09-09-credential-environment.md) |
+| 2026-09-09 | [基础四项验收缺口核对](2026-09-09-foundation-acceptance-audit.md) |
+| 2026-09-09 | [DeepSeek 宿主执行与文件交接](2026-09-09-deepseek-execution.md) |
+| 2026-09-09 | [DeepSeek API key 与不可变快照交接](2026-09-09-deepseek-api-key.md) |
+| 2026-09-09 | [DeepSeek Adapter 与结构化出口](2026-09-09-deepseek-adapter.md) |
+| 2026-09-09 | [DeepSeek 固定启动与图像交接](2026-09-09-deepseek-launch.md) |
+| 2026-09-09 | [DeepSeek 私有会话采集与原生完成证据](2026-09-09-deepseek-session.md) |
+| 2026-09-09 | [DeepSeek 统一工具进程隔离](2026-09-09-deepseek-process-isolation.md) |
+| 2026-09-09 | [DeepSeek 原生文件服务隔离](2026-09-09-deepseek-file-isolation.md) |
+| 2026-09-09 | [DeepSeek 配置与原生能力预检](2026-09-09-deepseek-compatibility.md) |
+| 2026-09-09 | [Claude 调用计划与协议](2026-09-09-claude-adapter.md) |
 | 2026-09-09 | [真实 Codex 批卷 Workflow](2026-09-09-tutor-grading-codex.md) |
 | 2026-09-09 | [Tutor 合成闭环与文件转换](2026-09-09-tutor-grading-fixture.md) |
 | 2026-09-09 | [模拟 Effect](2026-09-09-workflow-effects.md) |
@@ -33,3 +46,19 @@
 当前产品验证覆盖确定性 Component、Docker Runner 与受控联网、Harness parser 与凭据存储，包含首个真实 Codex 小任务、文件交接、串行 Workflow、文件到 JSON 转换及 Tutor 合成 Agent/Gate/Fixer/模拟 Effect 闭环；真实批卷、报告和 PDF 验收仍未完成。正式重大事故复盘见 [复盘入口](../postmortems/README.md)。
 
 - [Workflow 编译与串行控制](2026-09-09-workflow-serial.md)
+
+- [Claude 订阅执行、刷新与真实格式识别](2026-09-09-claude-execution.md)
+
+- [Claude 管理配置修复与实际工具隔离](2026-09-09-claude-tool-isolation.md)
+
+- [原生订阅登录驱动](2026-09-09-native-subscription-login.md)：两个独立驱动、私有交互、合成 Docker 故障恢复与原生离线帮助。
+
+- [订阅终端登录](2026-09-09-subscription-login-cli.md)：真实 PTY、编译 CLI、合成 Docker 登录、取消及持续清理失败。
+
+- [凭据备份恢复](2026-09-09-credential-recovery.md)：尾部截断、删除与版本隔离、旧记录规范化及真实进程崩溃。
+
+- [矩阵当前验收核对](2026-09-09-matrix-readiness.md)：认证缺口闭合、共用业务入口和剩余真实证据。
+
+- [DeepSeek 偶发超时诊断](2026-09-09-deepseek-timeout-diagnostics.md)：操作/子进程证据、有界重复检查及失败捕获保留。
+
+- [DeepSeek 文件取消收尾](2026-09-10-deepseek-file-cancellation.md)：专属进程组停止、管道关闭与确定性故障反例。

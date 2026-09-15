@@ -1,6 +1,6 @@
 # 使用指南
 
-当前支持确定性 Component、JSON contract 与 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；包均为仓库内部包，尚未发布安装包。
+当前支持确定性 Component、JSON contract 与 Docker Runner。前置条件为 Node.js 24 或更新版本及 npm；完整测试另需 POSIX 环境与 Python 3（真实伪终端测试）；包均为仓库内部包，尚未发布安装包。
 
 在仓库根目录运行：
 
@@ -10,13 +10,13 @@ npm run check
 npm run demo
 ```
 
-demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；当前只有 demo 子命令，Workflow 库的启动、查询或取消见独立指南。
+demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.total 为 6。错误命令返回退出码 2；另有 [本地认证管理](auth-management.md) 子命令；Workflow 库的启动、查询或取消见独立指南。
 
 [Component 使用指南](components.md) 说明注册与执行接口、错误和副本语义。[验证记录](../validation/2026-09-09-execution-foundation.md) 区分已运行检查和后续能力。
 
 从 [文档入口](../README.md) 了解当前能力，再查对应决定与说明。维护正式知识使用 [文档维护指南](../development/documentation.md)；原始资料区不要求统一整理方式，不作为日常开发默认上下文。
 
-[Docker Runner](runner.md) 提供可写文件副本、原始采集和真实取消/清理；完整 Agent、Workflow 和批卷流程继续实施，当前示例未调用模型或外部业务服务。
+[Docker Runner](runner.md) 提供可写文件副本、原始采集和真实取消/清理；Agent、串行 Workflow 和合成批卷已接通；Docker 脚本示例本身不调用模型或外部业务服务。
 
 [Harness / 认证接口](harness-auth.md) 说明首个组合已实现的计划、parser 和凭据租约，以及真实订阅小任务和未完成边界。
 
@@ -37,3 +37,13 @@ demo 输出单条 JSON，status 为 accepted、outcome 为 completed、output.to
 - [Tutor 合成批卷与文件到 JSON 转换](tutor-grading-fixture.md)
 
 - [真实 Codex 批卷 Workflow](tutor-grading-codex.md)
+
+- [Claude 调用计划与协议](claude-adapter.md)
+
+- [Claude 订阅执行组合](claude-execution.md)
+
+- [订阅登录接口与终端入口](subscription-login.md)
+
+- [私有凭据备份与恢复](credential-recovery.md)
+
+- [三种 Harness 共用批卷验收](harness-grading-matrix.md)：显式组装、离线预检和同一业务契约。

@@ -5,7 +5,7 @@ const store = new FileCredentialStore(process.argv[2], [{ service: 'test', metho
 const identity = { credentialRef: 'shared', service: 'test', method: 'subscription' };
 process.send({ state: 'starting' });
 try {
-  const lease = await store.acquire(identity, Number(process.argv[3]));
+  const lease = await (process.argv[4] === 'management' ? store.acquireManagement(identity, Number(process.argv[3])) : store.acquire(identity, Number(process.argv[3])));
   process.send({ state: 'held', metadata: lease.metadata });
   process.on('message', async message => {
     if (message === 'release') { await lease.release(); process.exit(0); }
