@@ -42,4 +42,4 @@ summary.json 保留所选配置与 `modelTransport=configured-harness`，不因�
 
 ## 最新官方验收
 
-[2026-09-15 记录](../validation/2026-09-15-official-harness-acceptance.md)已完成三家同一 JSON 流程的正常和返修，Claude/DeepSeek 图片、多出口及 Claude 真实续期另有独立探针。Codex 后续图片任务遇到凭据撤销，等待重新登录复验。未缩减原 Issue 验收范围，四项基础 Issue 仍开放；预检、真实调用、自然到期与人工提前缓存到期的证据分别核对。
+[2026-09-15 记录](../validation/2026-09-15-official-harness-acceptance.md)已完成三家同一 JSON 流程的正常和返修，Claude/DeepSeek 图片、多出口及 Claude 真实续期另有独立探针。Codex 后续图片任务曾遇到凭据撤销，专用重新登录后的图片和取消复验均通过。原 Issue 验收范围未缩减，四项基础 Issue 待最终 PR 合入核对后关闭；预检、真实调用、自然到期与人工提前缓存到期的证据分别核对。

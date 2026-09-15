@@ -1,6 +1,6 @@
 # Harness Adapter 只生成调用并解释执行证据
 
-创建于 2026-09-09。
+创建于 2026-09-09。2026-09-15 已按 Issue #10 的完整首版范围落实并验证，移入 implemented；不包含重开条件及明确排除的扩展。下文保留切片演进的取舍与有日期的历史，当前验收以[联合记录](../../../../docs/validation/2026-09-15-official-harness-acceptance.md)为准。
 
 ## 结论与边界
 
@@ -146,4 +146,4 @@ DeepSeek 矩阵先固定实际镜像的 dsh 0.1.1-rc.2。模型与推理通过�
 
 所选 model 必须同时满足实际服务能力和固定 CLI 本地模型声明；远端把旧别名映射到图片模型，不能使旧 CLI 的文本模型配置自动获得 read_image 能力。dsh 0.1.1-rc.2 的本轮支持组合使用 deepseek-v4-flash 跑文本、deepseek-v4-flash-vision-exp 跑图片；宿主仍经原有 model 字段选择，不重写 CLI 模型表、不注入任意 provider 或插件，也不更改 Workflow、输入契约与网络授权。使用者需要图片时选择已验证图片配置；未声明能力的组合明确失败，不能静默改模型或改成 OCR 替代。未来升级 CLI/服务别名时重新检查联合能力，不能只依据版本帮助或远端文档声明支持。
 
-多出口验收必须取得所选 Harness 的真实结构化结果并通过对应产物 contract；模型因能力不足仅在文本中宣布 review 不能接纳。此补充落实 #10 已确认的实际参数及支持矩阵范围，依据用户 2026-09-15 恢复完整验收的指令；真实结果、失败与复验边界见 docs/validation/2026-09-15-official-harness-acceptance.md。Codex 作者自查，整体组合验收未齐，仍留 proposed。
+多出口验收必须取得所选 Harness 的真实结构化结果并通过对应产物 contract；模型因能力不足仅在文本中宣布 review 不能接纳。此补充落实 #10 已确认的实际参数及支持矩阵范围，依据用户 2026-09-15 恢复完整验收的指令；真实结果、失败与复验边界见 docs/validation/2026-09-15-official-harness-acceptance.md。Codex 作者自查，三家联合验收已齐，适用范围按最新验证记录界定。

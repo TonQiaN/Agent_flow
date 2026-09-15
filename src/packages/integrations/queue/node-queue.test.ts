@@ -284,10 +284,12 @@ test('source-busy dispatch skips to another credential without a failed Attempt'
  for(const identity of [shared,other])await source.configure(identity,{content:'fixture-secret'});
  const management=await source.acquireManagement(shared);
  const worker=new NodeWorker(queue,{open:async(runId,_records,claim)=>{
+  // Credential selection must survive a host pause; lease expiry is tested separately.
+  if(runId==='b')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,350);
   const reservation=createQueueCredentialAdmission(source,claim);
   const app=application(runId==='a'?'shared':'other',async()=>{const lease=await reservation.credentials.acquire(claim.requirements.credential!);assert.equal(await lease.readSecret(),'fixture-secret');await lease.release();});
   return{...app,admission:reservation.admission};
- }},systemClock,'worker',['json'],300);
+ }},systemClock,'worker',['json']);
  try{
   const waiting=await worker.runOnce();assert.equal(waiting!.waiting,'CREDENTIAL_SOURCE_BUSY');assert.equal(waiting!.error,null);
   assert.equal(((await queue.records().read('a'))!.content as any).checkpoint.attempts.length,0);

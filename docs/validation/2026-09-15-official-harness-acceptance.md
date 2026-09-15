@@ -6,11 +6,11 @@
 
 验收产品基线为 main `d5d0cae1852edbec002ab551c0c46037d380a8be`。运行工作树 HEAD `9840df0ce8c2e4d1594a445d9fa8a8c77c9fd556` 与该 main 的 Git tree 完全相同；不是在未合入产品代码上运行。提交文档前远端 main 更新为 `c8e1890fb5c76d2ddac3c5bdb860ed061c3c9ea5`（PR #33 文档交付），已同步；核对 src、package.json、package-lock.json 无差异，产品验收证据仍适用。以下官方任务没有修改产品实现，使用专用凭据和合成材料，没有向服务发送真实学生数据。
 
-三种组合均已通过同一 JSON 批卷 Workflow 的正常与返修路线。Claude、DeepSeek 还通过图片与结构化多出口；Claude 新登录、真实续期、占用及启动后取消已验证。Codex 后续图片任务收到远端 refresh token 撤销错误，等待专用账号重新登录及复验。#9–#12 仍开放，不能把此前成功或已配置状态替代当前尚缺的登录/复验；#13–#16 已另行逐项验收并关闭。
+三种组合均已通过同一 JSON 批卷 Workflow 的正常与返修路线。三家还通过图片与结构化多出口；两种订阅的新登录、来源占用及启动后取消已验证，实际续期证据按下文分别保留。Codex 后续曾收到远端 refresh token 撤销错误，用户经产品终端重新登录后，图片及多出口复验通过，原失败保留。原 #9–#12 的验收条件已满足，待本次最终 PR 检查、审查及合入核对后关闭；#13–#16 已另行逐项验收并关闭。
 
 | 固定 CLI | 模型配置 | 认证 | 官方正常 / 返修 | 图片 / 多出口 |
 | --- | --- | --- | --- | --- |
-| Codex 0.153.4 | gpt-5.6-sol，low | OpenAI 订阅 | 两条通过，合计 3 个 Agent 节点 | 本轮后续调用因凭据撤销失败；历史图片证据独立保留 |
+| Codex 0.153.4 | gpt-5.6-sol，low | OpenAI 订阅 | 两条通过，合计 3 个 Agent 节点 | 重新登录后读图 37 + 26 = 63，结构化 calculated 接纳；首次鉴权失败保留 |
 | Claude 2.1.226 | sonnet，low；本轮原始 init 记录为 claude-sonnet-5 | Anthropic 订阅 | 两条通过，合计 3 个 Agent 节点 | 读图 37 + 26 = 63；结构化 calculated 接纳 |
 | dsh 0.1.1-rc.2 | deepseek-v4-flash，off；图片使用 deepseek-v4-flash-vision-exp，off | DeepSeek API key | 两条通过，合计 3 个 Agent 节点 | 图片模型配置通过 read_image / write / agentflow_outcome，calculated 接纳 |
 
@@ -35,7 +35,7 @@
 
 三个组合分别执行 `intake → marker → gate → projection → publish` 和 `intake → marker → gate → fixer → gate → projection → publish`。第二条明确要求初始 Marker 错判一个分数，独立 Gate 驳回后 Fixer 重算，最终均为 5/7。两条的业务 outcome 均为 published、accepted/released 为 true。三个组合均确认输入工作副本发生修改而宿主来源摘要不变，执行/产物资源为空，模拟 Effect 的 serviceWrites 为 0。这里的三次 Agent 执行不是三次 API 请求或费用上限。
 
-独立图片探针由宿主生成只含两行数字的 PNG，用户任务只要求读图相加，未把正确数字写进 prompt。独立 JSON contract 要求 sum=63；两个业务出口为 calculated/review。Claude 通过最终 structured_output，DeepSeek 通过原生成功 outcome 工具记录，均通过真实文件契约和释放后源摘要核对。探针使用既有 AgentExecutor 和 Driver；没有放宽引擎的接纳规则。
+独立图片探针由宿主生成只含两行数字的 PNG，用户任务只要求读图相加，未把正确数字写进 prompt。独立 JSON contract 要求 sum=63；两个业务出口为 calculated/review。Codex 通过 output-schema 的最终响应、Claude 通过最终 structured_output、DeepSeek 通过原生成功 outcome 工具记录，三家均通过真实文件契约和释放后源摘要核对。探针使用既有 AgentExecutor 和 Driver；没有放宽引擎的接纳规则。
 
 ### 保留的失败与配置边界
 
@@ -43,7 +43,7 @@
 
 先按项目要求查看 Blackbox `5610d1b` 的 DeepSeek 探针记录，确认其配置需保留 provider、能力须实际验证；该旧记录未提供当前图片模型表的直接修复。随后核对 DeepSeek 官方[图片说明](https://api-docs.deepseek.com/guides/vision/)及固定 CLI 的实际行为，使用其图片模型标识 deepseek-v4-flash-vision-exp 后实跑通过。没有修改 CLI、伪造 inputModalities、改写 API 响应或借普通文本任务冒充图像能力。官方服务支持图片与旧 CLI 对某个模型标识的本地声明是不同检查；此次仅调整验收调用的 model 配置。
 
-Codex 正常与返修通过后的独立图片调用返回“refresh token was revoked”，退出 1，Runner 确认停止/清理，绑定释放。未推断撤销原因、未恢复旧 token、未自动回退到桌面账号。必须在用户重新登录后复验；保留失败，不能用重跑覆盖。
+Codex 正常与返修通过后的独立图片调用返回“refresh token was revoked”，退出 1，Runner 确认停止/清理，绑定释放。未推断撤销原因、未恢复旧 token、未自动回退到桌面账号。用户通过产品 auth login codex 重新登录，源 revision 从2变为3；随后图片任务正常完成、sum=63、calculated 接纳、来源摘要不变、临时资源为空。旧失败与新成功分别保留。
 
 ## 订阅与凭据生命周期
 
@@ -53,7 +53,7 @@ Claude 新登录缓存尚未到期，初始三次任务 revision 保持 1，不�
 
 Claude 图片任务持有来源期间，另一次 acquire 返回 CREDENTIAL_BUSY；任务完成后可重新 acquire/release。另一个真实 Claude 容器在 start_completed 后立即请求取消，最终 phase=cancelled、stop=confirmed、cleanup=removed、authentication.status=released，长期来源 revision 3 保留，临时目录为空。这证明实际启动/绑定后的取消收尾，不声称该取消任务完成了模型请求。探针初次遗漏显式输入目录，在启动前 INVALID_SUBSCRIPTION_REQUEST；补齐空输入目录后通过，产品未改动。
 
-Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务后为 revision 2，同 generation；当前 access token 的签发时间及 last_refresh 位于第一条执行内，后两条实际请求通过。运行前未保存旧 token payload，因此这是修订号、时间和官方调用的组合证据，不提供旧/新 token 逐值比较。后续远端撤销说明一次成功不能承诺账号持续有效；新登录及恢复执行仍待完成。
+Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务后为 revision 2，同 generation；当前 access token 的签发时间及 last_refresh 位于第一条执行内，后两条实际请求通过。运行前未保存旧 token payload，因此这是修订号、时间和官方调用的组合证据，不提供旧/新 token 逐值比较。后续远端撤销说明一次成功不能承诺账号持续有效；随后用户经产品专用终端完成新登录，revision3，官方图片执行通过；该次没有再次触发续期，不能把登录替换计作运行刷新。执行期间另一来源租约申请返回 CREDENTIAL_BUSY，完成后可重新取得。独立取消探针在 start_completed 后请求取消，最终 cancelled/confirmed/removed，认证 released、长期revision3保留、临时目录为空；它证明启动后的停止收尾，不声称取消任务完成模型请求。
 
 并发保证仍限单机、同 credentialRef 的独占订阅执行；别名和外部软件持有同账号副本不在锁的保证范围内。真实远端有效性没有被写入长期 remoteStatus；本地检查继续为 unknown。
 
@@ -75,7 +75,7 @@ Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务�
 | 用户路由 | [workflow-serial](2026-09-09-workflow-serial.md)：替换路由与目标、次数/步数耗尽及身份 |
 | Effect | [workflow-effects](2026-09-09-workflow-effects.md)：授权、dry-run、独立业务身份与幂等冲突；本轮零写入 |
 | 控制与记录 | [agent-workflow](2026-09-10-agent-workflow.md)：启动、查询、取消和真实执行收尾 |
-| 真实集成 | 本记录：三家业务闭环已通过；Codex 新登录/图片复验待完成 |
+| 真实集成 | 本记录：三家业务闭环、图片多出口、新登录及所选认证已验证 |
 | 文档交付 | 本记录：本轮更新当前矩阵；最终 PR 与合入核对待完成 |
 
 ### Issue #10
@@ -91,7 +91,7 @@ Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务�
 | 完成/失败 | [docker-runner](2026-09-09-docker-runner.md)：非零、超时、取消、采集失败；本轮退出0但无outcome亦失败 |
 | outcome | [agent-acceptance](2026-09-09-agent-acceptance.md)：结构化出口及契约；Claude/DeepSeek 本轮真实图片 calculated |
 | 注册 | [harness-auth-primitives](2026-09-09-harness-auth-primitives.md)：独立注册与未知 Harness 拒绝 |
-| 真实支持矩阵 | 本记录：三家实际官方业务通过；Codex 新登录/图片复验待完成 |
+| 真实支持矩阵 | 本记录：三家实际官方业务、图片多出口通过，固定版本与配置已记录 |
 | 文档与交接 | 本记录：当前支持/限制同步；最终合入核对待完成 |
 
 ### Issue #11
@@ -107,8 +107,8 @@ Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务�
 | 容量与生命周期 | [subscription-login-coordination](2026-09-09-subscription-login-coordination.md)：单机多进程占用与管理互斥；Claude 本轮真实忙/取消释放 |
 | 状态真实性 | [auth-management](2026-09-09-auth-management.md)：本地配置≠远端有效；Codex 撤销错误未伪装成功 |
 | 清理 | [credential-binding](2026-09-09-credential-binding.md)：正常/失败/超时/取消与未知停止；本轮源保留及临时资源清空 |
-| 实际组合 | 本记录：Claude 新登录、续期、任务通过；DeepSeek key 调用通过；Codex 重新登录待完成 |
-| 文档与交付 | 本记录：原验收范围保留；等待 Codex 复验与最终合入 |
+| 实际组合 | 本记录：两种订阅新登录、任务、续期证据与异常收尾已核对；DeepSeek key 调用通过 |
+| 文档与交付 | 本记录：原验收范围保留；实际证据已齐，等待最终合入核对 |
 
 ### Issue #12
 
@@ -124,8 +124,8 @@ Codex 本轮正常流程前 product inspect 为 revision 1；三次官方任务�
 | 认证隔离 | [credential-binding](2026-09-09-credential-binding.md)：必要材料、脱敏、长期来源保留；Claude 本轮实际续期 |
 | 资源与网络 | [controlled-egress](2026-09-09-controlled-egress.md)：真实 Docker 权限/资源/代理；官方任务保持同一配方 |
 | 清理 | [docker-runner](2026-09-09-docker-runner.md)：成功/失败/取消/部分启动、失败保留；本轮资源清空 |
-| 联合集成 | 本记录：脚本及三家官方业务闭环；Codex 重新登录复验尚待 |
-| 文档与验收 | 本记录：当前记录同步；四项完整关闭仍待剩余证据及合入 |
+| 联合集成 | 本记录：脚本、三家官方业务闭环及新登录后复验通过 |
+| 文档与验收 | 本记录：当前记录同步；四项验收证据完整，关闭需核对最终合入 |
 
 ## 联合故障回归与未覆盖范围
 
@@ -143,3 +143,11 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 node --import tsx --test --tes
 此前最终合入版本普通检查 415 项通过，默认 E2E 17 通过、188 跳过；未把默认跳过写成全量 Docker 通过。各特性和精确 head 的 CI、故障注入以已合入验证记录与 PR 为准。本轮没有重新运行所有 CLI 兼容性测试，也没有发布版本或重新完整批改真实学生试卷。
 
 历史学生样本的分阶段批改/复核/18页 PDF 见[Tutor 学生输入验证](2026-09-10-tutor-student-input.md)及[扫描件验证](2026-09-10-tutor-scanned-marking.md)，不能改写为本轮三家模型都完成真实学生验收，亦未证明从空白状态一次成功。真实服务额度、服务端模型别名、外部凭据撤销、跨主机或跨文件别名占用仍不保证。
+
+## 本轮 CI 的凭据繁忙测试修正
+
+文档 head 1696740 的 push 检查中，Node26 的 `source-busy dispatch skips to another credential without a failed Attempt` 在约977毫秒后得到 QUEUE_CLAIM_LOST；同批 Node24通过。失败日志保留。这条测试验证繁忙来源不生成失败 Attempt、可切换到另一个来源，却把 Worker 租约设为300毫秒。
+
+先核对 Blackbox 5610d1b 的 scheduler 测试：其专门过期用例缩短旧 Worker 租约，恢复使用较长租约。本项目在可用来源的 host open 中加入350毫秒同步停顿，旧测试稳定得到同一个 QUEUE_CLAIM_LOST（1失败）；移除该用例的300毫秒覆盖、使用生产默认30秒租约后，保留同一停顿验证。生产 Worker、heartbeat、过期写入拒绝、凭据行为和 Harness 未改，专门短租约过期/恢复用例保留。这个复现证明测试前提存在缺陷，不把缺少宿主调度轨迹的原CI失败全部归为已证明的同一停顿。最终检查结果在PR按精确head记录。
+
+修正后同文件19项通过，含专门过期/恢复用例；完整 `npm run check` 的边界、构建、测试类型检查通过，普通415通过、0失败/跳过，默认E2E17通过、188按环境跳过、0失败。生产源码未变，因此此前官方/真实Docker证据保持适用；没有把默认跳过的测试写成重跑通过。正式文档本地链接与AGENTS相对链接核对通过，精确最终head的CI在PR另行核对。
