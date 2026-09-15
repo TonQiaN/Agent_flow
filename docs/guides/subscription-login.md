@@ -1,6 +1,6 @@
 # 订阅登录协调接口
 
-当前提供独立登录协调器、管理租约，以及 Codex 0.153.4 / Claude 2.1.226 的 Docker 原生登录驱动。宿主可通过私有交互能力或 CLI `auth login` 使用；Claude 已通过专用真实账号登录及后续模型调用；Codex 专用来源需要重新登录复验，见[本轮验收](../validation/2026-09-15-official-harness-acceptance.md)。
+当前提供独立登录协调器、管理租约，以及 Codex 0.153.4 / Claude 2.1.226 的 Docker 原生登录驱动。宿主可通过私有交互能力或 CLI `auth login` 使用；Claude 已通过专用真实账号登录及后续模型调用；Codex 专用来源重新登录后已通过官方任务及取消收尾，见[本轮验收](../validation/2026-09-15-official-harness-acceptance.md)。
 
 ## 管理占用
 
@@ -81,6 +81,6 @@ node src/apps/cli/dist/index.js auth delete codex \
   --store /absolute/private/credentials --credential-ref teaching
 ```
 
-也支持 claude；相同引用按所选服务核对。删除仍遵守管理占用，不宣称远端撤销；已保存仍为 remoteStatus=unknown。Claude 官方交互登录及人工提前缓存到期后的真实续期已通过；Codex 新登录复验仍待完成。见 [终端登录验证](../validation/2026-09-09-subscription-login-cli.md)。
+也支持 claude；相同引用按所选服务核对。删除仍遵守管理占用，不宣称远端撤销；已保存仍为 remoteStatus=unknown。Claude 官方交互登录及人工提前缓存到期后的真实续期已通过；Codex 新登录及图片/多出口、占用/取消复验也已通过。见 [终端登录验证](../validation/2026-09-09-subscription-login-cli.md)。
 
 [有限备份恢复](credential-recovery.md)已接入存储和独立管理命令；它不改变登录清理占用，也不代替真实账号验收。
