@@ -1,0 +1,7 @@
+# 原始内容留在本地；只跟踪根级管理文件。
+/*
+!/.gitignore
+!/.ignore
+!/AGENTS.md
+!/CLAUDE.md
+!/README.md

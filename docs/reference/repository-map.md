@@ -1,6 +1,6 @@
 # 仓库结构图
 
-状态：2026-09-09 执行基础、Docker Runner、受控联网与独立 Harness/认证、Agent 接纳及串行 JSON Workflow、Run 记录存储切片。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+当前能力与未完成范围见 [文档入口](../README.md)。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -22,6 +22,7 @@ Agent_flow/
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
+│   ├── CLAUDE.md -> AGENTS.md      # 共用同目录指令正文
 │   ├── TEMPLATE.md
 │   ├── product/
 │   │   ├── README.md              # 稳定 ID → 正文位置
@@ -39,7 +40,9 @@ Agent_flow/
 │   ├── architecture/README.md
 │   ├── guides/README.md
 │   ├── development/
+│   │   ├── code-structure.md     # 当前源码组织、依赖边界与工程命令
 │   │   ├── documentation.md
+│   │   ├── materials.md          # 本地原始资料、Git 边界与飞书 CLI 共享
 │   │   ├── workflow.md           # 当前协作流程、模板及能力边界
 │   │   ├── issue-templates.md    # 五类选择、填写、CLI/API 与同步维护
 │   │   └── versioning.md         # Roadmap、变更记录及手工发布维护
@@ -48,12 +51,17 @@ Agent_flow/
 │   ├── validation/               # 实际执行的验证结果与局限
 │   └── postmortems/              # 永久保留的重大事故复盘
 └── materials/
+    ├── AGENTS.md                 # 本区的保存、检索与团队共享规则
+    ├── CLAUDE.md -> AGENTS.md
     ├── README.md                 # 入口；不要求全量文件索引
-    ├── .ignore                   # 默认 rg 不读取内部材料
-    └── …                         # 自由组织，可含 artifacts、会议、录音等
+    ├── .gitignore                # 原始内容忽略，仅五份根级管理文件入库
+    ├── .ignore                   # 默认 rg 可发现管理文件，避开原始正文
+    └── …                         # 仅本地、自由组织；选定资料通过飞书 CLI 共享
 ```
 
 正式开发以 Issue 为工作起点，按对应决定及当前说明执行。原始资料可由研究任务提炼进决定，但正式决定不依赖原始资料路径；原始区内部结构不在本图管理。
+
+目录、职责或开发入口变化时，负责该改动的开发者同步本图、根 AGENTS.md 的简图、[工程指南](../development/code-structure.md) 与相关使用指南。尚未建立的入口须明确标为占位，实际落地后及时替换。
 
 [生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
 
