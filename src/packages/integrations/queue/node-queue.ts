@@ -70,6 +70,14 @@ export class PersistentNodeQueue implements NodeTaskQueue {
     }
     #project(index: Index, content: JsonValue, runId: string, owned?: Task): void {
         const c = checkpoint(content, runId), v = c.snapshot, last = v.steps.at(-1);
+        // Recovery wrappers retain the old view; only a committed normal checkpoint schedules a wait.
+        if ((content as {schema?:string}).schema === 'agentflow-workflow-checkpoint/v5' && owned && v.status === 'retry_wait') {
+            if (!v.retry || v.retry.nodeTaskId !== owned.nodeTaskId || v.currentIdentity !== null) throw new DefinitionError('INVALID_QUEUE_RETRY');
+            // Admission sealed earlier tokens before this Attempt; keep the current token for takeover cleanup.
+            owned.admissionTokens = [owned.owner!.token];
+            owned.state = 'ready'; owned.owner = null; owned.reason = 'RETRY_WAIT'; owned.notBefore = v.retry.nextAt;
+            return;
+        }
         const boundary = ['queued', 'running'].includes(v.status) && !v.cancelRequested && v.currentIdentity === null;
         const terminal = ['succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status);
         const completed = owned && v.steps.length === Number(owned.nodeTaskId.slice(5));
@@ -235,6 +243,7 @@ export class PersistentNodeQueue implements NodeTaskQueue {
             if (!stopped || c.snapshot.cancelRequested)
                 throw new DefinitionError('QUEUE_TASK_ACTIVE');
             const value = { ...structuredClone(c), snapshot: { ...c.snapshot, status: 'cancelled', cancelRequested: true, reason: 'CANCEL_REQUESTED', currentNode: null, currentIdentity: null }, cursor: { ...c.cursor, node: null } };
+            delete value.snapshot.retry;
             task.state = 'done';
             task.reason = 'CANCEL_REQUESTED';
             try {

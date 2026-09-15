@@ -35,7 +35,7 @@ const executor = new EffectExecutor(contracts, components, adapter, effectsStore
 for (const id of ['a','b']) catalog.register(id, { mode: 'apply', operation: { target: variant === 'target' ? 'other' : `target-${id}`, key: `op-${id}` },
  approval: request => { approvals.push(request.identity); return variant === 'no-approval' ? undefined : executor.authorize(request); } });
 const flow = compileWorkflow({ id:'effects',start:'a',input:{kind:'json',id:'json'},outcomes:{done:{kind:'json',id:'json'}},maxSteps:2,
- nodes:{a:{component:'a'},b:{component:'b'}},routes:['a','b'].flatMap(from=>['applied','already-applied','simulated'].map(outcome=>({from,outcome,to:from==='a'?{node:'b'}:{end:'done'}}))) },catalog);
+ nodes:{a:{component:'a'},b:{component:'b',...(variant==='retry'?{retry:{maxAttempts:3,on:['execution_failure','interrupted'],delayMs:0}}:{})}},routes:['a','b'].flatMap(from=>['applied','already-applied','simulated'].map(outcome=>({from,outcome,to:from==='a'?{node:'b'}:{end:'done'}}))) },catalog);
 let loaded,recovery,resumed;
 try {
  let result;

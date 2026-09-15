@@ -1,3 +1,4 @@
+import type { RetryPolicy } from '../retry/policy.js';
 import type { AgentDispatchBinding } from '../auth/types.js';
 import type { InvocationResourcePlan, InvocationPhaseSink } from './phases.js';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
@@ -19,7 +20,7 @@ export interface WorkflowDefinition {
   readonly input: WorkflowContract;
   readonly outcomes: Readonly<Record<string, WorkflowContract>>;
   readonly maxSteps: number;
-  readonly nodes: Readonly<Record<string, { readonly component: string }>>;
+  readonly nodes: Readonly<Record<string, { readonly component: string; readonly retry?: RetryPolicy }>>;
   readonly routes: readonly WorkflowRoute[];
 }
 export interface WorkflowIssue { readonly contractId: string; readonly path: string; readonly rule: string; readonly code: string }
@@ -51,6 +52,7 @@ export interface WorkflowNodeExecutor {
   checkpointAcceptance?(result: Extract<WorkflowNodeResult, { status: 'accepted' }>): Promise<JsonValue>;
   /** Accepts only a one-use request issued after a checkpoint has been validated. */
   restoreValue?(request: WorkflowValueRestoreRequest): Promise<WorkflowRestoredValue>;
+  cleanupFailed?(identity: ExecutionIdentity): Promise<void>;
   check(id: string, value: JsonValue): readonly WorkflowIssue[];
   execute(component: ComponentDefinition, input: JsonValue, identity: ExecutionIdentity, cancellation: Cancellation, persistence?: RunnerResourceSink, phases?: InvocationPhaseSink): Promise<WorkflowNodeResult>;
 }
@@ -61,9 +63,10 @@ export interface CompiledWorkflow { readonly definition: WorkflowDefinition }
 export interface WorkflowStep { readonly node: string; readonly result: WorkflowNodeResult }
 export interface WorkflowLimitEvent { readonly node: string; readonly outcome: string; readonly step: number; readonly max: number }
 export interface WorkflowSnapshot {
+  readonly retry?: { readonly nodeTaskId: string; readonly attemptNumber: number; readonly code: string; readonly nextAt: number };
   readonly runId: string;
   readonly workflowId: string;
-  readonly status: 'queued' | 'running' | 'cancelling' | 'succeeded' | 'failed' | 'cancelled' | 'exhausted';
+  readonly status: 'queued' | 'running' | 'cancelling' | 'retry_wait' | 'succeeded' | 'failed' | 'cancelled' | 'exhausted';
   readonly currentNode: string | null;
   readonly currentIdentity: ExecutionIdentity | null;
   readonly cancelRequested: boolean;

@@ -1,3 +1,4 @@
+import { decideRetry } from '../retry/policy.js';
 import { assertPhasePlan, phaseUnconfirmed, invocationPlanFor } from './phases.js';
 import { isIdentifier } from '@agentflow/domain';
 import type { JsonValue } from '@agentflow/domain';
@@ -26,9 +27,9 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
   let raw: JsonValue; try { raw = copyJson(value); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   valid(shape(raw, ['schema', 'execution', 'snapshot', 'cursor', 'values', 'attempts']));
   const c = raw as unknown as WorkflowCheckpoint, v = c.snapshot, cursor = c.cursor, plan = getPlan(compiled);
-  valid(c.schema === 'agentflow-workflow-checkpoint/v5' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted']));
+  valid(c.schema === 'agentflow-workflow-checkpoint/v5' && shape(v, ['runId', 'workflowId', 'status', 'currentNode', 'currentIdentity', 'cancelRequested', 'outcome', 'reason', 'issues', 'steps', 'limits', 'lastAccepted', ...(object(v) && Object.hasOwn(v, 'retry') ? ['retry'] : [])]));
   valid(v.runId === runId && v.workflowId === plan.definition.id && typeof v.cancelRequested === 'boolean'
-    && ['queued', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
+    && ['queued', 'running', 'cancelling', 'retry_wait', 'succeeded', 'failed', 'cancelled', 'exhausted'].includes(v.status));
   valid(shape(cursor, ['node', 'value', 'traversals']) && object(cursor.traversals) && Array.isArray(v.steps)
     && v.steps.length <= plan.definition.maxSteps && Array.isArray(v.limits) && issues(v.issues));
   valid(Array.isArray(c.values) && c.values.length >= 1 && c.values.length <= plan.definition.maxSteps + 1);
@@ -100,11 +101,34 @@ function validate(compiled: CompiledWorkflow, runId: string, value: unknown): { 
       }
     }
   }
+  const retry = c.attempts.at(-1)?.retry;
+  if (v.status === 'retry_wait') {
+    valid(v.currentIdentity === null && retry && shape(v.retry, ['nodeTaskId','attemptNumber','code','nextAt'])
+      && equal(v.retry, {nodeTaskId: retry.result.identity.nodeTaskId, attemptNumber: retry.result.identity.attemptNumber, code: retry.result.code, nextAt: retry.nextAt}));
+  } else valid(!Object.hasOwn(v, 'retry'));
   const active = v.currentIdentity !== null && !failed;
   const cancelledPending = v.status === 'cancelled' && !failed && !terminal && v.steps.length < plan.definition.maxSteps;
   valid(active ? !!history.open : !history.open || cancelledPending);
   for (const [index, attempt] of c.attempts.entries()) {
     valid(attempt.node === (v.steps[history.positions[index]!]?.node ?? node));
+    const binding = plan.bindings.get(attempt.node)!;
+    if (attempt.retry !== undefined) {
+      const r = attempt.retry, failure = r.result;
+      valid(shape(r, ['category','decidedAt','nextAt','result']) && shape(failure, ['identity','componentId','status','code','stopped','issues'])
+        && failure.status === 'failed' && failure.stopped === true && isIdentifier(failure.code) && issues(failure.issues)
+        && equal(failure.identity, attempt.identity) && failure.componentId === binding.component.id);
+      const decision = decideRetry(plan.definition.nodes[attempt.node]!.retry, attempt.identity.attemptNumber, failure.code, true, false, r.decidedAt);
+      valid(decision && equal(decision, {category:r.category,decidedAt:r.decidedAt,nextAt:r.nextAt}));
+    }
+    if (attempt.interrupted && attempt.resultStep !== null) {
+      const r = v.steps[attempt.resultStep]!.result;
+      const policy = plan.definition.nodes[attempt.node]!.retry;
+      valid(policy && r.status === 'failed' && r.stopped && r.code === (attempt.identity.attemptNumber >= policy.maxAttempts ? 'ATTEMPT_BUDGET_EXHAUSTED' : 'ATTEMPT_INTERRUPTED')
+        && !decideRetry(policy, attempt.identity.attemptNumber, 'ATTEMPT_INTERRUPTED', true, false, 0));
+    }
+    const policy = plan.definition.nodes[attempt.node]!.retry;
+    if (policy) valid(attempt.identity.attemptNumber <= policy.maxAttempts);
+
   }
   return { checkpoint: c, requests };
 }
@@ -127,8 +151,8 @@ export async function loadWorkflowCheckpoint(compiled: CompiledWorkflow, runId: 
   try { validated = validate(compiled, runId, unwrapped.record.content); } catch { throw new DefinitionError('INVALID_WORKFLOW_CHECKPOINT'); }
   const { checkpoint, requests } = validated;
   if (unwrapped.recovery) {
-    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted ? last : null;
-    if (!['queued', 'running'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
+    const last = checkpoint.attempts.at(-1), active = last?.resultStep === null && !last.interrupted && !last.retry ? last : null;
+    if (!['queued', 'running', 'retry_wait'].includes(checkpoint.snapshot.status) || checkpoint.snapshot.cancelRequested
       || active?.launch?.endsWith('_pending') || phaseUnconfirmed(active?.phases) || !active?.resource && !active?.phases?.some(p => p.resource) && !unwrapped.recovery.resourceRemoved) throw new DefinitionError('INVALID_WORKFLOW_RECOVERY_RECORD');
   }
   await assertWorkflowExecutionMatches(compiled, checkpoint.execution);
