@@ -26,6 +26,8 @@ DeepSeek 的隔离文件服务属于容器内应用，放在 src/apps/deepseek-t
 
 #39 的浏览器源码位于 studio/client，先构建工作区依赖的公开类型声明，再使用独立 DOM 类型检查，保证全新安装可运行；Playwright 用户旅程位于 src/tests/browser。依赖边界检查纳入 TSX/JSX，排除明确生成的 studio/public 与已有 dist；源文件和依赖声明仍受检查，不能把构建后的第三方 bundle 当成应用手写导入。CI 的 Node 24/26 检查外增加 Chromium 用户旅程，运行真实本机服务和断网材料容器，固定模型响应以避免外部费用和模型波动。
 
+测试夹具容器向宿主目录生成文档时使用当前宿主 UID/GID，保持 Linux 非 root 开发者可读取和清理。不能依靠 Docker Desktop 的文件归属映射掩盖权限差异，也不使用宽泛 chmod 或特权容器修复测试。
+
 ## 方案考量（alternatives）
 
 | 方案 | 收益 | 代价 | 取舍 |
