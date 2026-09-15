@@ -7,6 +7,9 @@
 ### 重要变更
 
 - 文件 Workflow 将实际 Runner 超时统一映射为 EXECUTION_TIMEOUT，替代通用 Script/Agent 执行失败码；未配置重试的调用也会看到此错误码，仍默认只执行一次。
+- materials 原始内容默认不再进入 Git，仅保留五份根级管理文件；新增局部 AGENTS.md、同目录 CLAUDE.md 符号链接及选定资料通过飞书 CLI 共享的约定。已有 checkout 更新前的原件保留方式见 [资料指南](docs/development/materials.md)，关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34)。
+
+- 根 AGENTS.md 采用独立书写决定，整理为必要规则、真实仓库布局、docs 工作入口与团队约定；布局展开 src，其余目录只列入口与职责。项目内每份 AGENTS.md 配套同目录 CLAUDE.md 符号链接，本轮补齐决策目录链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
 
 - 五类表单明确用于主 Issue，增加“开发流程 / 项目内容”领域分类，聚焦当前情况与期望结果，保留缺陷事实并移除预设方法字段。开放空白入口；Sub-issue 的内容与形式由负责人自主决定，暂不提供模板或写作建议。同步主／子 Issue 与 PR 的职责、追溯和验收说明，见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
 
@@ -120,6 +123,10 @@
 - 增加变更记录及手工发布维护指南，明确发布 tag、维护职责和 PR 中的同步时机。
 
 ### 修复
+
+- 决策 alternatives 仅记录用户确实考虑过且给出取舍理由的方案；移除模板预填比较表，允许明确写暂无，避免补造候选或理由。见 [Issue #37](https://github.com/TonQiaN/Agent_flow/issues/37)。
+
+- 代理指令按任务触发概览阅读；开发指南补齐已有文档和轻量改动的处理说明、Blackbox 参考入口及调查继续条件，并修正根入口负责决定的过时引用。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
 
 - Codex 0.153.4 对固定临时 input/work/outputs 显式允许元数据子目录写入，避免不适用的默认只读挂载；新增真实离线启动与元数据写入/认证隔离回归。
 

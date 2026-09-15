@@ -24,7 +24,15 @@
 
 ## D-20260907-agents-writing
 
-[AGENTS.md 的职责分层与唯一书写决策](implemented/D-20260907-agents-writing.md)
+[决策目录 AGENTS.md 的职责与唯一书写归属](implemented/D-20260907-agents-writing.md)
+
+## D-20260910-root-agents-writing
+
+[根目录 AGENTS.md 作为简短的项目工作入口](implemented/D-20260910-root-agents-writing.md)
+
+## D-20260911-materials-management
+
+[materials 保留本地原始资料，选定内容通过飞书共享](implemented/D-20260911-materials-management.md)
 
 ## D-20260907-development-workflow
 
