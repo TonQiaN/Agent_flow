@@ -24,7 +24,7 @@ DeepSeek 的隔离文件服务属于容器内应用，放在 src/apps/deepseek-t
 
 ## 浏览器应用与构建产物
 
-#39 的浏览器源码位于 studio/client，使用独立 DOM 类型检查；Playwright 用户旅程位于 src/tests/browser。依赖边界检查纳入 TSX/JSX，排除明确生成的 studio/public 与已有 dist；源文件和依赖声明仍受检查，不能把构建后的第三方 bundle 当成应用手写导入。CI 的 Node 24/26 检查外增加 Chromium 用户旅程，运行真实本机服务和断网材料容器，固定模型响应以避免外部费用和模型波动。
+#39 的浏览器源码位于 studio/client，先构建工作区依赖的公开类型声明，再使用独立 DOM 类型检查，保证全新安装可运行；Playwright 用户旅程位于 src/tests/browser。依赖边界检查纳入 TSX/JSX，排除明确生成的 studio/public 与已有 dist；源文件和依赖声明仍受检查，不能把构建后的第三方 bundle 当成应用手写导入。CI 的 Node 24/26 检查外增加 Chromium 用户旅程，运行真实本机服务和断网材料容器，固定模型响应以避免外部费用和模型波动。
 
 ## 方案考量（alternatives）
 
