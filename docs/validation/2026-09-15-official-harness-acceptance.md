@@ -4,7 +4,7 @@
 
 ## 对象与当前结论
 
-验收产品基线为 main `d5d0cae1852edbec002ab551c0c46037d380a8be`。运行工作树 HEAD `9840df0ce8c2e4d1594a445d9fa8a8c77c9fd556` 与该 main 的 Git tree 完全相同；不是在未合入产品代码上运行。以下官方任务没有修改产品实现，使用专用凭据和合成材料，没有向服务发送真实学生数据。
+验收产品基线为 main `d5d0cae1852edbec002ab551c0c46037d380a8be`。运行工作树 HEAD `9840df0ce8c2e4d1594a445d9fa8a8c77c9fd556` 与该 main 的 Git tree 完全相同；不是在未合入产品代码上运行。提交文档前远端 main 更新为 `c8e1890fb5c76d2ddac3c5bdb860ed061c3c9ea5`（PR #33 文档交付），已同步；核对 src、package.json、package-lock.json 无差异，产品验收证据仍适用。以下官方任务没有修改产品实现，使用专用凭据和合成材料，没有向服务发送真实学生数据。
 
 三种组合均已通过同一 JSON 批卷 Workflow 的正常与返修路线。Claude、DeepSeek 还通过图片与结构化多出口；Claude 新登录、真实续期、占用及启动后取消已验证。Codex 后续图片任务收到远端 refresh token 撤销错误，等待专用账号重新登录及复验。#9–#12 仍开放，不能把此前成功或已配置状态替代当前尚缺的登录/复验；#13–#16 已另行逐项验收并关闭。
 

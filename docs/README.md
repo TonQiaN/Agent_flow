@@ -29,7 +29,7 @@
 - [Claude 组合](guides/claude-execution.md)、[DeepSeek 组合](guides/deepseek-adapter.md)、[认证管理](guides/auth-management.md)、[订阅登录](guides/subscription-login.md)与[有限备份恢复](guides/credential-recovery.md)。
 - [显式中断恢复](guides/workflow-recovery.md)、[实际 Agent 阶段](guides/workflow-phases.md)、[订阅资源恢复](guides/subscription-resource-recovery.md)与 [#13 作者验收对照](validation/2026-09-10-issue13-acceptance.md)。
 - [单机队列与 Worker](guides/node-queue.md)：共享容量、单节点交还、停止与失联恢复；凭据繁忙时留队等待，旧占用在确认清理后交接。
-- [持久批卷应用](guides/persistent-tutor-grading.md)：原始来源、Script 评分、用户返修、JSON 转换和当前发布授权共用正常引擎接口。已验证合成答卷与协议替身；真实学生卷、报告和 PDF 待验收。
+- [持久批卷应用](guides/persistent-tutor-grading.md)：原始来源、Script 评分、用户返修、JSON 转换和当前发布授权共用正常引擎接口。已验证合成答卷与协议替身恢复；真实学生样本的报告验证见下方消费端入口，该样本未验证持久 Worker 恢复。
 
 [完整指南索引](guides/README.md)保存其他能力入口；[验证索引](validation/README.md)保留各次版本、范围与失败记录。历史切片的待办不代表当前仍缺该能力，以当前指南和验收对照为准。
 

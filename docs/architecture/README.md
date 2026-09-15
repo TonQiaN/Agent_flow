@@ -6,9 +6,9 @@
 
 当前依赖方向与开发说明见 [源码组织与工程检查](../development/code-structure.md)，目录选择的理由见 [源码结构决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)。确定性调用接受独立 JSON 副本，函数直接返回 outcome/output，引擎校验对应契约；业务 rejected 可以正常接纳，违约或异常属于 failed。具体接口见 [Component 使用指南](../guides/components.md) 和 [执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)。
 
-engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt 分配，通过窄执行端口接入现有 JSON 函数；持久恢复与共享调度尚未实现。Component 不持有路由、文件系统、Docker、认证或 Harness。engine/runner 协调一次执行，integrations/docker 实现文件与容器操作；integrations/workflow/files 将文件函数和 AgentExecutor 接入同一端口，私有引用维护跨节点来源，文件 IO 不进入编译和调度；engine/components/script-executor 通过 backend/clock/记录读取端口接入确定性脚本，engine/components/effect-executor 独立处理一次授权、幂等占位和上下文收据，workflow/effects 接入 JSON 执行；模拟服务位于 integrations/effects，仅写内存。可信函数运行在调用进程中，内存副本隔离不等于安全沙箱。
+engine/workflow 已有独立编译、串行 Run 控制及逐次 NodeTask/Attempt 分配，通过窄执行端口接入现有 JSON 函数；已接通持久恢复、共享队列/Worker、有限重试与单层 JSON Map/Fork，分别见 [恢复](../guides/workflow-recovery.md)、[队列](../guides/node-queue.md)、[重试](../guides/node-retries.md)和[并行](../guides/json-parallel.md)。Component 不持有路由、文件系统、Docker、认证或 Harness。engine/runner 协调一次执行，integrations/docker 实现文件与容器操作；integrations/workflow/files 将文件函数和 AgentExecutor 接入同一端口，私有引用维护跨节点来源，文件 IO 不进入编译和调度；engine/components/script-executor 通过 backend/clock/记录读取端口接入确定性脚本，engine/components/effect-executor 独立处理一次授权、幂等占位和上下文收据，workflow/effects 接入 JSON 执行；模拟服务位于 integrations/effects，仅写内存。可信函数运行在调用进程中，内存副本隔离不等于安全沙箱。
 
-用户已确认的完整文件交付、Agent、Workflow、恢复与并行边界将在 [版本计划](../roadmap/README.md) 对应切片实现。浏览器、API 和布局状态后续接入，当前未创建占位包。
+用户已确认的文件交付、Agent、Workflow、恢复与 JSON 并行已按 [版本计划](../roadmap/README.md) 合入；未验证的官方组合、真实刷新和其他限制继续按对应验收入口跟进。浏览器、API 和布局状态后续接入，当前未创建占位包。
 
 engine/harness 定义任务、计划、事件与结果及显式注册；integrations/harness/codex、claude、deepseek 各自映射和解析，不读文件/秘密或启动进程。engine/auth 是凭据存储与租约接口，integrations/auth/file-store 执行宿主文件和跨进程占用操作。私有工作副本通过 integrations/execution 的 PrivateStateBinding 与后端连接，认证模块负责租约与实际清理后的条件刷新；真实 provider 与计划兼容性仍须组合层兑现才能执行，不能把声明视为能力证明。Claude 订阅与 DeepSeek API key 组合已接通，真实官方模型调用尚未验收。详见 [接口指南](../guides/harness-auth.md)。
 
