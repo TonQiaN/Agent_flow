@@ -1,0 +1,7 @@
+{
+  "name": "@agentflow/studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@agentflow/domain": "0.0.0", "@agentflow/engine": "0.0.0", "@agentflow/integrations": "0.0.0" }
+}

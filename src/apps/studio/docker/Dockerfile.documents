@@ -1,0 +1,5 @@
+FROM python:3.13-slim
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-chi-sim fonts-wqy-zenhei && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir reportlab==4.4.3 pillow==11.3.0
+COPY src/examples/recruitment/documents.py /opt/agentflow/documents.py
+ENTRYPOINT []

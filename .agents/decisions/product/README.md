@@ -37,3 +37,11 @@
 ## P-20260910-json-parallel
 
 [单层 JSON Map/Fork 与持久汇合](proposed/P-20260910-json-parallel.md)
+
+## P-20260915-local-studio
+
+[本机工作流展示与启动服务](proposed/P-20260915-local-studio.md)
+
+## P-20260915-recruitment-workflow
+
+[单岗位多简历证据招聘](proposed/P-20260915-recruitment-workflow.md)

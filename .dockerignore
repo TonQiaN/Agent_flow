@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/dist
+.local
+_reference
+materials
+.env
+.env.*
+**/*.tsbuildinfo

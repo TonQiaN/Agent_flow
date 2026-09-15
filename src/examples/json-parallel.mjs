@@ -1,4 +1,6 @@
-import {mkdtemp,rm} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {resolve} from 'node:path';
+import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {ContractRegistry,ComponentRegistry,FunctionRegistry,JsonFunctionWorkflowCatalog,ParallelWorkflowCatalog,compileWorkflow,WorkflowRuntime,NodeWorker,loadWorkflowCheckpoint} from '@agentflow/engine';
@@ -6,8 +8,11 @@ import {SqliteRunRecordStore,PersistentNodeQueue,systemClock} from '@agentflow/i
 
 const kind=process.argv[2]??'map';
 if(!['map','fork'].includes(kind))throw new Error('Use map or fork');
-const root=await mkdtemp(join(tmpdir(),'agentflow-parallel-demo-'));
-const records=await SqliteRunRecordStore.open(join(root,'queue'));
+const keep=process.env.AGENTFLOW_HISTORY_DISABLED!=='1'||!!process.env.AGENTFLOW_STUDIO_RUN_ROOT;
+const root=keep?(process.env.AGENTFLOW_STUDIO_RUN_ROOT??join(resolve(process.env.AGENTFLOW_STUDIO_DATA??'.local/studio'),'runs','cli-'+randomUUID())):await mkdtemp(join(tmpdir(),'agentflow-parallel-demo-'));
+await mkdir(root,{recursive:true,mode:0o700});
+if(keep&&!process.env.AGENTFLOW_STUDIO_RUN_ROOT)await writeFile(join(root,'meta.json'),JSON.stringify({id:root.split('/').at(-1),workflowId:'parallel-'+kind,title:'JSON '+kind,mainRunId:'example',createdAt:Date.now(),source:'cli'}),{mode:0o600});
+const records=await SqliteRunRecordStore.open(join(root,'records'));
 try {
  const contracts=new ContractRegistry();
  contracts.register('item',{type:'object',properties:{id:{type:'string'},value:{type:'number'}},required:['id','value']});
@@ -45,4 +50,4 @@ try {
   if(loaded.checkpoint.snapshot.status!=='succeeded')throw new Error('Example did not finish');
   console.log(JSON.stringify(loaded.checkpoint.snapshot.lastAccepted.result.output,null,2));
  } finally {await loaded.dispose();}
-} finally {records.close();await rm(root,{recursive:true,force:true});}
+} finally {records.close();if(!keep)await rm(root,{recursive:true,force:true});}

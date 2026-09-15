@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AgentExecutor, ContractRegistry, FileContractRegistry, WorkflowRuntime, compileWorkflow } from '@agentflow/engine';
 import type { AgentExecutionDriver, ArtifactStore, FileManifest, WorkflowDefinition, WorkflowSnapshot } from '@agentflow/engine';
 import type { JsonValue } from '@agentflow/domain';
-import { FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
+import { localWorkflowHistory, FileArtifactStore, FileWorkflowCatalog } from '@agentflow/integrations';
 import type { FileFunctionContext } from '@agentflow/integrations';
 import { sourceByteBudget } from '../tutor-tools/source-budget.js';
 import { invokeTutorTool } from '../tutor-tools/process.js';
@@ -55,8 +55,9 @@ export async function createTutorMarkingApplication<D extends AgentExecutionDriv
   if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 600000 || (repair && (!Number.isSafeInteger(repair.maxRounds) || repair.maxRounds < 1 || repair.maxRounds > 100))) throw new Error('INVALID_MARKING_SETUP');
   await mkdir(root, { recursive: true, mode: 0o700 });
   const maxSourceBytes = sourceByteBudget(setup.maxSourceBytes);
-  const registered = contracts(maxSourceBytes), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'));
-  const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime();
+  const registered = contracts(maxSourceBytes), history = await localWorkflowHistory('tutor-marking', registered), store = new FileArtifactStore(join(root, 'artifacts'), registered, { maxTotalBytes: Math.max(256 * 1024 ** 2, maxSourceBytes + 128 * 1024 ** 2) }), files = new FileWorkflowCatalog(registered, store, join(root, 'nodes'), history.archive);
+  const driver = setup.driver(store), agents = new AgentExecutor(registered, store, driver), runtime = new WorkflowRuntime(undefined, value => observe(value));
+  let observe: import('@agentflow/engine').WorkflowObserver = async () => {};
   const originals = new Map<string, FileManifest>(), completed = new Map<string, MarkingRun>(), runIds = new Set<string>();
   const component = (id: string, kind: 'agent' | 'transform' | 'gate', inputContract: string, outcomes: Record<string, string>) => ({ id, kind, implementation: id, inputContract, outcomes });
   const current = (ctx: FileFunctionContext) => {
@@ -112,7 +113,7 @@ export async function createTutorMarkingApplication<D extends AgentExecutionDriv
       if (runIds.has(runId)) throw new Error('DUPLICATE_MARKING_RUN'); runIds.add(runId);
       const input = await files.prepareInput(runId, source, 'scan-source'); originals.set(runId, files.inspect(input, runId).manifest);
       try {
-        const run = { input, snapshot: await runtime.start(compiled, runId, input).completion }; completed.set(runId, structuredClone(run)); return run;
+        const run = { input, snapshot: await (() => { observe = history.observer(compiled); return runtime.start(compiled, runId, input).completion; })() }; completed.set(runId, structuredClone(run)); return run;
       } catch (error) { await files.release(input, runId); throw error; }
     },
     /** Only the private completed Run and actual passed Gate authorize handoff. */
