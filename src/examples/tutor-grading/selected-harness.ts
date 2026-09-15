@@ -18,8 +18,11 @@ export function gradingHarness(value: unknown): GradingHarness {
 }
 
 /** Consumer composition only: the Workflow, contracts and Gate never select a provider. */
-export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.ProcessEnv) {
+export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.ProcessEnv, options: { timeoutMs?: number; maxInputBytes?: number } = {}) {
   const harness = gradingHarness(raw);
+  const timeoutMs = options.timeoutMs ?? 180_000, maxInputBytes = options.maxInputBytes;
+  if (maxInputBytes !== undefined && (!Number.isSafeInteger(maxInputBytes) || maxInputBytes < 1 || maxInputBytes > 1024 ** 3)) throw new Error('INVALID_GRADING_INPUT_BUDGET');
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5_400_000) throw new Error('INVALID_GRADING_TIMEOUT');
   const required = (name: string): string => {
     const value = environment[name]; if (!value || value.includes('\0')) throw new Error('MISSING_GRADING_CONFIGURATION'); return value;
   };
@@ -35,21 +38,21 @@ export function selectGradingHarness(raw: GradingHarness, environment: NodeJS.Pr
   const assets: DeepSeekRuntimeAssets | undefined = harness === 'deepseek'
     ? JSON.parse(execFileSync(process.execPath, [fileURLToPath(new URL('../../apps/deepseek-tools/export-assets.mjs', import.meta.url))], { encoding: 'utf8', maxBuffer: 1024 * 1024 })) : undefined;
   const store = new FileCredentialStore(storeRoot, [new CodexSubscriptionCodec(), new ClaudeSubscriptionCodec(), new DeepSeekApiKeyCodec()]);
-  const options = (root: string) => ({ workspaceRoot: join(root, 'attempts'), image, proxyImage });
+  const runtimeOptions = (root: string) => ({ workspaceRoot: join(root, 'attempts'), image, proxyImage, ...(maxInputBytes === undefined ? {} : { maxInputBytes }) });
   const driver = (artifacts: ArtifactStore, root: string): AgentExecutionDriver => {
-    const execution = { timeoutMs: 180_000 };
+    const execution = { timeoutMs };
     const common = { id: 'tutor-acceptance', credentialRef, endpoint: 'official' as const };
-    if (harness === 'codex') return new CodexAgentDriver(new CodexSubscriptionRunner(store, options(root)), artifacts,
+    if (harness === 'codex') return new CodexAgentDriver(new CodexSubscriptionRunner(store, runtimeOptions(root)), artifacts,
       { ...common, service: 'openai', method: 'subscription', capacity: 1 }, execution);
-    if (harness === 'claude') return new ClaudeAgentDriver(new ClaudeSubscriptionRunner(store, options(root)), artifacts,
+    if (harness === 'claude') return new ClaudeAgentDriver(new ClaudeSubscriptionRunner(store, runtimeOptions(root)), artifacts,
       { ...common, service: 'anthropic', method: 'subscription', capacity: 1 }, execution);
-    return new DeepSeekAgentDriver(new DeepSeekApiKeyRunner(store, options(root), assets!), artifacts,
+    return new DeepSeekAgentDriver(new DeepSeekApiKeyRunner(store, runtimeOptions(root), assets!), artifacts,
       { ...common, service: 'deepseek', method: 'api-key', capacity: null }, execution);
   };
   return { acceptanceRoot, config, driver, preflight: {
     harness, expectedVersion: plan.version, image, proxyImage, model: config.model,
     authentication: plan.authentication.method, endpoint: 'official', fixtureMaterial: true,
-    harnessInvocationsPerNode: 1, timeoutPerNodeMs: 180_000, maximumAgentNodes: 4,
+    harnessInvocationsPerNode: 1, timeoutPerNodeMs: timeoutMs, maximumAgentNodes: 4,
     validated: 'configuration-only', imageInspected: false, credentialsRead: false, networkCalled: false,
   } };
 }

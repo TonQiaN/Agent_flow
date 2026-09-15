@@ -40,6 +40,7 @@ export interface DockerOptions {
   readonly uid?: number;
   readonly gid?: number;
   readonly logBytes?: number;
+  readonly maxInputBytes?: number;
   /** Host-selected readonly mappings from this execution configFiles into system configuration directories. */
   readonly systemConfigMounts?: readonly SystemConfigMount[];
 }
@@ -74,7 +75,7 @@ export class DockerBackend implements ExecutionBackend {
 
   constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction, input?: RunnerInputMaterializer) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
-      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, systemConfigMounts: [] as readonly SystemConfigMount[] };
+      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, maxInputBytes: 256 * 1024 ** 2, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
     const allowed = ['workspaceRoot', 'image', ...Object.keys(defaults)];
     if (Object.keys(config).some(key => !allowed.includes(key)) || !isAbsolute(config.workspaceRoot)
@@ -85,6 +86,7 @@ export class DockerBackend implements ExecutionBackend {
       || !Number.isSafeInteger(config.pidsLimit) || config.pidsLimit < 1 || config.pidsLimit > 8192
       || !Number.isSafeInteger(config.uid) || config.uid < 1 || !Number.isSafeInteger(config.gid) || config.gid < 0
       || config.uid !== getuid?.() || config.gid !== getgid?.()
+      || !Number.isSafeInteger(config.maxInputBytes) || config.maxInputBytes < 1 || config.maxInputBytes > 1024 ** 3
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
     this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
     if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function' || binding.secretEnvironment !== undefined && typeof binding.secretEnvironment !== 'function')) throw new Error('INVALID_STATE_BINDING');
@@ -104,7 +106,9 @@ export class DockerBackend implements ExecutionBackend {
 
   /** Nonsecret configured options only; this does not make a private/network resource restorable. */
   configurationSnapshot(): JsonValue {
-    return JSON.parse(JSON.stringify({ options: { ...this.#options, image: this.#pinnedImage ?? this.#options.image, network: this.#egressPrepared?.options ?? this.#options.network },
+    const { maxInputBytes, ...options } = this.#options;
+    // Preserve existing execution definitions when the effective input budget is unchanged.
+    return JSON.parse(JSON.stringify({ options: { ...options, ...(maxInputBytes === 256 * 1024 ** 2 ? {} : { maxInputBytes }), image: this.#pinnedImage ?? this.#options.image, network: this.#egressPrepared?.options ?? this.#options.network },
       paths: TASK_PATHS, sandboxPolicy: this.#options.sandbox === 'nested-userns-v1' ? nestedUserNamespacePolicy() : null }));
   }
 
@@ -194,9 +198,9 @@ export class DockerBackend implements ExecutionBackend {
     if (this.#input) {
       const staged = join(owned.directory, 'input-source');
       await this.#input.materialize(staged);
-      await copyInput(staged, join(owned.directory, 'input'));
+      await copyInput(staged, join(owned.directory, 'input'), { maxFiles: 4096, maxBytes: this.#options.maxInputBytes });
       await rm(staged, { recursive: true });
-    } else if (request.inputSource !== null) await copyInput(request.inputSource, join(owned.directory, 'input'));
+    } else if (request.inputSource !== null) await copyInput(request.inputSource, join(owned.directory, 'input'), { maxFiles: 4096, maxBytes: this.#options.maxInputBytes });
     for (const file of configs) {
       const path = join(owned.directory, 'config', file.name);
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });

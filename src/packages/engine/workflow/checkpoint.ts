@@ -1,3 +1,4 @@
+import type { ParallelCheckpoint } from '../parallel/types.js';
 import type { RetryDecision } from '../retry/policy.js';
 import { createPhaseSink, invocationPlanFor } from './phases.js';
 import type { InvocationPhaseCheckpoint } from './phases.js';
@@ -41,6 +42,7 @@ export interface WorkflowAttemptCheckpoint {
   readonly resource: RunnerResourceCheckpoint | null;
   readonly launch: RunnerLaunchState | null;
   readonly interrupted: boolean;
+  readonly parallel?: ParallelCheckpoint;
   readonly retry?: RetryDecision & { readonly result: Extract<WorkflowNodeResult, {status:'failed'}> };
   readonly phases?: readonly InvocationPhaseCheckpoint[];
 }
@@ -56,6 +58,7 @@ export class CheckpointWriter {
     private readonly store: RunRecordStore, private readonly execution: WorkflowExecutionSnapshot) {}
   static async prepare(compiled: CompiledWorkflow, runId: string, store: RunRecordStore): Promise<CheckpointWriter> {
     for (const binding of getPlan(compiled).bindings.values()) {
+      if (binding.executor.parallel && !store.parallel) throw new DefinitionError('PARALLEL_REQUIRES_QUEUE');
       if (binding.executor.checkpointAcceptance && !binding.executor.restoreValue) throw new DefinitionError('WORKFLOW_VALUE_RESTORE_UNAVAILABLE');
       if ([binding.input, ...binding.outcomes.values()].some(c => c.kind === 'files') && !binding.executor.checkpointValue) throw new DefinitionError('WORKFLOW_VALUE_PERSISTENCE_UNAVAILABLE');
     }
@@ -69,12 +72,13 @@ export class CheckpointWriter {
     if (canonicalJson(copyJson(writer.execution)) !== canonicalJson(copyJson(checkpoint.execution))) throw new DefinitionError('WORKFLOW_EXECUTION_MISMATCH');
     writer.#revision = revision;
     writer.#values.push(...snapshot(checkpoint.values)); writer.#attempts.push(...snapshot(checkpoint.attempts));
-    const last = writer.#attempts.at(-1); if (last?.resultStep === null && !last.retry) last.interrupted = true;
+    const last = writer.#attempts.at(-1); if (last?.resultStep === null && !last.retry && !last.parallel) last.interrupted = true;
     return writer;
   }
   beginAttempt(node: string, identity: ExecutionIdentity): void {
     this.#attempts.push({ node, identity: snapshot(identity), resultStep: null, resource: null, launch: null, interrupted: false, ...(invocationPlanFor(this.execution.resourcePlans, node) ? { phases: [] } : {}) });
   }
+  parallelAttempt(value: ParallelCheckpoint): void { this.#attempts.at(-1)!.parallel = snapshot(value); }
   retryAttempt(result: Extract<WorkflowNodeResult,{status:'failed'}>, decision: RetryDecision): void { this.#attempts.at(-1)!.retry = snapshot({...decision,result}); }
   finishAttempt(resultStep: number): void { this.#attempts.at(-1)!.resultStep = resultStep; }
   resourceSink(node: string, identity: ExecutionIdentity, commit: () => Promise<void>): { sink: RunnerResourceSink; close(): void } | undefined {
@@ -129,12 +133,12 @@ export class CheckpointWriter {
   }
   /** Publish with the corresponding input/accepted step, without an intervening await. */
   acceptValue(value: WorkflowCheckpointValue): void { this.#values.push(snapshot(value)); }
-  write(view: WorkflowSnapshot, cursor: WorkflowCursor): Promise<void> {
+  write(view: WorkflowSnapshot, cursor: WorkflowCursor, children?: readonly {runId:string;content:JsonValue}[]): Promise<void> {
     const content = snapshot({ schema: 'agentflow-workflow-checkpoint/v5', execution: this.execution,
       snapshot: view, cursor, values: this.#values, attempts: this.#attempts }) as unknown as JsonValue;
     this.#tail = this.#tail.then(async () => {
       const record = this.#revision === undefined ? await this.store.create(this.runId, content)
-        : await this.store.compareAndSwap(this.runId, this.#revision, content);
+        : children ? await this.store.parallel!.expand(this.runId, this.#revision, content, children) : await this.store.compareAndSwap(this.runId, this.#revision, content);
       this.#revision = record.revision;
     });
     return this.#tail;

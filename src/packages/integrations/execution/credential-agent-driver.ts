@@ -69,7 +69,7 @@ class CredentialAgentHandle implements AgentExecutionHandle {
     const result = this.execution.result;
     return { runner: result.runner, harness: result.harness, version: result.version.actual,
       finalized: result.stage === 'execution' && result.authentication?.status === 'released'
-        && (result.authentication.refresh === 'unchanged' || result.authentication.refresh === 'updated'),
+        && (result.authentication.refresh === 'not_prepared' || result.authentication.refresh === 'unchanged' || result.authentication.refresh === 'updated'),
       diagnostics: result.diagnostics };
   }
   // Cleanup retries cannot publish a completion through an ended invocation or upgrade its result.
