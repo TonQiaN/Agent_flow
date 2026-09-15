@@ -141,3 +141,9 @@ DeepSeek 矩阵先固定实际镜像的 dsh 0.1.1-rc.2。模型与推理通过�
 扫描件验收参考 Tutor 的 prepare_initial_images 和 Codex 入口包装：规范化提交页作为初始图片，而不依赖模型自行发现图片工具。Codex 配置增加可选 inputImages，表示现有输入快照内的相对文件路径，最多 64 张，顺序由调用方提供；Adapter 只校验路径并映射为固定 /task/input 下的 --image 参数，不读取文件、不生成题目或改变工作目录。只接受 PNG/JPEG/WebP 路径，拒绝绝对路径、遍历、重复、逗号或不安全字符，避免 CLI 参数解析歧义。
 
 执行组合在凭据申请之前核对每张附件属于输入 manifest、媒体类型与大小符合约束；每张最多 20 MiB，总计最多 64 MiB。实际物化沿用 ArtifactStore 的摘要与链接检查。图像缩放、来源选择和评分逻辑留在 Tutor 消费端，不放入通用 Driver。此为 #10 既有调用配置及最终扫描件验收的实施补充，授权依据为用户继续开发与优先借鉴 Blackbox/Tutor 的指令，Codex 实现及作者自查，未独立评审。
+
+### 固定 CLI 的图片模型能力边界
+
+所选 model 必须同时满足实际服务能力和固定 CLI 本地模型声明；远端把旧别名映射到图片模型，不能使旧 CLI 的文本模型配置自动获得 read_image 能力。dsh 0.1.1-rc.2 的本轮支持组合使用 deepseek-v4-flash 跑文本、deepseek-v4-flash-vision-exp 跑图片；宿主仍经原有 model 字段选择，不重写 CLI 模型表、不注入任意 provider 或插件，也不更改 Workflow、输入契约与网络授权。使用者需要图片时选择已验证图片配置；未声明能力的组合明确失败，不能静默改模型或改成 OCR 替代。未来升级 CLI/服务别名时重新检查联合能力，不能只依据版本帮助或远端文档声明支持。
+
+多出口验收必须取得所选 Harness 的真实结构化结果并通过对应产物 contract；模型因能力不足仅在文本中宣布 review 不能接纳。此补充落实 #10 已确认的实际参数及支持矩阵范围，依据用户 2026-09-15 恢复完整验收的指令；真实结果、失败与复验边界见 docs/validation/2026-09-15-official-harness-acceptance.md。Codex 作者自查，整体组合验收未齐，仍留 proposed。
