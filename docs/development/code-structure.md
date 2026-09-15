@@ -40,7 +40,7 @@
 | `npm test` | 构建、测试类型检查与 Node 测试 |
 | `npm run check` | 当前基础检查入口，包含依赖边界、浏览器源码/测试类型检查及上述测试 |
 | `npm run studio:build` | 构建服务和 Vite 前端 |
-| `npm run studio:typecheck` | 独立检查 DOM 前端和 Playwright 测试类型 |
+| `npm run studio:typecheck` | 先构建依赖声明，再检查 DOM 前端和 Playwright 测试类型 |
 | `npm run studio:test` | 构建后运行真实本机服务的 Chromium 用户旅程 |
 | `npm run demo` | 构建并运行当前 CLI 示例，预期结果见使用指南 |
 

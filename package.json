@@ -18,7 +18,7 @@
     "demo": "npm run build && node src/apps/cli/dist/index.js demo",
     "studio": "npm run build && node src/apps/studio/dist/server.js",
     "studio:build": "npm run build && tsc -p src/apps/studio/client/tsconfig.json && vite build --config src/apps/studio/vite.config.mts",
-    "studio:typecheck": "tsc -p src/apps/studio/client/tsconfig.json && tsc -p tsconfig.browser.json",
+    "studio:typecheck": "npm run build && tsc -p src/apps/studio/client/tsconfig.json && tsc -p tsconfig.browser.json",
     "studio:test": "npm run studio:build && playwright test"
   },
   "devDependencies": {

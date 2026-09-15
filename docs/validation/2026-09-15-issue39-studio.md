@@ -61,3 +61,5 @@ Codex 0.153.4 + `gpt-6-astra` 在真实容器执行原批卷工作流：`run-952
 Tutor 扫描件/报告入口已绑定原应用、上传契约和明确的环境要求；本机未安装外部 Tutor，本轮未重复执行真实 Tutor 学生材料。既有 Tutor 专项记录保留其原范围，不能用招聘验证替代。文档最多 60 页；DOCX/TXT/MD 的第 1 页为逻辑全文，OCR 需对照原图。首版只支持本机、启动和查看，没有设置编辑、取消/恢复页面或共享服务。
 
 参考 Blackbox `xiaoxuanli-a/Agent_workflow` 提交 `4dc0f4ac630d6e54036dcbfafa1a4ae7ce2fa345` 的镜像/代理对应实现，已区分其 Python 代理与当前 Node 代理。前端使用 [React Flow 官方 API](https://reactflow.dev/api-reference/react-flow) 与 [PDF.js canvas 示例](https://mozilla.github.io/pdf.js/examples/)，未复制 ComfyUI/Dify 应用代码。原始截图、下载报告和私有凭据不进入 Git。
+
+远端首次干净安装发现 `studio:typecheck` 先于工作区声明构建，导致找不到 integrations 类型。已将依赖构建放入该命令的前置步骤，使用不含 node_modules/dist 的独立源码副本复查安装与完整检查；不靠放宽 TypeScript 规则消除错误。
