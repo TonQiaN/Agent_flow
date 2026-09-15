@@ -376,11 +376,12 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.stopped = false;
         resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
-        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: result.status !== 'failed' });
+        if (result.status === 'failed') await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
         if (result.status === 'failed') return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
         script = result.evidence; outcome = script.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
         output = await this.artifacts.capture(resources.script.executionFacts()!.capture!.outputsPath, checkedContractId);
+        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: true });
         resources.pendingOutput = () => this.artifacts.release(output.id);
       } else {
         resources.stopped = false;
@@ -401,7 +402,10 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       const value = this.issue(identity.runId, output, receipt, resources.pendingOutput!);
       resources.pendingOutput = null; this.#resources.delete(key(identity));
       return { identity: clone(ownIdentity), componentId: component.id, status: 'accepted', outcome, output: value };
-    } catch (error) { return failed(phase, error, checkedContractId); }
+    } catch (error) {
+      if (phase === 'OUTPUT_CONTRACT_FAILED' && resources.script) await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
+      return failed(phase, error, checkedContractId);
+    }
     finally {
       resources.active = false;
       if (ref) {

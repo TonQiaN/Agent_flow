@@ -1,5 +1,7 @@
 # 验证记录
 
+- [Issue #39 本机工作台整体验证](2026-09-15-issue39-studio.md)：真实招聘、Codex、画布/PDF/回放、浏览器与 Docker CI；用户截图报告仅在本机。
+
 - [Tutor 报告消费端](2026-09-10-tutor-report-consumer.md)：真实业务 validator/renderer、合成扫描页及三页 A3 PDF。
 
 - [JSON Map/Fork 作者验收](2026-09-10-json-parallel.md)：有序汇合、共享容量、部分恢复与真实 Docker 隔离。

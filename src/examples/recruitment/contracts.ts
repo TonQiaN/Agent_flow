@@ -60,3 +60,11 @@ export function recommendationErrors(raw: unknown, state: RecruitmentState, owne
   const inspect = (v: unknown): void => { if (Array.isArray(v)) v.forEach(inspect); else if (object(v)) for (const [key, value] of Object.entries(v)) { if (/score|ranking|rank|总分|评分|排名/i.test(key)) issues.push('禁止总分或排名字段'); inspect(value); } };
   inspect(raw); return issues;
 }
+
+/** The scheduler owns identity; optional echoed identity must agree with it. */
+export function bindReviewIdentity(raw: unknown, candidateId: string, dimension?: string): Record<string, unknown> {
+  assert(object(raw), 'INVALID_REVIEW_RESULT');
+  assert(raw['candidateId'] === undefined || raw['candidateId'] === candidateId, 'CANDIDATE_RESULT_MISMATCH');
+  assert(dimension === undefined || raw['dimension'] === undefined || raw['dimension'] === dimension, 'REVIEW_DIMENSION_MISMATCH');
+  return { ...raw, candidateId, ...(dimension ? { dimension } : {}) };
+}

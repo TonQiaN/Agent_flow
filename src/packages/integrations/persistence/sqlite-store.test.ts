@@ -92,3 +92,26 @@ test('SQLite store refuses unsafe directories, linked files and unsafe preexisti
   await rm(join(privateRoot, 'runs.sqlite-wal')); const store = await SqliteRunRecordStore.open(privateRoot); store.close();
   await chmod(join(privateRoot, 'runs.sqlite'), 0o644); await assert.rejects(SqliteRunRecordStore.open(privateRoot), { code: 'RUN_STORE_UNSAFE' });
 });
+
+
+test('direct replay queries preserve timestamp boundaries, save order and payload integrity', async t => {
+  const root = await directory(t), store = await SqliteRunRecordStore.open(root); t.after(() => store.close());
+  let now = 10; t.mock.method(Date, 'now', () => now);
+  await store.create('replay', { value: 'first' });
+  now = 20; await store.compareAndSwap('replay', 1, { value: 'second' });
+  await store.compareAndSwap('replay', 2, { value: 'third at same time' });
+  assert.equal(await store.revisionAt('replay', 9), null);
+  assert.equal((await store.revisionAt('replay', 19))!.revision, 1);
+  assert.equal((await store.revisionAt('replay', 20))!.revision, 3);
+  assert.equal((await store.revision('replay', 2))!.revision, 2);
+  assert.equal(await store.revision('replay', 8), null);
+  assert.equal((await store.read('replay'))!.revision, 3);
+  await assert.rejects(store.revisionAt('replay', -1), { code: 'INVALID_RUN_RECORD' });
+  await assert.rejects(store.revision('replay', 0), { code: 'INVALID_RUN_RECORD' });
+  const database = new DatabaseSync(join(root, 'runs.sqlite'));
+  database.exec('UPDATE run_history SET recorded_at = NULL WHERE revision = 1');
+  assert.equal(await store.revisionAt('replay', 19), null);
+  assert.equal((await store.revision('replay', 1))!.recordedAt, null);
+  database.exec("UPDATE run_history SET payload = 'null' WHERE revision = 3"); database.close();
+  await assert.rejects(store.revisionAt('replay', 20), { code: 'RUN_STORE_CORRUPT' });
+});

@@ -120,5 +120,5 @@ try:
     (OUTPUT / 'result.json').write_text(json.dumps(result, ensure_ascii=False), encoding='utf-8')
     print(json.dumps({'schema': 'agentflow-script-result/v1', 'outcome': 'completed'}))
 except Exception as exc:
-    print(type(exc).__name__ + ': document processing failed', file=sys.stderr)
+    print(type(exc).__name__ + ': ' + (str(exc) if re.fullmatch(r'[A-Z][A-Z0-9_]*', str(exc)) else 'DOCUMENT_PROCESSING_FAILED'), file=sys.stderr)
     sys.exit(1)

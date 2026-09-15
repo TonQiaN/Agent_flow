@@ -1,3 +1,5 @@
+// @ts-expect-error Shared plain-JavaScript original CLI definition.
+import { parallelDefinition } from './parallel.mjs';
 import { recruitmentDefinition } from '../recruitment/flow.js';
 import { gradingDefinition, createGradingFixture } from '../tutor-grading/fixture.js';
 import { gradingWorkflow } from '../tutor-grading/flow.js';
@@ -16,7 +18,7 @@ export async function catalogue(): Promise<CatalogueItem[]> {
   const base = [
     { id: 'recruitment', title: '简历与岗位匹配', description: '一个岗位，多份简历。四维评审、独立复核与逐项证据，输出二元推荐。', entrypoint: 'recruitment/run.ts', input: 'recruitment', requires: ['docker', 'documents', 'harness'], definition: recruitmentDefinition },
     { id: 'repair-example', title: '检查与返工', description: '现有 JSON 示例：检查草稿，按路线返工，验证次数上限。', entrypoint: 'workflow.mjs', input: 'none', requires: [], definition: createRepairExample().definition },
-    ...['map', 'fork'].map(kind => ({ id: 'parallel-' + kind, title: kind === 'map' ? 'Map 并行处理' : 'Fork 分支汇合', description: '现有队列示例：多项任务同时执行，按规定顺序汇合。', entrypoint: 'json-parallel.mjs', input: 'none', requires: [], definition: { id: 'demo', start: 'batch', nodes: { batch: { component: 'batch' } }, routes: [{ from: 'batch', outcome: 'done', to: { end: 'done' } }], parallel: { kind, maxConcurrency: 2 } } })),
+    ...['map', 'fork'].map(kind => ({ id: 'parallel-' + kind, title: kind === 'map' ? 'Map 并行处理' : 'Fork 分支汇合', description: '现有队列示例：多项任务同时执行，按规定顺序汇合。', entrypoint: 'json-parallel.mjs', input: 'none', requires: [], definition: parallelDefinition(kind) })),
     { id: 'grading-fixture', title: '合成批卷与返工', description: '现有固定响应示例：逐题批卷、关卡、修订和模拟发布，无模型费用。', entrypoint: 'tutor-grading/demo.ts', input: 'none', requires: [], definition: gradingDefinition() },
     { id: 'grading-real', title: 'Agent 批卷', description: '上传试卷、答案与提交 JSON，复用原批卷关卡和模拟发布。', entrypoint: 'tutor-grading/grading.ts', input: 'grading', requires: ['docker', 'harness'], definition: gradingWorkflow({ id: 'real-grading', marker: 'matrix-marker', fixer: 'matrix-fixer', repairs: 1 }) },
     { id: 'grading-persistent', title: '持久化批卷', description: '复用文件脚本、持久化检查点和发布凭据链；发布到本次本机模拟服务。', entrypoint: 'tutor-grading/persistent.ts', input: 'grading', requires: ['docker', 'harness'], definition: gradingWorkflow({ id: 'persistent-grading', marker: 'matrix-marker', fixer: 'matrix-fixer', repairs: 1 }) },

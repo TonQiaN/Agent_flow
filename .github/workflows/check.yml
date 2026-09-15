@@ -30,3 +30,28 @@ jobs:
         env:
           AGENTFLOW_DOCKER_TESTS: '1'
           AGENTFLOW_STUDIO_TESTS: '1'
+  studio-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Prepare offline material parsing and browser
+        run: |
+          docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
+          npx playwright install --with-deps chromium
+      - name: Verify the user journey against the real local service
+        run: npm run studio:test
+      - name: Keep browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-browser-failures
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
