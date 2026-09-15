@@ -6,6 +6,9 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-14 | [项目代理指令与技能相关内容审查](2026-09-14-agent-instructions-audit.md)（含 PR #35 合并后复查、R1–R4 修复验收及待讨论取舍） |
+| 2026-09-11 | [materials 管理、原件保留与飞书 CLI 核对](2026-09-11-materials-management.md) |
+| 2026-09-10、11 | [根 AGENTS.md 与同目录指令链接验证](2026-09-10-root-agents.md)（含布局粒度修订） |
 | 2026-09-09 | [订阅登录管理与协调](2026-09-09-subscription-login-coordination.md) |
 | 2026-09-09 | [本地认证管理与真实终端验证](2026-09-09-auth-management.md) |
 | 2026-09-09 | [凭据环境注入与 DeepSeek 无密钥文件执行](2026-09-09-credential-environment.md) |
