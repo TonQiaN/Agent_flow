@@ -122,3 +122,69 @@ test('cancellation before dispatch causes no write or reservation; adapter metho
   f.adapter.apply = async () => { throw new Error('changed adapter'); };
   const next = request('next'); assert.equal((await f.executor.execute(next, f.executor.authorize(next))).status, 'accepted'); assert.equal(f.applies(), 1);
 });
+
+function memoryJournal() {
+  const rows = new Map<string, import('../persistence/effects.js').EffectRecord>();
+  let reads = 0, writes = 0;
+  const store: import('../persistence/effects.js').EffectRecordStore = { identity: 'journal-identity',
+    async read(key) { reads++; return structuredClone(rows.get(key) ?? null); },
+    async create(key, content) { if (rows.has(key)) throw new Error('exists'); writes++; const row = { key, revision: 1, content: structuredClone(content) }; rows.set(key, row); return structuredClone(row); },
+    async compareAndSwap(key, revision, content) { if (rows.get(key)?.revision !== revision) throw new Error('conflict'); writes++; const row = { key, revision: revision + 1, content: structuredClone(content) }; rows.set(key, row); return structuredClone(row); },
+  };
+  return { store, rows, counts: () => ({ reads, writes }) };
+}
+test('durable reuse still requires explicit approval and dry-run never reads or reserves the journal', async () => {
+  const f = fixture(), journal = memoryJournal(), executor = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store);
+  assert.equal(executor.persistenceIdentity(), 'journal-identity');
+  assert.equal(resultCode(await executor.execute(request())), 'EFFECT_NOT_AUTHORIZED');
+  assert.equal((await executor.execute({ ...request('dry'), mode: 'dry-run' })).status, 'accepted');
+  assert.deepEqual(journal.counts(), { reads: 0, writes: 0 });
+  const r = request('apply'), applied = await executor.execute(r, executor.authorize(r)); assert.equal(applied.status, 'accepted'); if (applied.status === 'accepted') assert.equal(applied.outcome, 'applied');
+  const next = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store);
+  assert.equal(resultCode(await next.execute(request('no-grant'))), 'EFFECT_NOT_AUTHORIZED'); assert.equal(f.applies(), 1);
+  const reuse = request('reuse'), result = await next.execute(reuse, next.authorize(reuse));
+  assert.equal(result.status, 'accepted'); if (result.status === 'accepted') assert.equal(result.outcome, 'already-applied');
+  assert.equal(f.applies(), 1); assert.equal((await next.queryDurable(reuse.key))!.state, 'applied');
+});
+test('journal reservation and completion failures cannot manufacture an accepted Effect', async () => {
+  for (const failure of ['reserve', 'complete', 'bad-reserve', 'bad-complete']) {
+    const f = fixture(), journal = memoryJournal();
+    if (failure === 'reserve') journal.store.create = async () => { throw new Error('PRIVATE_DB_ERROR'); };
+    if (failure === 'complete') journal.store.compareAndSwap = async () => { throw new Error('PRIVATE_DB_ERROR'); };
+    if (failure === 'bad-reserve') { const create = journal.store.create.bind(journal.store); journal.store.create = async (...a) => ({ ...await create(...a), revision: 2 }); }
+    if (failure === 'bad-complete') { const cas = journal.store.compareAndSwap.bind(journal.store); journal.store.compareAndSwap = async (...a) => ({ ...await cas(...a), revision: 3 }); }
+    const executor = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store), r = request();
+    const result = await executor.execute(r, executor.authorize(r)); assert.equal(result.status, 'failed');
+    assert.equal(f.applies(), failure.includes('reserve') ? 0 : 1); assert.ok(!JSON.stringify(result).includes('PRIVATE_DB_ERROR'));
+    if (failure !== 'reserve') {
+      const fresh = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store), retry = request('retry');
+      const recovered = await fresh.execute(retry, fresh.authorize(retry));
+      if (failure === 'bad-complete') { assert.equal(recovered.status, 'accepted'); if (recovered.status === 'accepted') assert.equal(recovered.outcome, 'already-applied'); }
+      else assert.equal(resultCode(recovered), 'EFFECT_RESULT_UNKNOWN');
+      assert.equal(f.applies(), failure.includes('reserve') ? 0 : 1);
+    }
+  }
+});
+test('cancellation during durable reservation prevents apply and installed journal methods stay fixed', async () => {
+  const f = fixture(), journal = memoryJournal(); let cancelled = false;
+  const create = journal.store.create.bind(journal.store); journal.store.create = async (...a) => { const row = await create(...a); cancelled = true; return row; };
+  const executor = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store);
+  journal.store.create = async () => { throw new Error('replaced'); };
+  const r = request(); assert.equal(resultCode(await executor.execute(r, executor.authorize(r), { requested: () => cancelled })), 'CANCELLED');
+  assert.equal(f.applies(), 0); assert.equal((await executor.queryDurable(r.key))!.state, 'pending');
+});
+test('durable journal rejects tampered request, fingerprint, receipt and revision before adapter use', async () => {
+  const f = fixture(), journal = memoryJournal(), original = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store), r = request();
+  assert.equal((await original.execute(r, original.authorize(r))).status, 'accepted');
+  const row = structuredClone(journal.rows.get(r.key)!);
+  for (const mutate of [
+    (x: any) => { x.revision = 3; }, (x: any) => { x.content.request.key = 'other'; },
+    (x: any) => { x.content.fingerprint = 'forged'; }, (x: any) => { x.content.receipt.target = 'other'; },
+    (x: any) => { x.content.state = 'pending'; }, (x: any) => { x.content.request.serviceIdentity = 'other'; },
+  ]) {
+    const changed = structuredClone(row); mutate(changed); journal.rows.set(r.key, changed);
+    const executor = new EffectExecutor(f.contracts, f.components, f.adapter, journal.store), next = request('retry');
+    const result = await executor.execute(next, executor.authorize(next)); assert.equal(resultCode(result), 'EFFECT_RECORD_UNAVAILABLE');
+    await assert.rejects(executor.queryDurable(r.key)); assert.equal(f.applies(), 1);
+  }
+});

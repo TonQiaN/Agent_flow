@@ -1,17 +1,17 @@
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, cp } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { FileManifest } from '@agentflow/engine';
 import type { FileFunctionContext } from '@agentflow/integrations';
 
 export const sourcePaths = ['source/key.json', 'source/paper.json', 'source/submission.json'];
 export interface Candidate { paperId: string; studentId: string; revision: number; answers: { questionId: string; score: number; evidence: { page: number; answer: number } }[]; total: number; maxTotal: number }
 export interface GateReport { decision: 'passed' | 'revise' | 'rejected'; candidateHash: string; findings: string[] }
+export interface GradingSourceFacts { readonly files: readonly { readonly path: string; readonly sha256: string }[] }
 export const digest = (bytes: string | Buffer): string => createHash('sha256').update(bytes).digest('hex');
 export const readJson = async <T>(root: string, path: string): Promise<T> => JSON.parse(await readFile(join(root, path), 'utf8')) as T;
 
 /** Fixture-specific scoring rules live in the application, never in the engine. Input schemas were checked by the file contract. */
-export async function review(context: FileFunctionContext, original: FileManifest): Promise<{ outcome: string }> {
+export async function review(context: Pick<FileFunctionContext, 'inputPath' | 'outputsPath'>, original: GradingSourceFacts): Promise<{ outcome: string }> {
   const findings: string[] = [];
   for (const path of sourcePaths) if (digest(await readFile(join(context.inputPath, path))) !== original.files.find(f => f.path === path)?.sha256) findings.push(`SOURCE_CHANGED:${path}`);
   const changedSource = findings.length > 0;
@@ -37,4 +37,14 @@ export async function review(context: FileFunctionContext, original: FileManifes
   await cp(context.inputPath, context.outputsPath, { recursive: true });
   await writeFile(join(context.outputsPath, 'gate-report.json'), JSON.stringify(report));
   return { outcome: report.decision };
+}
+
+/** Same publication data construction for ordinary and durable application compositions. */
+export async function publicationInput(inputPath: string, workoutId: string) {
+  const candidate = await readJson<Candidate>(inputPath, 'candidate.json'), report = await readJson<GateReport>(inputPath, 'gate-report.json');
+  const candidateHash = digest(await readFile(join(inputPath, 'candidate.json')));
+  if (report.decision !== 'passed' || report.findings.length || report.candidateHash !== candidateHash) throw new Error('GATE_REPORT_MISMATCH');
+  return { workoutId, paperId: candidate.paperId, studentId: candidate.studentId, total: candidate.total, maxTotal: candidate.maxTotal,
+    candidateHash, reportHash: digest(await readFile(join(inputPath, 'gate-report.json'))),
+    sourceFiles: await Promise.all(sourcePaths.map(async path => ({ path, sha256: digest(await readFile(join(inputPath, path))) }))) };
 }

@@ -30,13 +30,11 @@ Roadmap 放在 docs/roadmap：README.md 展示阶段边界、版本、核心目�
 | 总览加按需版本文件 | 总览短，各版可独立讨论 | 需要避免重复状态、Issue 和决策内容 | 采用，明确各自唯一职责 |
 | 系列目录、版本目录及多份材料 | 可承载大型版本研究与验证 | 当前无对应内容，增加空目录和导航成本 | 当前不采用，实际增长后再评估 |
 | 根目录单文件 CHANGELOG | 易发现，手工维护入口唯一 | 发布时需要核对实际交付范围 | 采用，GitHub Release 复用内容 |
-| Unreleased 按目标版本归类已经实现的变化 | 发布前也能查到版本号与功能归属 | 需明确编号不是发布事实，并避免空版本与阶段日志 | 采用；无产品归属的协作变化单列 |
-| 每个开发切片追加条目，保留旧待办 | 保留实现过程直观 | 同版读者会同时看到已完成和未完成的相反描述 | 当前未发布记录收敛到最终行为，过程留在验证记录和 Git |
 | 自动发布、冻结每版手册和多包版本 | 可支撑复杂发行流程 | 当前尚无产品实现或打包需求 | 暂不建设 |
 
 ## 影响与验证
 
-新增 roadmap、CHANGELOG 和 [版本维护指南](../../../../docs/development/versioning.md)，同步开发流程、PR 模板和文档入口。规划的存放边界由 [分层决定](../README.md#d-20260907-documentation-layers) 管理；根指令的入口书写沿用 [唯一书写决定](../README.md#d-20260907-agents-writing)。本决定不共同负责 AGENTS.md。
+新增 roadmap、CHANGELOG 和 [版本维护指南](../../../../docs/development/versioning.md)，同步开发流程、PR 模板和文档入口。规划的存放边界由 [分层决定](../README.md#d-20260907-documentation-layers) 管理；根指令的入口书写沿用 [根入口书写决定](../README.md#d-20260910-root-agents-writing)。本决定不共同负责 AGENTS.md。
 
 本决定的落实范围仅为管理文档骨架。目录与入口、计划和现实的区分、维护时点、发布提交与 tag 的对应关系、链接及事实一致性已核对，见 [版本管理骨架验证](../../../../docs/validation/2026-09-08-version-management.md)。实际发布尚未演练，不以静态检查冒充发布成功；未来首次发布另行记录验证。
 
@@ -48,5 +46,6 @@ Roadmap 放在 docs/roadmap：README.md 展示阶段边界、版本、核心目�
 
 - 2026-09-08：用户在讨论目录组织和维护方式后要求创建 [Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4)，随后明确授权实现并提交 PR。确认范围为最小版本管理骨架，首发安排和具体产品验收不在本次范围。
 - Codex 按该范围整理、实施和自查；实际验证留在验证记录与 PR，未进行其他开发者独立审阅，不创建发布 tag。
-
 - 2026-09-11：[Issue #32](https://github.com/TonQiaN/Agent_flow/issues/32) 中，当前用户要求按版本号和功能变化维护 CHANGELOG，并基于已合并 PR 提交文档修正。本次细化未发布分组、同版条目收敛、各层版本状态及计划/验证分工；不改变既定版本范围或手工发布条件。主责 xiaoxuanli-a，Codex 编写与自查，具体核对结果见 [文档维护验证](../../../../docs/validation/2026-09-11-documentation-handoff.md)，真实发布仍未执行。
+- 2026-09-14：按用户确认的 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20) R4 修复方案，将当前根入口负责引用修正为 D-20260910-root-agents-writing，反映 2026-09-10 已完成的归属迁移；历史记录及版本管理取舍不变。Codex 自查，未新增其他开发者审阅。
+- 2026-09-15：用户授权审查 [PR #33](https://github.com/TonQiaN/Agent_flow/pull/33)，通过后合并。按最新已合入 main 重新归类 0.1.1、0.1.2、0.1.3 的实际变化；保留官方组合验收延期、学生样本的分阶段验证限制及未发布状态。本轮未找到新增 alternatives 所需的用户考量和理由依据，移除本决定草稿新增的两项比较，仅保留已确认规则；既有历史比较不在本次追溯范围。复查结果见 [文档交接验证](../../../../docs/validation/2026-09-11-documentation-handoff.md#2026-09-15-合并前复查)。

@@ -96,3 +96,43 @@ test('file-to-JSON cancellation prevents invocation; preflight rejects contract 
   assert.throws(() => f.bridge.register({ ...component, id: 'ambiguous', outcomes: { done: 'files' } }, fn), /AMBIGUOUS_TRANSFORM_CONTRACT/);
   await f.files.release(f.input, 'run');
 });
+
+test('built-in JSON projection captures settings and validates bounded source bytes before acceptance', async t => {
+  const f = await fixture(t), settings = { path: 'answer.json', outcome: 'done', maxBytes: 100 };
+  f.bridge.registerJsonFile(component, settings); settings.path = '../outside.json'; settings.maxBytes = 1;
+  const definition = await f.bridge.executionDefinition(component);
+  assert.deepEqual(definition, { schema: 'agentflow-json-file-projection/v1', projection: { path: 'answer.json', outcome: 'done', maxBytes: 100 } });
+  assert.equal((await f.bridge.execute(component, f.input, identity, cancel)).status, 'accepted');
+  const receipt = f.bridge.receipt(identity); assert.deepEqual(receipt.output, { value: 7 });
+  const accepted = { status: 'accepted' as const, componentId: component.id, identity, outcome: 'done', output: { value: 7 } };
+  const saved = await f.bridge.checkpointAcceptance(accepted); (saved as any).receipt.output.value = 0;
+  assert.deepEqual((await f.bridge.checkpointAcceptance(accepted) as any).receipt.output, { value: 7 });
+  await assert.rejects(f.bridge.checkpointAcceptance({ ...accepted, output: { value: 9 } }), /INVALID_FILE_JSON_CHECKPOINT/);
+  await assert.rejects(f.bridge.checkpointAcceptance({ ...accepted, identity: { ...identity, attemptNumber: 2 } }), /UNKNOWN_FILE_JSON_RECEIPT/);
+  assert.deepEqual(await readdir(join(f.root, 'transforms')), []);
+});
+
+test('built-in JSON projection rejects invalid paths, absent members, limits and changed materialized bytes', async t => {
+  const f = await fixture(t);
+  for (const path of ['../answer.json', '/answer.json', 'a/../answer.json', 'answer.txt', 'a\\answer.json']) {
+    assert.throws(() => f.bridge.registerJsonFile(component, { path, outcome: 'done' }), /INVALID_JSON_FILE_PROJECTION/);
+  }
+  for (const maxBytes of [0, -1, 1.5, 1024 * 1024 + 1]) assert.throws(() => f.bridge.registerJsonFile(component, { path: 'answer.json', outcome: 'done', maxBytes }), /INVALID_JSON_FILE_PROJECTION/);
+  assert.throws(() => f.bridge.registerJsonFile(component, { path: 'answer.json', outcome: 'other' }), /INVALID_JSON_FILE_PROJECTION/);
+  for (const [id, path, maxBytes] of [['missing', 'missing.json', 100], ['large', 'answer.json', 1]] as const) {
+    const c = { ...component, id }, i = { ...identity, nodeTaskId: id }; f.bridge.registerJsonFile(c, { path, outcome: 'done', maxBytes });
+    assert.equal((await f.bridge.execute(c, f.input, i, cancel)).status, 'failed'); assert.throws(() => f.bridge.receipt(i), /UNKNOWN_FILE_JSON_RECEIPT/); await f.bridge.cleanup(i);
+  }
+  f.bridge.registerJsonFile(component, { path: 'answer.json', outcome: 'done' });
+  const materialize = f.files.materialize.bind(f.files);
+  f.files.materialize = async (...args) => { await materialize(...args); await writeFile(join(args[2], 'answer.json'), '{"value":8}'); };
+  assert.equal((await f.bridge.execute(component, f.input, identity, cancel)).status, 'failed'); await f.bridge.cleanup(identity);
+  assert.throws(() => f.bridge.receipt(identity), /UNKNOWN_FILE_JSON_RECEIPT/);
+});
+
+test('ordinary host transforms cannot attest recovery and JSON-shaped restore requests carry no authority', async t => {
+  const f = await fixture(t); f.bridge.register(component, async () => ({ outcome: 'done', output: { value: 7 } }));
+  await assert.rejects(f.bridge.executionDefinition(component), /FILE_JSON_EXECUTION_DEFINITION_UNAVAILABLE/);
+  await assert.rejects(f.bridge.checkRecovery(component, f.input, identity), /FILE_JSON_EXECUTION_DEFINITION_UNAVAILABLE/);
+  for (const kind of ['files', 'json'] as const) await assert.rejects(f.bridge.restoreValue({ kind: 'workflow_value_restore', contract: { kind, id: 'files' } }), /UNTRUSTED_WORKFLOW_VALUE_RESTORE/);
+});

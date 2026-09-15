@@ -1,3 +1,7 @@
-# 只控制 ripgrep 默认检索范围，不改变 Git 跟踪或直接读取权限。
-*
+# 默认检索仅包含根级管理文件；不改变直接读取权限。
+/*
+!/.gitignore
+!/.ignore
+!/AGENTS.md
+!/CLAUDE.md
 !/README.md

@@ -1,6 +1,6 @@
-# Harness 与凭据接口（首个组合实施中）
+# Harness 与凭据接口
 
-当前可独立使用 Harness 注册、Codex 调用计划/结束后 parser，以及 POSIX 本机私有凭据存储和独占租约。尚无可启动真实 Agent 的公共命令：计划不是 RunnerRequest，普通 Invocation.env 仍拒绝 CODEX_HOME 等额外配置；宿主须通过独立 PrivateStateBinding 注入受限的 state 路径环境。已有首个 managed ChatGPT codec、明确 Profile 与组合 API；已通过真实合成数字任务，通用文件 contract 已接入示例，进程内可信收据已接通，真实刷新与完整 Workflow 仍待验收。
+当前提供三个独立 Harness Adapter、POSIX 私有凭据存储、订阅独占租约和 DeepSeek 不可变环境绑定；宿主可通过各组合 Runner/AgentDriver API 执行任务。计划不是 RunnerRequest，普通 Invocation.env 拒绝额外秘密环境；绑定提供受限的 state 路径。Codex 已完成真实模型的合成数字任务与串行 Workflow 批卷/返修；订阅终端登录和有限备份恢复已实现；Claude/DeepSeek 的真实官方调用与真实刷新仍未验收，详见 [基础验收核对](../validation/2026-09-09-foundation-acceptance-audit.md)。
 
 ## Harness
 
@@ -10,9 +10,9 @@
 
 Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Moby 基线派生策略以运行 Codex 的 bwrap；普通脚本默认 standard。已在 macOS Docker Desktop 使用真实 Codex 0.153.4 和合成凭据验证任务路径可写、auth.json/profile.json 拒绝读取的权限映射。CODEX_HOME 其余临时程序仍可执行，不能禁止整个目录，否则会阻止 Codex 自己的沙箱启动。此结果不证明任意 Linux/AppArmor 环境兼容，实际订阅模型小任务另见 [组合验证](../validation/2026-09-09-codex-composition.md)。受控网络也经独立真实 Docker 测试，见 [联网指南](controlled-egress.md)。
 
-`interpret({task, runner, version, stdout, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
+`interpret({task, runner, version, stdout, records?, redact})` 只解释已采集的字节和执行事实，不读取日志文件。宿主负责保证这些证据来自同一次执行，并提供普通事件的秘密脱敏接口。版本、身份、字节数、完整性、Runner 正常退出与 Codex 正常终态均需匹配；不从“Done”、非空目录或退出 0 单独推断完成。初始化 error item 可在 thread.started 后、turn.started 前出现，只记录其类型；它不能替代终态。turn.failed 作为失败终态保留，不再误报缺失终态。重复相同终态只计算一次，冲突终态失败；usage 只使用终态的明确字段，未提供为 null，不补成零。
 
-事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。[通用文件 contract](file-contracts.md) 已提供，完整 Workflow 接纳尚未接通。
+事件保留关联身份、顺序、来源类型、item ID 和有限已脱敏字段。未知事件只记录来源，不复制未知 payload；原始记录保持私有，当前没有实时事件推送或完整工具轨迹承诺。单出口正常结束的 outcome 为 null，等待引擎验收 outputs 后赋值。多出口由 outcomes 列表生成只读 schema，解析最后 Agent 消息中唯一的 outcome 字段；不要求 artifacts 清单。[通用文件 contract](file-contracts.md) 已提供，已接入串行 Workflow 的 AgentExecutor；[合成批卷](../validation/2026-09-09-tutor-grading-fixture.md)验证了 Gate 与用户定义返修。
 
 ## 凭据存储
 
@@ -23,19 +23,20 @@ Docker 环境支持宿主选择 `sandbox: 'nested-userns-v1'`，内置固定 Mob
 - `acquire(identity, waitMs)`：按 credentialRef 跨进程独占，默认立即报 busy，最多等待 60 秒。返回的 lease 普通序列化只含元数据。`readSecret()` 仅供受信执行绑定使用。
 - `lease.commitSecret(content, expectedRevision)`：在同一租约内验证旧 revision 与存储 generation/revision，校验新格式后原子替换。调用者须携带生成工作副本时的 revision；旧副本不能冒充最新读取。
 - `lease.release()`：幂等释放。释放后读写失败。执行绑定先证明旧执行已停止且清理成功；停止未知时不会释放给另一任务。
-- `delete(identity)`：与运行共用同一个锁，只删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
+- `recover(identity, waitMs)`：取得同一管理占用，仅恢复符合完整身份与版本前缀的尾部截断，详见[恢复指南](credential-recovery.md)。
+- `delete(identity)`：与运行共用同一个锁，先持久清除备份，再删除本地已识别记录；明确返回 remoteRevoked=false。重新配置产生新 generation。
 
-不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；登录入口、备份恢复、持久 Profile 管理及真实账号联合验收继续在 #11/#12 完成。
+不同 Profile 若引用同一 credentialRef，应使用同一占用身份；当前没有持久 Profile 管理器、远端账号别名识别或大于 1 的订阅并发。内部异常在返回租约之前释放锁；得到租约后由调用者负责生命周期。进程崩溃保留锁，未实现基于 PID 的自动抢占或恢复；PID 死亡不证明容器已经停止。损坏/未知格式明确报错，不自动覆盖或复活已删除凭据。Codex managed ChatGPT codec 已提供；订阅登录入口与[有限备份恢复](credential-recovery.md)已接入，持久 Profile 管理和真实账号联合验收仍有边界限制。
 
 ## 执行凭据绑定
 
 `FileExecutionCredentialBinding.acquire(store, {identity, credential, stateFile, environment})` 取得一份执行租约。identity 是本次 Run/NodeTask/Attempt，credential 是存储身份；stateFile 是宿主选定的相对位置（例如 codex/auth.json），environment 只能声明 /task/state 下的路径（例如 CODEX_HOME=/task/state/codex）。秘密和源目录不放入 Invocation 或 DockerOptions。
 
-将 binding 作为 `new DockerBackend(options, binding)` 的第二个参数。后端只调用 PrivateStateBinding 的初始化和释放前检查，不读取秘密或判断 provider。绑定为一个资源创建私有目录/0600 文件，不能给两个执行复用。Profile 和 Harness 计划的兼容性仍须由后续组合层验证。
+将 binding 作为 `new DockerBackend(options, binding)` 的第二个参数。后端只调用 PrivateStateBinding 的初始化和释放前检查，不读取秘密或判断 provider。绑定为一个资源创建私有目录/0600 文件，不能给两个执行复用。各组合层负责 Profile 和 Harness 计划的兼容性验证。
 
 调用顺序为：取得绑定 → Runner.run → binding.finish(runnerResult) → 检查 Harness 与输出 → Runner.release。finish 仅接受来自宿主同一次执行的结果：确认停止且资源已清理才读取副本、用原 revision 条件回存、删除副本并释放租约。非零退出、取消和超时也可能已经刷新，不能跳过收尾。未到准备阶段的异常可调用 abandon；初始化开始后 abandon 拒绝。
 
-finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未接纳新内容，原凭据不被损坏副本覆盖，调用方不能把它当作无异常完成。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
+finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchanged/updated/failed/pending 和静态 diagnostics。retained 时不能启动相同 credentialRef 的下一任务，也不能 release 工作区；恢复须先证明真实清理完成，再重试 finish。refresh=failed 表示未确认完整保存，调用方不能把它当作无异常完成。损坏副本不会覆盖健康源；但 IO 错误可能发生在 live 已提交、备份尚未保存之后，应检查本地状态而非假定源未变化。绑定没有完成前，DockerBackend.release 会拒绝删除工作区。
 
 普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实模型小任务已通过，但未触发远端刷新；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 
@@ -56,3 +57,11 @@ CodexSubscriptionRunner 接收存储以及宿主 workspaceRoot/image/proxyImage�
 `src/examples/codex-subscription.mjs` 是明确选择已配置私有存储的合成数字验收示例。它要求 AGENTFLOW_ACCEPTANCE_ROOT、AGENTFLOW_CREDENTIAL_STORE、AGENTFLOW_CREDENTIAL_REF、AGENTFLOW_CODEX_IMAGE、AGENTFLOW_PROXY_IMAGE 和 AGENTFLOW_CODEX_MODEL，不自动寻找或导入登录材料。已用明确授权的专用凭据及 gpt-5.6-sol 完成真实小任务；当前已验证范围见 [组合验证](../validation/2026-09-09-codex-composition.md)。
 
 [Agent 接纳与可信收据](agent-acceptance.md) 通过通用驱动接口连接上述能力，统一检查终态、收尾和文件契约，并提供同 Run 的前序收据引用。
+
+[DeepSeek Adapter](deepseek-adapter.md) 使用 records 中的具名原生会话字节，与 Runner capture.files 核对；静态 API key Profile、存储、不可变绑定与受控联网执行入口已接通；真实官方调用仍未验收。
+
+[凭据环境绑定](../validation/2026-09-09-credential-environment.md)为 API key 提供独立通道：Adapter 声明变量名，认证取得短租约快照，Docker 仅按名称注入；不开放普通 Invocation.env，也不创建任务密钥文件。订阅仍使用文件绑定及条件刷新。
+
+[本地认证 CLI](auth-management.md) 已提供 DeepSeek 的隐藏终端录入、单一受控文件导入、检查和本地删除；不读取环境中的偶然凭据，配置成功仅表示本地已保存。
+
+[订阅登录协调接口](subscription-login.md)提供首次配置前的管理占用和受信登录驱动端口，保留错误/未知停止的清理责任；Codex/Claude 原生登录驱动及终端入口已接通，真实账号登录仍未验收。
