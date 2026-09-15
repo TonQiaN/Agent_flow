@@ -19,6 +19,8 @@ test(
     await execute('docker', [
       'run',
       '--rm',
+      '--user',
+      `${process.getuid!()}:${process.getgid!()}`,
       '--network',
       'none',
       '--read-only',
@@ -35,6 +37,8 @@ test(
     await execute('docker', [
       'run',
       '--rm',
+      '--user',
+      `${process.getuid!()}:${process.getgid!()}`,
       '--network',
       'none',
       '--read-only',

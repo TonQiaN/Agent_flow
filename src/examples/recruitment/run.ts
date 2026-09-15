@@ -49,7 +49,7 @@ export async function runRecruitment(root: string, runId: string, input: unknown
       if (!compiled) throw new Error('WORKFLOW_MISSING');
       return { compiled, runtime: new WorkflowRuntime(), ...(app.admission ? { admission: app.admission } : {}) };
     } };
-    const workers = ['first', 'second', 'third'].map(id => new NodeWorker(queue, host, systemClock, id, ['studio'], 3000));
+    const workers = ['first', 'second', 'third'].map(id => new NodeWorker(queue, host, systemClock, id, ['studio']));
     let cancelled = false, previousQueue = '';
     for (;;) {
       const rows = await queue.query(), serialized = JSON.stringify(redactView(rows));

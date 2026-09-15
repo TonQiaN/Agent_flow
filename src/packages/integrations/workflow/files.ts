@@ -376,23 +376,28 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.stopped = false;
         resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
-        if (result.status === 'failed') await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
-        if (result.status === 'failed') return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
+        if (result.status === 'failed') {
+          phase = 'FILE_NODE_OBSERVATION_FAILED';
+          await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
+          return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
+        }
         script = result.evidence; outcome = script.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
         output = await this.artifacts.capture(resources.script.executionFacts()!.capture!.outputsPath, checkedContractId);
-        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: true });
         resources.pendingOutput = () => this.artifacts.release(output.id);
+        phase = 'FILE_NODE_OBSERVATION_FAILED';
+        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: true });
       } else {
         resources.stopped = false;
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
           config: clone(b.config), outcomes: clone(component.outcomes), input: reused ? { snapshotId: ref.storageId, contractId: component.inputContract } : { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
         const facts = resources.attempt.executionFacts();
+        if (result.status !== 'failed') resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);
+        phase = 'FILE_NODE_OBSERVATION_FAILED';
         await this.observeExecution?.(identity, { runner: facts?.runner ?? null, ...(facts ? { agent: facts } : {}), accepted: result.status !== 'failed' });
         if (result.status === 'failed') return { ...failed(resources.attempt.executionFacts()?.runner.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;
-        resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);
         if (!sameFiles(ref.manifest, agent.input)) return failed('WORKFLOW_AGENT_INPUT_MISMATCH');
         outcome = agent.outcome; output = agent.output;
       }
@@ -403,7 +408,10 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       resources.pendingOutput = null; this.#resources.delete(key(identity));
       return { identity: clone(ownIdentity), componentId: component.id, status: 'accepted', outcome, output: value };
     } catch (error) {
-      if (phase === 'OUTPUT_CONTRACT_FAILED' && resources.script) await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
+      if (phase === 'OUTPUT_CONTRACT_FAILED' && resources.script) {
+        try { await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false }); }
+        catch { return failed('FILE_NODE_OBSERVATION_FAILED', error, checkedContractId); }
+      }
       return failed(phase, error, checkedContractId);
     }
     finally {

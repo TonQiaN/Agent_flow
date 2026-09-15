@@ -54,4 +54,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            .local/studio-browser-tests/runs/*/completion.json
+            .local/studio-browser-tests/runs/*/worker.log
+          include-hidden-files: true
           retention-days: 14

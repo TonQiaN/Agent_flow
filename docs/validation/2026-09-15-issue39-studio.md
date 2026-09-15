@@ -1,6 +1,6 @@
 # Issue #39：本机工作台整体验证
 
-2026-09-15，macOS、Node 24.18.1、Docker Desktop。主负责人 @TonQiaN；Codex（Astra）实施、真实浏览器操作和作者自查，尚未独立人类审阅。第三层基于 `9c75458`，前置 PR #40 → #41；本记录不表示已经合并或发布。
+2026-09-15，macOS、Node 24.18.1、Docker Desktop。主负责人 @TonQiaN；Codex（Astra）实施、真实浏览器操作和作者自查，尚未独立人类审阅。第三层基于 `16fec91`（同步 main `c8e1890` 的版本交接文档），前置 PR #40 → #41；本记录不表示已经合并或发布。
 
 ## 真实招聘运行
 
@@ -47,10 +47,10 @@ Codex 0.153.4 + `gpt-6-astra` 在真实容器执行原批卷工作流：`run-952
 
 ## 检查与修正
 
-- `npm run check`：425 个普通测试、17 个 E2E 通过，195 个需要显式环境开关的用例默认跳过；共 442 通过、0 失败。
+- `npm run check`：426 个普通测试、17 个 E2E 通过，195 个需要显式环境开关的用例默认跳过；共 443 通过、0 失败。
 - 招聘实际 Docker 矩阵 6/6，通过时间 174.4 秒。只替换模型响应，队列、子进程、文件、解析、关卡和 PDF 均真实执行。
 - 离线格式测试 1/1：MD、TXT、DOCX、双页文本 PDF、PNG/JPG/JPEG 和扫描 PDF，核对文字、分页与 OCR 来源。
-- Chromium 完整旅程与四个故障场景 5/5；断线重新查询历史另 1/1。CI 对全部六条用户旅程统一运行。
+- Chromium 完整旅程、四个故障场景和断线重新查询历史共 6/6，通过时间 2.4 分钟；远端结果以 PR 当前检查为准。
 - 新增直接修订/时间查询测试，验证相同时间的保存顺序、未知时间排除、边界与摘要损坏拒绝。相同真实运行第 50 条回放查询从约 1.84 秒降至约 0.17 秒；单次本机测量，不作为固定性能承诺。
 - Node 24/26 Docker 矩阵和 Chromium 检查的远端结果以该层 PR 当前 Checks 为准；凭据和真模型任务不进入 CI。
 
@@ -63,3 +63,7 @@ Tutor 扫描件/报告入口已绑定原应用、上传契约和明确的环境�
 参考 Blackbox `xiaoxuanli-a/Agent_workflow` 提交 `4dc0f4ac630d6e54036dcbfafa1a4ae7ce2fa345` 的镜像/代理对应实现，已区分其 Python 代理与当前 Node 代理。前端使用 [React Flow 官方 API](https://reactflow.dev/api-reference/react-flow) 与 [PDF.js canvas 示例](https://mozilla.github.io/pdf.js/examples/)，未复制 ComfyUI/Dify 应用代码。原始截图、下载报告和私有凭据不进入 Git。
 
 远端首次干净安装发现 `studio:typecheck` 先于工作区声明构建，导致找不到 integrations 类型。已将依赖构建放入该命令的前置步骤，使用不含 node_modules/dist 的独立源码副本复查安装与完整检查；不靠放宽 TypeScript 规则消除错误。
+
+最终补查还复现了日志归档回调失败后临时输出仍残留的问题。修复前 cleanup 后有两个文件快照，修复后只保留调用者持有的输入；Agent、脚本和无效脚本输出三种路径均返回明确记录失败，回调只调用一次，重复清理安全。对应文件 Workflow 测试 15/15 通过。Blackbox 同版本的 collector/artifacts 未提供当前 TypeScript 观察回调对应方案，本轮按当前资源所有权规则修复。
+
+Linux CI 暴露两项环境问题：夹具容器生成 root 所有的目录导致测试清理 EACCES，已用宿主 UID/GID 生成；招聘宿主自设 3 秒租约在浏览器并发读取下报 QUEUE_CLAIM_LOST，已恢复引擎默认 30 秒租约，仍按原心跳与过期规则执行。浏览器测试同时检查进程完成错误并保留合成运行的 worker.log/completion.json，避免把进程错误拖成轮询超时。
