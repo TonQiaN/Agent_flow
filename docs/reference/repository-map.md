@@ -11,10 +11,11 @@ Agent_flow/
 ├── package.json / package-lock.json # npm workspaces 与固定依赖
 ├── tsconfig*.json                 # 共享严格构建与独立测试检查
 ├── src/
-│   ├── apps/cli/                  # 当前仅 demo 命令
+│   ├── apps/cli/                  # demo 与本地认证管理/登录命令
 │   ├── packages/domain/           # 业务类型与执行身份
+│   ├── apps/deepseek-tools/          # 容器内文件服务，使用镜像提供的 SDK
 │   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth 接口；无环境依赖
-│   ├── packages/integrations/     # Docker、CONNECT 代理、Codex 映射/parser、私有凭据存储/绑定、系统时钟
+│   ├── packages/integrations/     # Docker、CONNECT 代理、三个 Harness 映射/parser、私有凭据存储/绑定、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
 │   └── tooling/                   # 依赖边界与测试发现工具

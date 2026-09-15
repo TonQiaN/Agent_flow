@@ -1,0 +1,60 @@
+// Trusted seam driver against the installed SDK. Secrets and task data are synthetic.
+import assert from 'node:assert/strict';
+import * as host from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
+import { Context } from '/task/config/deepseek-policy/sdk.mjs';
+import ToolSpace from '/task/config/deepseek-policy/tool-space.mjs';
+import TaskPolicy from '/task/config/deepseek-policy/sandbox-policy.mjs';
+import IsolatedFileSystem from '/task/config/deepseek-policy/fs-service.mjs';
+import IsolatedSubprocess from '/task/config/deepseek-policy/subprocess-service.mjs';
+import IsolatedBash from '/task/config/deepseek-policy/bash-service.mjs';
+const ctx = new Context(), space = new ToolSpace(ctx), policy = new TaskPolicy(ctx);
+const files = new IsolatedFileSystem(ctx), subprocess = new IsolatedSubprocess(ctx);
+const bash = new IsolatedBash(ctx, { cwd: '/task/work', timeoutMs: 5000, maxTimeoutMs: 10000, maxOutputBytes: 1024, maxSpillBytes: 65536, graceMs: 100 });
+const read = async path => files.readText(await files.resolve(path));
+const shell = (command, extra = {}) => bash.run(bash.resolve({ command, ...extra }));
+const exists = async path => host.stat(path).then(() => true, () => false);
+const waitFor = async path => { for (let i = 0; i < 100; i++) { if (await exists(path)) return; await delay(20); } throw new Error(`Missing readiness: ${path}`); };
+try {
+  await host.writeFile('/task/state/private.txt', 'parent-private');
+  await host.writeFile('/task/outputs/original.txt', 'original');
+  const raw = subprocess.spawn({ argv: ['bash', '-c', 'printf tamper > /task/outputs/original.txt'], cwd: '/task/work',
+    stdio: { stdin: 'ignore', stdout: { maxBytes: 1024 }, stderr: { maxBytes: 1024 } }, graceMs: 100,
+    mode: 'workspace-write', sandboxPolicy: { mode: 'workspace-write' }, env: { AGENTFLOW_TOOL_POLICY: 'workspace-write' } });
+  assert.notEqual((await raw.done).exitCode, 0); assert.equal(await read('/task/outputs/original.txt'), 'original');
+  assert.throws(() => subprocess.spawnTerminal({}), /TOOL_TERMINAL_UNSUPPORTED/);
+  assert.throws(() => policy.resolve({ mode: 'danger-full-access' }), /UNSUPPORTED_TOOL_POLICY/);
+  assert.equal(policy.resolve({ session: { id: 'test', header: { cwd: '/task/work' }, events: [{ type: 'sandbox/mode', data: { mode: 'read-only' } }] } }).mode, 'read-only');
+  assert.throws(() => policy.resolve({ session: { header: { cwd: '/task' }, events: [] } }), /UNSUPPORTED_TOOL_WORKSPACE/);
+  await assert.rejects(shell('true', { sandboxPolicy: { mode: 'danger-full-access' } }), /UNSUPPORTED_TOOL_POLICY/);
+  assert.notEqual((await shell('printf denied > /task/outputs/original.txt', { sandboxPolicy: { mode: 'read-only' } })).exitCode, 0);
+  assert.equal(await read('/task/outputs/original.txt'), 'original');
+  const environment = await shell('env; cat /proc/self/environ', { env: { PASSPHRASE: 'injected-secret', LD_PRELOAD: '/invalid', PATH: '/invalid' } });
+  assert.equal(environment.exitCode, 0); assert.ok(!JSON.stringify(environment).includes('fixture-parent-secret'));
+  assert.ok(!JSON.stringify(environment).includes('injected-secret')); assert.ok(!JSON.stringify(environment).includes('fixture-alternate-secret'));
+  const spill = await shell(`node -e 'process.stdout.write("prefix"+"a".repeat(5000)+"suffix")'`);
+  assert.equal(spill.exitCode, 0); assert.equal(spill.stdout.truncated, true);
+  assert.match(spill.stdout.spillPath, /^\/tmp\/process-output\//);
+  assert.equal(await read(spill.stdout.spillPath), `prefix${'a'.repeat(5000)}suffix`);
+  assert.equal((await shell('printf shell > /tmp/shared.txt')).exitCode, 0); assert.equal(await read('/tmp/shared.txt'), 'shell');
+  await files.writeText(await files.resolve('/tmp/shared.txt'), 'files');
+  assert.equal((await shell('cat /tmp/shared.txt')).stdout.text, 'files');
+  const background = bash.start(bash.resolve({ command: 'printf ready > /task/outputs/ready; sleep 0.1; printf complete' }));
+  await waitFor('/task/outputs/ready'); await background.done;
+  assert.equal(background.status, 'completed'); assert.equal(background.exitCode, 0);
+  assert.equal(background.readOutput().delta, 'complete'); assert.equal(background.readOutput().delta, '');
+  const leader = await shell('(sleep 0.3; printf escaped > /task/outputs/leader-escaped) & printf done');
+  assert.equal(leader.exitCode, 0); await delay(400); assert.equal(await exists('/task/outputs/leader-escaped'), false);
+  const timeout = await shell('sleep 10', { timeoutMs: 100 }); assert.equal(timeout.timedOut, true); assert.equal(timeout.aborted, false);
+  const abort = new AbortController();
+  const cancelled = shell('printf ready > /task/outputs/cancel-ready; (sleep 0.4; printf escaped > /task/outputs/escaped) & wait', { signal: abort.signal });
+  await waitFor('/task/outputs/cancel-ready'); abort.abort();
+  assert.equal((await cancelled).aborted, true); await delay(500); assert.equal(await exists('/task/outputs/escaped'), false);
+  const closing = bash.start(bash.resolve({ command: 'printf ready > /task/outputs/close-ready; (sleep 0.4; printf escaped > /task/outputs/close-escaped) & wait' }));
+  await waitFor('/task/outputs/close-ready'); const directory = space.directory;
+  await space.close(); await closing.done; await delay(500);
+  assert.equal(await exists('/task/outputs/close-escaped'), false); assert.equal(await exists(directory), false);
+  assert.throws(() => subprocess.spawn({ argv: ['true'] }), /TOOL_SPACE_CLOSED/);
+  assert.equal(await host.readFile('/task/state/private.txt', 'utf8'), 'parent-private');
+  console.log('isolated_process_seam_verified');
+} finally { await space.close(); }

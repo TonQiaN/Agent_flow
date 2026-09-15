@@ -24,3 +24,23 @@ export interface CredentialStore {
   acquire(identity: CredentialIdentity, waitMs?: number): Promise<CredentialLease>;
   delete(identity: CredentialIdentity, waitMs?: number): Promise<{ readonly deleted: boolean; readonly remoteRevoked: false }>;
 }
+
+/** Host management can reserve an identity before its first credential exists. */
+export interface CredentialManagementLease {
+  readonly metadata: CredentialMetadata | null;
+  configure(content: string): Promise<CredentialMetadata>;
+  release(): Promise<void>;
+}
+export interface CredentialManagementStore extends CredentialStore {
+  acquireManagement(identity: CredentialIdentity, waitMs?: number): Promise<CredentialManagementLease>;
+}
+
+/** Explicit local repair; neither a new login nor proof of remote validity. */
+export interface CredentialRecoveryResult {
+  readonly status: 'healthy' | 'restored' | 'not_configured' | 'unavailable';
+  readonly credential: CredentialMetadata | null;
+  readonly diagnostic: string | null;
+}
+export interface CredentialRecoveryStore extends CredentialStore {
+  recover(identity: CredentialIdentity, waitMs?: number): Promise<CredentialRecoveryResult>;
+}

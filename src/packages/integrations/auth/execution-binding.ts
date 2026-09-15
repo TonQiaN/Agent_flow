@@ -22,8 +22,14 @@ export interface BindingFinalization {
   readonly diagnostics: readonly string[];
 }
 
-/** A lease and its one mutable execution copy. No Harness or business-outcome interpretation. */
-export class FileExecutionCredentialBinding implements PrivateStateBinding {
+/** Shared lifecycle consumed by execution composition, independent of secret transport. */
+export interface ExecutionCredentialBinding extends PrivateStateBinding {
+  abandon(): Promise<void>;
+  finish(result: RunnerResult): Promise<BindingFinalization>;
+}
+
+/** An exclusive lease with one execution copy. No Harness or business-outcome interpretation. */
+export class FileExecutionCredentialBinding implements ExecutionCredentialBinding {
   readonly environment: Readonly<Record<string, string>>;
   readonly #identity: ExecutionIdentity;
   readonly #stateFile: string;
@@ -48,7 +54,7 @@ export class FileExecutionCredentialBinding implements PrivateStateBinding {
   static async acquire(store: CredentialStore, options: CredentialBindingOptions, waitMs = 0, remember?: (content: string) => void): Promise<FileExecutionCredentialBinding> {
     if (!options || Object.keys(options).sort().join(',') !== 'credential,environment,identity,stateFile'
       || !isExecutionIdentity(options.identity) || typeof options.stateFile !== 'string' || options.stateFile.length > 256
-      || options.stateFile.split('/').length > 8 || !options.stateFile.split('/').every(part => /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(part))) throw new CredentialError('INVALID_CREDENTIAL_BINDING');
+      || options.stateFile.split('/').length > 8 || !options.stateFile.split('/').every(part => /^\.?[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(part))) throw new CredentialError('INVALID_CREDENTIAL_BINDING');
     const snapshot = { ...options, identity: Object.freeze({ ...options.identity }), credential: Object.freeze({ ...options.credential }), environment: stateEnvironment(options.environment) };
     if (remember !== undefined && typeof remember !== 'function') throw new CredentialError('INVALID_SECRET_OBSERVER');
     const lease = await store.acquire(snapshot.credential, waitMs);

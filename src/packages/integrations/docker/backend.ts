@@ -7,13 +7,23 @@ import { isIdentifier } from '@agentflow/domain';
 import { TASK_PATHS } from '@agentflow/engine';
 import type { ExecutionBackend, ExecutionResource, Observation, RawCapture, RunnerRequest, CapturedFile } from '@agentflow/engine';
 import { docker, attach } from './process.js';
-import type { AttachedProcess } from './process.js';
+import type { AttachedProcess, DockerInteraction } from './process.js';
 import { copyInput, captureFile, safeRelative } from './files.js';
 import { nestedUserNamespacePolicy } from './sandbox-policy.js';
 import { DockerEgress, egressOptions } from './egress.js';
 import type { DockerEgressOptions } from './egress.js';
-import { stateEnvironment } from '../execution/state-binding.js';
+import { stateEnvironment, credentialEnvironment } from '../execution/state-binding.js';
 import type { PrivateStateBinding } from '../execution/state-binding.js';
+
+export interface SystemConfigMount { readonly name: string; readonly target: string }
+export function systemConfigMounts(value: readonly SystemConfigMount[] = []): readonly SystemConfigMount[] {
+  if (!Array.isArray(value) || value.length > 16 || value.some(m => !m || Object.keys(m).sort().join(',') !== 'name,target'
+    || typeof m.name !== 'string' || !safeRelative(m.name) || m.name.length > 256
+    || typeof m.target !== 'string' || m.target.length > 256 || !/^\/etc\/[A-Za-z0-9_-][A-Za-z0-9_.-]*\/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*$/.test(m.target))
+    || new Set(value.map(m => m.target)).size !== value.length
+    || value.some(m => value.some(other => other.target.startsWith(`${m.target}/`)))) throw new Error('INVALID_SYSTEM_CONFIG_MOUNTS');
+  return Object.freeze(value.map(m => Object.freeze({ ...m })));
+}
 
 export interface DockerOptions {
   readonly workspaceRoot: string;
@@ -27,6 +37,8 @@ export interface DockerOptions {
   readonly uid?: number;
   readonly gid?: number;
   readonly logBytes?: number;
+  /** Host-selected readonly mappings from this execution configFiles into system configuration directories. */
+  readonly systemConfigMounts?: readonly SystemConfigMount[];
 }
 interface OwnedResource {
   directory: string;
@@ -45,11 +57,12 @@ export class DockerBackend implements ExecutionBackend {
   readonly #released = new Set<string>();
   readonly #options: Required<DockerOptions>;
   readonly #binding: PrivateStateBinding | undefined;
+  readonly #interaction: DockerInteraction | undefined;
   readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions, binding?: PrivateStateBinding) {
+  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
-      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024 };
+      uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
     const allowed = ['workspaceRoot', 'image', ...Object.keys(defaults)];
     if (Object.keys(config).some(key => !allowed.includes(key)) || !isAbsolute(config.workspaceRoot)
@@ -61,8 +74,10 @@ export class DockerBackend implements ExecutionBackend {
       || !Number.isSafeInteger(config.uid) || config.uid < 1 || !Number.isSafeInteger(config.gid) || config.gid < 0
       || config.uid !== getuid?.() || config.gid !== getgid?.()
       || !Number.isSafeInteger(config.logBytes) || config.logBytes < 1 || config.logBytes > 16 * 1024 * 1024) throw new Error('INVALID_DOCKER_OPTIONS');
-    this.#options = Object.freeze({ ...config, network: config.network === 'none' ? 'none' : egressOptions(config.network) });
-    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    this.#options = Object.freeze({ ...config, systemConfigMounts: systemConfigMounts(config.systemConfigMounts), network: config.network === 'none' ? 'none' : egressOptions(config.network) });
+    if (binding && (typeof binding.prepare !== 'function' || typeof binding.beforeRelease !== 'function' || binding.secretEnvironment !== undefined && typeof binding.secretEnvironment !== 'function')) throw new Error('INVALID_STATE_BINDING');
+    if (interaction && (typeof interaction.open !== 'function' || typeof interaction.output !== 'function')) throw new Error('INVALID_DOCKER_INTERACTION');
+    this.#interaction = interaction;
     this.#binding = binding;
     this.#stateEnv = stateEnvironment(binding?.environment ?? {});
   }
@@ -92,7 +107,7 @@ export class DockerBackend implements ExecutionBackend {
     const records = invocation.recordFiles ?? [];
     if (!Array.isArray(records) || records.length > 16 || new Set(records.map(item => item.id)).size !== records.length
       || records.some(item => !isIdentifier(item.id) || ['stdout', 'stderr'].includes(item.id) || typeof item.path !== 'string' || !safeRelative(item.path)
-        || !Number.isSafeInteger(item.maxBytes) || item.maxBytes < 1 || item.maxBytes > 1024 * 1024)) throw new Error('INVALID_RECORD_CONFIGURATION');
+        || !Number.isSafeInteger(item.maxBytes) || item.maxBytes < 1 || item.maxBytes > 16 * 1024 * 1024) || records.reduce((total, item) => total + item.maxBytes, 0) > 16 * 1024 * 1024) throw new Error('INVALID_RECORD_CONFIGURATION');
     const configs = invocation.configFiles ?? [];
     if (!Array.isArray(configs) || configs.length > 16 || configs.some(file => !file || typeof file !== 'object'
       || Object.keys(file).sort().join(',') !== 'content,name' || typeof file.name !== 'string' || !safeRelative(file.name)
@@ -100,6 +115,7 @@ export class DockerBackend implements ExecutionBackend {
       || Buffer.byteLength(file.content) > 64 * 1024)
       || new Set(configs.map(file => file.name)).size !== configs.length
       || configs.some(file => configs.some(other => other.name.startsWith(`${file.name}/`)))) throw new Error('INVALID_CONFIG_FILES');
+    if (this.#options.systemConfigMounts.some(m => !configs.some(f => f.name === m.name))) throw new Error('MISSING_SYSTEM_CONFIG_SOURCE');
     owned.request = request;
     for (const name of [...Object.keys(TASK_PATHS), 'raw']) await mkdir(join(owned.directory, name), { mode: 0o700 });
     await copyInput(request.inputSource, join(owned.directory, 'input'));
@@ -132,14 +148,19 @@ export class DockerBackend implements ExecutionBackend {
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=67108864,mode=1777', '--workdir', TASK_PATHS.work,
       '--env', `HOME=${TASK_PATHS.state}`, '--env', `AGENTFLOW_INPUT=${TASK_PATHS.input}`,
       '--env', `AGENTFLOW_OUTPUTS=${TASK_PATHS.outputs}`, '--env', `AGENTFLOW_STATE=${TASK_PATHS.state}`];
+    if (this.#interaction) args.push('--interactive');
     args.push(...owned.egress?.arguments() ?? ['--network', 'none']);
     if (options.sandbox === 'nested-userns-v1') args.push('--ipc', 'private', '--security-opt', 'systempaths=unconfined',
       '--security-opt', `seccomp=${join(owned.directory, 'sandbox-policy.json')}`);
     for (const [key, path] of Object.entries(TASK_PATHS)) args.push('--mount', `type=bind,src=${join(owned.directory, key)},dst=${path}${key === 'config' ? ',readonly' : ''}`);
+    for (const mount of options.systemConfigMounts) args.push('--mount', `type=bind,src=${join(owned.directory, 'config', mount.name)},dst=${mount.target},readonly`);
     for (const [key, value] of Object.entries(request.invocation.env ?? {})) args.push('--env', `${key}=${value}`);
     for (const [key, value] of Object.entries(this.#stateEnv)) args.push('--env', `${key}=${value}`);
+    const secrets = credentialEnvironment(this.#binding?.secretEnvironment?.(resource) ?? {});
+    if (Object.keys(secrets).some(key => Object.hasOwn(this.#stateEnv, key))) throw new Error('CONFLICTING_CREDENTIAL_ENVIRONMENT');
+    for (const key of Object.keys(secrets)) args.push('--env', key);
     args.push('--entrypoint', request.invocation.argv[0]!, imageId, ...request.invocation.argv.slice(1));
-    await docker(args);
+    await docker(args, 15_000, secrets);
   }
 
   async #inspect(resource: ExecutionResource): Promise<Inspected | null> {
@@ -163,13 +184,19 @@ export class DockerBackend implements ExecutionBackend {
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
     await owned.egress?.assertRunning();
-    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes);
+    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes, this.#interaction);
   }
 
   async observe(resource: ExecutionResource): Promise<Observation> {
     const owned = this.#owned(resource);
-    const existing = await this.#inspect(resource);
+    let existing = await this.#inspect(resource);
+    // inspect may have sampled a running/created container before attach closed.
+    // Reconcile once after close before treating the old sample as lost transport.
+    if (owned.attached?.settled && existing && ['created', 'running'].includes(existing.state.Status)) {
+      existing = await this.#inspect(resource);
+    }
     if (!existing) return { state: 'absent' };
+    if (owned.attached?.failed) throw new Error('ATTACH_INTERACTION_FAILED');
     if (existing.state.Running) {
       await owned.egress?.assertRunning();
       if (owned.attached?.settled) { owned.attached.failed = true; throw new Error('ATTACH_ENDED_EARLY'); }

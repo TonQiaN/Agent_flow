@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, stat, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -41,7 +41,7 @@ realTest('Docker: two writable copies cannot modify each other or their source; 
       f.run(f.request('echo changed > /task/input/answer.txt; mv /task/input/answer.txt /task/input/renamed; cp /task/input/renamed /task/outputs/final.txt')),
       f.run(f.request('sleep 1; cat /task/input/answer.txt > /task/outputs/final.txt; rm /task/input/answer.txt')),
     ]);
-    for (const result of [a, b]) { assert.equal(result.phase, 'exited'); assert.equal(result.exitCode, 0, JSON.stringify(result)); assert.equal(result.cleanup, 'removed'); }
+    for (const result of [a, b]) { assert.equal(result.phase, 'exited', JSON.stringify(result)); assert.equal(result.exitCode, 0, JSON.stringify(result)); assert.equal(result.cleanup, 'removed'); }
     assert.equal(await readFile(join(f.input, 'answer.txt'), 'utf8'), 'original');
     assert.equal(await readFile(join(a.capture!.outputsPath, 'final.txt'), 'utf8'), 'changed\n');
     assert.equal(await readFile(join(b.capture!.outputsPath, 'final.txt'), 'utf8'), 'original');
@@ -75,23 +75,37 @@ realTest('Docker: nonzero exit, missing executable and invalid configuration pre
 
 realTest('Docker: timeout and cancellation stop the target, preserve another execution and leave no owned containers', async () => {
   const f = await fixture();
+  let cancelled = false; const active: Promise<RunnerResult>[] = [];
+  const waitForMarker = async (name: string) => {
+    const until = Date.now() + 10000;
+    while (Date.now() < until) {
+      for (const directory of await readdir(join(f.root, 'attempts'))) {
+        try { if ((await readFile(join(f.root, 'attempts', directory, 'outputs', name), 'utf8')) === 'started\n') return; }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      }
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    throw new Error('EXECUTION_START_NOT_OBSERVED');
+  };
   try {
     const timeout = await f.run(f.request('echo started > /task/outputs/started; sleep 30', 1500));
     assert.equal(timeout.phase, 'timed_out'); assert.equal(timeout.stop, 'confirmed'); assert.equal(timeout.cleanup, 'removed');
-    assert.equal(await readFile(join(timeout.capture!.outputsPath, 'started'), 'utf8'), 'started\n');
-    let cancelled = false;
-    const pending = f.run(f.request('echo started > /task/outputs/started; sleep 30'), { requested: () => cancelled });
-    const peer = f.run(f.request('sleep 2; echo finished > /task/outputs/peer'));
-    const timer = setTimeout(() => { cancelled = true; }, 1200);
-    const result = await pending; clearTimeout(timer);
+    // The deadline covers prepare/create too, so a timeout does not promise task code began.
+    const pending = f.run(f.request('echo started > /task/outputs/cancel-started; sleep 30'), { requested: () => cancelled });
+    active.push(pending);
+    const peer = f.run(f.request('echo started > /task/outputs/peer-started; sleep 2; echo finished > /task/outputs/peer'));
+    active.push(peer);
+    await Promise.all([waitForMarker('cancel-started'), waitForMarker('peer-started')]);
+    cancelled = true;
+    const result = await pending;
     assert.equal(result.phase, 'cancelled'); assert.equal(result.stop, 'confirmed'); assert.equal(result.cleanup, 'removed');
-    assert.equal(await readFile(join(result.capture!.outputsPath, 'started'), 'utf8'), 'started\n');
+    assert.equal(await readFile(join(result.capture!.outputsPath, 'cancel-started'), 'utf8'), 'started\n');
     assert.equal((await peer).exitCode, 0);
     for (const resource of [timeout.resource!, result.resource!]) {
       const found = execFileSync('docker', ['container', 'ls', '--all', '--filter', `name=^/${resource.id}$`, '--format', '{{.ID}}'], { encoding: 'utf8' });
       assert.equal(found.trim(), '');
     }
-  } finally { await f.cleanup(); }
+  } finally { cancelled = true; await Promise.allSettled(active); await f.cleanup(); }
 });
 
 realTest('Docker: logs are streamed with bounds and declared raw files copied before release', async () => {
@@ -157,6 +171,23 @@ realTest('Docker: configuration paths, collisions and limits reject before proce
       const result = await f.run({ ...request, invocation: { ...request.invocation, configFiles } });
       assert.equal(result.phase, 'failed'); assert.ok(result.diagnostics.includes('PREPARE_FAILED'));
       assert.equal(result.exitCode, null);
+    }
+  } finally { await f.cleanup(); }
+});
+
+realTest('Docker: raw records share a bounded 16 MiB budget and one log may exceed 1 MiB', async () => {
+  const f = await fixture();
+  try {
+    const result = await f.run({ ...f.request('unused'), invocation: { argv: ['/bin/sh', '-c', 'head -c 2097152 /dev/zero > /task/state/session.bin'],
+      recordFiles: [{ id: 'session', path: 'session.bin', maxBytes: 16 * 1024 * 1024 }] } });
+    assert.equal(result.exitCode, 0); assert.equal(result.capture!.files['session']!.bytes, 2097152);
+    assert.equal(result.capture!.files['session']!.complete, true); assert.equal(result.capture!.files['session']!.truncated, false);
+    for (const recordFiles of [
+      [{ id: 'large', path: 'one', maxBytes: 16 * 1024 * 1024 + 1 }],
+      [{ id: 'first', path: 'one', maxBytes: 8 * 1024 * 1024 }, { id: 'second', path: 'two', maxBytes: 8 * 1024 * 1024 + 1 }],
+    ]) {
+      const rejected = await f.run({ ...f.request('true'), invocation: { argv: ['true'], recordFiles } });
+      assert.equal(rejected.phase, 'failed'); assert.ok(rejected.diagnostics.includes('PREPARE_FAILED'));
     }
   } finally { await f.cleanup(); }
 });
