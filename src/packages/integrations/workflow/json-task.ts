@@ -12,6 +12,8 @@ interface Mapping {
   readonly revision: string;
   readonly input?: (input: JsonValue) => JsonValue;
   readonly output?: (input: JsonValue, output: JsonValue) => JsonValue;
+  /** Trusted host selection, after output mapping; never read an outcome from model text. */
+  readonly outcome?: (input: JsonValue, output: JsonValue) => string;
   readonly fault?: (input: JsonValue, identity: ExecutionIdentity) => boolean;
   readonly prepare?: (input: JsonValue, directory: string) => Promise<void>;
 }
@@ -47,8 +49,9 @@ export class JsonTaskWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExe
     contracts.register('json-task-output', { rules: [{ ...request, id: 'result', match: 'result.json' }, { id: 'reports', kind: 'tree', match: 'reports', minCount: 0, maxCount: 1, minFiles: 1, maxFiles: 64, maxBytes: 64 * 1024 ** 2, mediaTypes: ['application/json', 'application/pdf', 'text/plain', 'text/markdown', 'text/html'] }], maxFiles: 65, maxTotalBytes: 80 * 1024 ** 2, unmatched: 'reject' });
   }
   #register(component: ComponentDefinition, mapping: Mapping): Binding {
-    if (this.#bindings.has(component.id) || !mapping.revision || Object.keys(component.outcomes).length !== 1) throw new Error('INVALID_JSON_TASK_BINDING');
-    this.json.definition(component.inputContract); this.json.definition(Object.values(component.outcomes)[0]!);
+    const outcomes = Object.values(component.outcomes);
+    if (this.#bindings.has(component.id) || !mapping.revision || !outcomes.length || outcomes.length > 1 && !mapping.outcome) throw new Error('INVALID_JSON_TASK_BINDING');
+    this.json.definition(component.inputContract); outcomes.forEach(id => this.json.definition(id));
     const binding = { component: structuredClone(component), mapping, inner: { ...component, inputContract: 'json-task-input', outcomes: { completed: 'json-task-output' } } };
     this.#bindings.set(component.id, binding); return binding;
   }
@@ -99,10 +102,15 @@ export class JsonTaskWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExe
       output = result.output;
       const archived = await this.files.checkpointValue(output, identity.runId, 'json-task-output');
       await this.files.materialize(output, identity.runId, join(directory, 'result'));
-      let value: JsonValue;
-      try { value = snapshotJson(JSON.parse(await readFile(join(directory, 'result/result.json'), 'utf8'))); value = binding.mapping.output?.(input, value) ?? value; }
+      let value: JsonValue, outcome: string;
+      try {
+        value = snapshotJson(JSON.parse(await readFile(join(directory, 'result/result.json'), 'utf8')));
+        value = binding.mapping.output?.(input, value) ?? value;
+        outcome = binding.mapping.outcome?.(input, value) ?? Object.keys(component.outcomes)[0]!;
+        if (!Object.hasOwn(component.outcomes, outcome)) throw new Error('UNDECLARED_JSON_TASK_OUTCOME');
+      }
       catch { await this.record(identity, { kind: 'artifact', accepted: false, saved: archived }); return { identity, componentId: component.id, status: 'failed' as const, code: 'INVALID_AGENT_JSON', stopped: true, issues: [] }; }
-      const outcome = Object.keys(component.outcomes)[0]!, issues = this.check(component.outcomes[outcome]!, value);
+      const issues = this.check(component.outcomes[outcome]!, value);
       await this.record(identity, { kind: 'artifact', accepted: issues.length === 0, saved: archived });
       if (issues.length) return { identity, componentId: component.id, status: 'failed' as const, code: 'INVALID_AGENT_JSON', stopped: true, issues };
       return { identity, componentId: component.id, status: 'accepted' as const, outcome, output: value };
