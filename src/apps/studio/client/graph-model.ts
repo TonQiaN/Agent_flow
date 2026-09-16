@@ -103,18 +103,87 @@ export function flowOrder(definition: FlowDefinition): string[] {
 
 export function graphLayout(definition: FlowDefinition) {
   const order = flowOrder(definition);
-  const ends = [
-    ...new Set(definition.routes.flatMap((r) => (r.to.end ? [r.to.end] : []))),
-  ].sort((a, b) => Number(a === 'rejected') - Number(b === 'rejected'));
-  return [...order, ...ends.map((id) => 'end-' + id)].map((id, index) => {
-    const row = Math.floor(index / 4),
-      column = index % 4;
-    return {
+  const main = primaryPath(definition);
+  const positions = new Map(
+    main.map((id, column) => [id, { x: column * 420, y: 0 }]),
+  );
+  const occupied = new Set(main.map((_, column) => `${column}:0`));
+  const placeBranch = (id: string, column: number) => {
+    let row = 1;
+    while (occupied.has(`${column}:${row}`)) row++;
+    occupied.add(`${column}:${row}`);
+    positions.set(id, { x: column * 420, y: row * 210 });
+  };
+  for (const id of order.filter((node) => !positions.has(node))) {
+    const incoming = definition.routes.find(
+      (r) => r.to.node === id && positions.has(r.from),
+    );
+    placeBranch(
       id,
-      index,
-      position: { x: (row % 2 ? 3 - column : column) * 304, y: row * 156 },
-    };
-  });
+      incoming ? positions.get(incoming.from)!.x / 420 + 1 : 0,
+    );
+  }
+  const ends = [
+    ...new Set(
+      definition.routes.flatMap((r) => (r.to.end ? [r.to.end] : [])),
+    ),
+  ].sort((a, b) => Number(a === 'rejected') - Number(b === 'rejected'));
+  for (const end of ends) {
+    const incoming = definition.routes.filter((r) => r.to.end === end);
+    const column = Math.max(
+      0,
+      ...incoming.map((r) => (positions.get(r.from)?.x ?? 0) / 420 + 1),
+    );
+    if (
+      incoming.some((r) => r.from === main.at(-1)) &&
+      !occupied.has(`${column}:0`)
+    ) {
+      positions.set('end-' + end, { x: column * 420, y: 0 });
+      occupied.add(`${column}:0`);
+    } else placeBranch('end-' + end, column);
+  }
+  return [...order, ...ends.map((id) => 'end-' + id)].map((id, index) => ({
+    id,
+    index,
+    position: positions.get(id)!,
+  }));
+}
+
+// Explain the existing route, without inferring additional execution rules.
+const recruitmentRoutes: Record<string, string> = {
+  'parse:completed:requirements': '材料文本 → 岗位拆解',
+  'requirements:completed:prepare-reviews': '岗位要求 → 分配评审',
+  'prepare-reviews:completed:reviews': '候选人 × 四个维度',
+  'reviews:completed:collect-reviews': '评审完成 → 汇总证据',
+  'collect-reviews:completed:prepare-audits': '逐项证据 → 独立复核',
+  'prepare-audits:completed:audits': '按候选人并行复核',
+  'audits:completed:collect-audits': '复核完成 → 汇总发现',
+  'collect-audits:completed:evidence-gate': '证据与发现 → 校验',
+  'evidence-gate:passed:prepare-decisions': '证据通过 → 准备判断',
+  'evidence-gate:revise:prepare-reviews': '证据需修订 → 重新评审',
+  'evidence-gate:revise-job:requirements': '岗位有问题 → 重新拆解',
+  'evidence-gate:rejected:end-rejected': '校验未通过 → 结束',
+  'prepare-decisions:completed:decisions': '按候选人形成推荐',
+  'decisions:completed:collect-decisions': '二元推荐 → 汇总结论',
+  'collect-decisions:completed:delivery-gate': '全部结论 → 交付检查',
+  'delivery-gate:passed:render': '交付通过 → 生成报告',
+  'delivery-gate:revise:prepare-decisions': '结论需修订 → 重新判断',
+  'render:completed:end-completed': '报告与 PDF → 完成',
+};
+export function routeLabel(
+  definition: FlowDefinition,
+  route: FlowDefinition['routes'][number],
+) {
+  const target = route.to.node ?? 'end-' + route.to.end;
+  const specific =
+    definition.id === 'recruitment'
+      ? recruitmentRoutes[`${route.from}:${route.outcome}:${target}`]
+      : undefined;
+  const generic = `${outcomeNames[route.outcome] ?? route.outcome} → ${route.to.end ? '结束' : route.limit ? nameOf(target) : '继续'}`;
+  return (
+    (specific ?? generic) +
+    (route.limit ? ` · 最多 ${route.limit.max} 次` : '')
+  );
 }
 export function routePorts(
   source: { x: number; y: number },

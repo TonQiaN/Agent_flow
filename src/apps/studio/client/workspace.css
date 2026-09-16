@@ -701,15 +701,24 @@ summary {
 .canvas-legend i.active {
   background: #6185e0;
 }
-.return-label {
+.flow-edge-label {
   position: absolute;
-  color: #a68046;
+  color: #65738a;
   background: #f6f8fc;
   padding: 3px 5px;
-  font-size: 10px;
-  pointer-events: none;
-  writing-mode: vertical-rl;
-  letter-spacing: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: all;
+  border-radius: 4px;
+}
+.flow-edge-label.repair {
+  color: #a68046;
+}
+.flow-edge-label:hover,
+.flow-edge-label.selected {
+  color: #2563eb;
+  background: #eaf0ff;
 }
 .inspector {
   position: absolute;

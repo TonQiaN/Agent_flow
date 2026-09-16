@@ -9,6 +9,7 @@ import {
   MarkerType,
   BaseEdge,
   EdgeLabelRenderer,
+  getBezierPath,
   applyNodeChanges,
   type NodeProps,
   type NodeChange,
@@ -24,6 +25,7 @@ import {
   nameOf,
   nodeNames,
   outcomeNames,
+  routeLabel,
   routePorts,
 } from './graph-model';
 export const labels = nodeNames;
@@ -77,7 +79,9 @@ function TaskNode({ data, selected }: NodeProps) {
         </span>
         <span className="node-title">{String(data.label)}</span>
         <span className="node-number">
-          {data.end ? 'END' : String(Number(data.index) + 1).padStart(2, '0')}
+          {data.end
+            ? 'END'
+            : String(Number(data.index) + 1).padStart(2, '0')}
         </span>
       </div>
       <div className="node-sub">
@@ -98,29 +102,59 @@ function TaskNode({ data, selected }: NodeProps) {
     </div>
   );
 }
-function ReturnEdge(props: EdgeProps) {
-  const { sourceX: sx, sourceY: sy, targetX: tx, targetY: ty, data } = props;
-  const lane = Number(data?.lane ?? -48),
-    offset = Number(data?.offset ?? 35);
-  const path = `M ${sx} ${sy} L ${sx} ${sy - offset} L ${lane} ${sy - offset} L ${lane} ${ty - offset} L ${tx} ${ty - offset} L ${tx} ${ty}`;
+function FlowEdge(props: EdgeProps) {
+  const {
+    sourceX: sx,
+    sourceY: sy,
+    targetX: tx,
+    targetY: ty,
+    data,
+  } = props;
+  let [path, labelX, labelY] = getBezierPath(props);
+  if (data?.returning) {
+    const lane = Number(data.lane);
+    labelX = (sx + tx) / 2;
+    labelY = lane;
+    path = `M ${sx} ${sy} C ${sx} ${lane}, ${sx} ${lane}, ${labelX} ${lane} C ${tx} ${lane}, ${tx} ${lane}, ${tx} ${ty}`;
+    if (Math.abs(sx - tx) < 2) {
+      // Aligned or self-returning ports still need a curved, continuous loop.
+      labelX = sx + 105;
+      labelY = (sy + ty) / 2 - 90;
+      path = `M ${sx} ${sy} C ${sx + 140} ${sy - 120}, ${tx + 140} ${ty - 120}, ${tx} ${ty}`;
+    }
+  } else if (
+    Math.abs(sy - ty) < 2 &&
+    props.sourcePosition === Position.Right &&
+    props.targetPosition === Position.Left
+  ) {
+    // A regular Bezier collapses to a straight line when both ports share y.
+    // Two joined curves retain horizontal port tangents and a gentle arch.
+    labelX = (sx + tx) / 2;
+    labelY = sy - Math.min(28, Math.abs(tx - sx) / 5);
+    const bend = (tx - sx) / 4;
+    path = `M ${sx} ${sy} C ${sx + bend} ${sy}, ${labelX - bend} ${labelY}, ${labelX} ${labelY} C ${labelX + bend} ${labelY}, ${tx - bend} ${ty}, ${tx} ${ty}`;
+  }
   return (
     <>
       <BaseEdge {...props} path={path} interactionWidth={24} />
       <EdgeLabelRenderer>
-        <span
-          className="return-label"
+        <button
+          type="button"
+          className={`flow-edge-label nodrag nopan ${data?.repair ? 'repair' : ''} ${props.selected ? 'selected' : ''}`}
+          aria-label={`连线：${props.label}`}
+          onClick={() => (data?.select as (() => void) | undefined)?.()}
           style={{
-            transform: `translate(-50%, -50%) translate(${lane}px, ${(sy + ty) / 2}px)`,
+            transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 5}px)`,
           }}
         >
           {String(props.label ?? '')}
-        </span>
+        </button>
       </EdgeLabelRenderer>
     </>
   );
 }
 const nodeTypes = { task: TaskNode },
-  edgeTypes = { repair: ReturnEdge };
+  edgeTypes = { flow: FlowEdge };
 export function Graph({
   definition,
   view,
@@ -135,13 +169,21 @@ export function Graph({
   storageKey: string;
 }) {
   const initial = useMemo(() => graphLayout(definition), [definition]);
-  const layoutKey = 'layout:v2:' + storageKey;
+  const layoutKey = 'layout:v3:' + storageKey;
   const [nodes, setNodes] = useState<Node[]>([]),
     [instance, setInstance] = useState<ReactFlowInstance>(),
     [minimap, setMinimap] = useState(false);
   const initialized = useRef(''),
     framed = useRef('');
   const canvasElement = useRef<HTMLDivElement>(null);
+  const startViewport = () => {
+    const pane = canvasElement.current?.querySelector('.react-flow');
+    return {
+      x: Math.min(64, Math.max(24, ((pane?.clientWidth ?? 390) - 236) / 2)),
+      y: Math.min(280, (pane?.clientHeight ?? 600) * 0.45),
+      zoom: 1,
+    };
+  };
   useEffect(() => {
     if (
       !instance ||
@@ -151,36 +193,14 @@ export function Graph({
     )
       return;
     framed.current = layoutKey;
-    // A phone opens on a readable starting node; the overview remains one click away.
-    if ((canvasElement.current?.clientWidth ?? 0) < 850) {
-      const start = nodes.find((n) => n.id === definition.start);
-      if (start)
-        void instance.setCenter(
-          start.position.x + 118,
-          start.position.y + 110,
-          { zoom: 1 },
-        );
-    } else {
-      const pane = canvasElement.current?.querySelector('.react-flow');
-      const height = pane?.clientHeight ?? 0;
-      const bottom = Math.max(
-        ...nodes.map((n) => n.position.y + (n.measured?.height ?? 116)),
-      );
-      const top = Math.min(...nodes.map((n) => n.position.y));
-      if (height > 0 && (bottom - top) * 0.78 > height) {
-        const left = Math.min(...nodes.map((n) => n.position.x));
-        const right = Math.max(
-          ...nodes.map((n) => n.position.x + (n.measured?.width ?? 236)),
-        );
-        void instance.setViewport({
-          x:
-            ((pane?.clientWidth ?? 0) - (right - left) * 0.85) / 2 -
-            left * 0.85,
-          y: 44 - top * 0.85,
-          zoom: 0.85,
-        });
-      }
-    }
+    // Long workflows open at reading size, never automatically fit the whole graph.
+    // A fixed origin also preserves the user's saved node offsets after refresh.
+    const selectedNode =
+      selection?.kind === 'node'
+        ? nodes.find((n) => n.id === selection.id)
+        : undefined;
+    if (selectedNode) focusNode(selectedNode, 1);
+    else void instance.setViewport(startViewport());
   }, [instance, nodes, layoutKey, definition.start]);
   useEffect(() => {
     let saved: Record<string, { x: number; y: number }> = {};
@@ -197,9 +217,12 @@ export function Graph({
         const currentNode = view?.snapshot.currentNode === id;
         const end = id.startsWith('end-');
         const kind = view?.execution?.structure.components[id]?.kind;
-        const parallel = ['reviews', 'audits', 'decisions', 'batch'].includes(
-          id,
-        );
+        const parallel = [
+          'reviews',
+          'audits',
+          'decisions',
+          'batch',
+        ].includes(id);
         const status = !view
           ? ''
           : end
@@ -246,15 +269,18 @@ export function Graph({
     () =>
       definition.routes.map((r: any, i: number) => {
         const target = r.to.node ?? 'end-' + r.to.end;
-        const sourcePosition = nodes.find((n) => n.id === r.from)?.position ?? {
+        const sourcePosition = nodes.find((n) => n.id === r.from)
+          ?.position ?? {
           x: 0,
           y: 0,
         };
-        const targetPosition = nodes.find((n) => n.id === target)?.position ?? {
+        const targetPosition = nodes.find((n) => n.id === target)
+          ?.position ?? {
           x: 0,
           y: 0,
         };
         const repair = !!r.limit;
+        const returning = repair || targetPosition.x <= sourcePosition.x;
         const taken = view?.snapshot.steps.some(
           (s) =>
             s.node === r.from &&
@@ -285,13 +311,10 @@ export function Graph({
           id: String(i),
           source: r.from,
           target,
-          ...routePorts(sourcePosition, targetPosition, repair),
-          type: repair ? 'repair' : 'smoothstep',
-          label:
-            repair || selected || r.outcome !== 'completed'
-              ? (outcomeNames[r.outcome] ?? r.outcome)
-              : undefined,
-          ariaLabel: `${nameOf(r.from)} → ${nameOf(target)}：${outcomeNames[r.outcome] ?? r.outcome}`,
+          ...routePorts(sourcePosition, targetPosition, returning),
+          type: 'flow',
+          label: routeLabel(definition, r),
+          ariaLabel: `${nameOf(r.from)} → ${nameOf(target)}：${routeLabel(definition, r)}`,
           animated: !!active && !!taken,
           selected,
           markerEnd: {
@@ -305,22 +328,20 @@ export function Graph({
             strokeWidth: selected ? 3 : taken ? 2.3 : 1.7,
             ...(repair ? { strokeDasharray: '6 5' } : {}),
           },
-          labelStyle: { fill: '#536174', fontSize: 12, fontWeight: 500 },
-          labelBgStyle: { fill: '#f5f7fb', fillOpacity: 1 },
           data: {
+            repair,
+            returning,
+            select: () => onSelect({ kind: 'edge', id: String(i) }),
             lane:
-              Math.min(...nodes.map((n) => n.position.x), 0) -
-              46 -
-              definition.routes.slice(0, i).filter((v: any) => v.limit).length *
-                23,
-            offset:
-              26 +
-              definition.routes.slice(0, i).filter((v: any) => v.limit).length *
-                10,
+              Math.min(...nodes.map((n) => n.position.y), 0) -
+              80 -
+              definition.routes.slice(0, i).filter((v: any) => v.limit)
+                .length *
+                42,
           },
         };
       }),
-    [definition, nodes, selection, view?.snapshot],
+    [definition, nodes, selection, view?.snapshot, onSelect],
   );
   const changes = (updates: NodeChange[]) =>
     setNodes((current) => {
@@ -347,11 +368,24 @@ export function Graph({
     const node = nodes.find((n) => n.id === id);
     if (node) {
       onSelect({ kind: 'node', id });
-      void instance?.setCenter(node.position.x + 118, node.position.y + 48, {
-        zoom: 1,
-        duration: 300,
-      });
+      focusNode(node, 1);
     }
+  };
+  const focusNode = (node: Node, zoom: number) => {
+    const width = canvasElement.current?.clientWidth ?? 0;
+    const height =
+      canvasElement.current?.querySelector('.react-flow')?.clientHeight ??
+      600;
+    // Leave room for the inspector on desktop; keep the node visible beside it.
+    const visibleWidth = width > 850 ? width - 375 : width;
+    void instance?.setViewport(
+      {
+        x: visibleWidth / 2 - (node.position.x + 118) * zoom,
+        y: height / 2 - (node.position.y + 48) * zoom,
+        zoom,
+      },
+      { duration: 250 },
+    );
   };
   const fit = () =>
     void instance?.fitView({
@@ -382,20 +416,17 @@ export function Graph({
             graph.width > 850 &&
             rect.right > graph.right - 375
           )
-            void instance?.setCenter(n.position.x + 118, n.position.y + 48, {
-              zoom: instance.getZoom(),
-              duration: 250,
-            });
+            focusNode(n, instance?.getZoom() ?? 1);
         }}
         onEdgeClick={(_e, edge) => onSelect({ kind: 'edge', id: edge.id })}
         onPaneClick={() => onSelect(null)}
         nodesConnectable={false}
         edgesReconnectable={false}
         deleteKeyCode={null}
-        minZoom={0.35}
+        minZoom={0.1}
         maxZoom={1.75}
-        fitView
-        fitViewOptions={{ padding: 0.12, minZoom: 0.78, maxZoom: 1 }}
+        panOnScroll
+        zoomOnScroll={false}
       >
         <Background gap={20} color="#d9dfe9" />
         <Controls showInteractive={false} showFitView={false} />
@@ -414,6 +445,13 @@ export function Graph({
         )}
       </ReactFlow>
       <div className="canvas-tools">
+        <button
+          onClick={() =>
+            void instance?.setViewport(startViewport(), { duration: 250 })
+          }
+        >
+          回到起点
+        </button>
         <button onClick={fit}>适应画布</button>
         <button
           onClick={() => {
@@ -426,7 +464,7 @@ export function Graph({
                 position: initial.find((v) => v.id === n.id)!.position,
               })),
             );
-            setTimeout(fit, 30);
+            void instance?.setViewport(startViewport(), { duration: 250 });
           }}
         >
           自动布局
