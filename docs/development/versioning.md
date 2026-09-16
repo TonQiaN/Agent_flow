@@ -1,6 +1,6 @@
 # 版本维护指南
 
-当前具备 Roadmap、CHANGELOG 和手工发布约定，尚无产品发布、打包实现或发布自动化。本指南描述如何维护这些文档；没有执行发布演练。取舍见 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)。
+当前具备 Roadmap、CHANGELOG 和手工发布约定；首次 0.1.3 累计源码发布正在准备，尚未创建正式 tag。没有 npm 分发实现或发布自动化。取舍见 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)。
 
 ## 内容放在哪里
 
@@ -11,6 +11,7 @@
 | Issue | 主负责人、详细任务验收、执行进展、讨论与确认 |
 | [.agents/decisions](../../.agents/decisions/README.md) | 方案取舍和必要确认摘要 |
 | [CHANGELOG.md](../../CHANGELOG.md) | 已实现的变化、待发布条目及历次发布结果 |
+| 根 `package.json.version` | 当前源码版本输入；工作区包、内部精确依赖及锁文件同步该值 |
 | Git tag `vX.Y.Z` | 某次正式发布对应的确切提交 |
 
 Roadmap 不复制 Issue 的详细任务状态或决策正文，CHANGELOG 不收录尚未实现的愿望。操作指南继续说明已实现能力。
@@ -41,7 +42,7 @@ Roadmap 不复制 Issue 的详细任务状态或决策正文，CHANGELOG 不收�
 实际存在的 Issue 与决策索引链接。
 ```
 
-一个 Issue 已完整覆盖的小补丁，直接从总表关联 Issue，不必新建版本文件。编号采用 X.Y.Z 三段非负整数，各段除 0 外不带前导零，tag 在前面加 v，例如 v0.1.0。当前只约定格式；首发编号、升版边界和兼容性承诺在相关版本规划中明确，不照搬参考项目的版本历史。不因示例文件名就开始发布，也暂不增加 VERSION 或包版本文件。
+一个 Issue 已完整覆盖的小补丁，直接从总表关联 Issue，不必新建版本文件。编号采用 X.Y.Z 三段非负整数，各段除 0 外不带前导零，tag 在前面加 v，例如 v0.1.0。当前只约定格式；首发编号、升版边界和兼容性承诺在相关版本规划中明确，不照搬参考项目的版本历史。首次发布编号已在 [Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44) 明确为 0.1.3，累计包含原 0.1.1–0.1.3 的已验收交付批次。根 package.json.version 是当前源码版本输入；现有工作区包版本和内部精确依赖同步，使用 npm 更新 package-lock.json，不另建 VERSION。所有包保持 private；新包也须使用当前工作区版本。准备中的版本号不表示远端已发布，正式事实仍以 annotated tag 为准。
 
 ## 调整范围
 
@@ -61,9 +62,9 @@ Roadmap 不复制 Issue 的详细任务状态或决策正文，CHANGELOG 不收�
 
 ## 手工发布
 
-当次发布负责人在对应 Issue / PR 中明确，沿用 [开发工作指南](workflow.md) 的评审和合并步骤。当前没有可直接执行的产品发布任务；首次发布先在对应工作项明确编号、验收和实际交付范围。
+当次发布负责人在对应 Issue / PR 中明确，沿用 [开发工作指南](workflow.md) 的评审和合并步骤。首次发布由 [Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44) 跟进编号、验收和实际交付范围。本次用户要求所有发布 PR 合并前先报告并等待确认。
 
-1. **准备发布记录。** 核对版本整体验收和相关 Issue，通过 PR 将本次 Unreleased 中已核对的目标版本条目移到二级 `X.Y.Z — 待发布` 标题下，将其分类升为三级，保留 Unreleased；roadmap 保持进行中并关联版本计划。同步必要使用说明和验证证据，未交付事项不算入本版，其他尚未发布的实际变化留在 Unreleased。
+1. **准备发布记录。** 核对版本整体验收和相关 Issue，通过 PR 将本次 Unreleased 中已核对的目标版本条目移到二级 `X.Y.Z — 待发布` 标题下，将其分类升为三级，保留 Unreleased；roadmap 保持进行中并关联版本计划。同步根版本、全部工作区包版本及内部依赖，执行 `npm install --package-lock-only --ignore-scripts` 更新锁文件。核对外部依赖版本、resolved 和 integrity 没有漂移，再执行 `npm ci`、`npm run check` 和当前 PR CI；业务实现未变化时复用范围仍适用的官方验收。同步必要使用说明和验证证据，未交付事项不算入本版，其他尚未发布的实际变化留在 Unreleased。首次累计发布合并原三个目标组的实际条目，不创建虚假的历史版本章节。
 2. **确认发布提交。** 发布准备合并到 main 后，记录要发布的完整 commit SHA，核对它包含本版内容和当前适用的验证结果。代码或基线变化时补做受影响的验证；未配置、未执行的检查不算通过。
 3. **固定并推送 tag。** 为该确切提交创建 annotated tag `vX.Y.Z`，只推送该 tag。读取远端 tag 指向的 commit（annotated tag 的 peeled commit），核对其与记录的 SHA 一致。同名 tag 已存在时先核对，不能移动、覆盖或强推；推送失败后重试前也先读取远端状态。
 4. **记录实际发布事实。** 确认远端 tag 后，通过文档 PR 将 CHANGELOG 标题补为 `X.Y.Z — YYYY-MM-DD`（实际发布日）并链接 tag，将 roadmap 更新为已发布并链接对应变更记录。步骤中断或跨日时保留待发布标记直至核对完成，不把预计日期写成实际日期。tag 固定交付源码，后续文档提交补齐发布事实，无需移动 tag。
