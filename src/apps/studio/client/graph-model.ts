@@ -49,6 +49,7 @@ export const outcomeNames: Record<string, string> = {
   'revise-job': '重查岗位',
   rejected: '未通过',
   repaired: '修订完成',
+  updated: '修订完成',
   published: '已发布',
   valid: '通过',
   invalid: '需修订',
@@ -179,7 +180,7 @@ export function routeLabel(
     definition.id === 'recruitment'
       ? recruitmentRoutes[`${route.from}:${route.outcome}:${target}`]
       : undefined;
-  const generic = `${outcomeNames[route.outcome] ?? route.outcome} → ${route.to.end ? '结束' : route.limit ? nameOf(target) : '继续'}`;
+  const generic = `${outcomeNames[route.outcome] ?? route.outcome} → ${route.to.end ? '结束' : route.limit || ['updated', 'repaired'].includes(route.outcome) ? nameOf(target) : '继续'}`;
   return (
     (specific ?? generic) +
     (route.limit ? ` · 最多 ${route.limit.max} 次` : '')
@@ -188,9 +189,11 @@ export function routeLabel(
 export function routePorts(
   source: { x: number; y: number },
   target: { x: number; y: number },
-  repair: boolean,
+  returning: boolean,
 ) {
-  if (repair) return { sourceHandle: 'top-out', targetHandle: 'top-in' };
+  if (returning) return { sourceHandle: 'top-out', targetHandle: 'top-in' };
+  if (target.x < source.x && target.y < source.y)
+    return { sourceHandle: 'left-out', targetHandle: 'bottom-in' };
   if (target.y > source.y && Math.abs(target.x - source.x) < 20)
     return { sourceHandle: 'bottom-out', targetHandle: 'top-in' };
   if (target.y < source.y && Math.abs(target.x - source.x) < 20)
