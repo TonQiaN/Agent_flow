@@ -27,7 +27,7 @@ export class RecruitmentFixtureDriver implements AgentExecutionDriver {
       const person = docs.find(d => d.kind === 'resume')!, candidateId = request.candidateId, source = evidence(person);
       const criteria: Criterion[] = (request.requirements as Requirement[]).map((r, i) => ({ requirementId: r.id,
         state: candidateId === 'c1' ? '已支持' : candidateId === 'c3' ? i === 1 ? '材料冲突' : '未证实' : i === 0 ? '已支持' : '不支持',
-        reason: candidateId === 'c1' ? '材料包含对应实践。' : candidateId === 'c3' ? '材料缺失或摘要与项目细节冲突。' : '材料明确缺少对应实践。', evidence: [source] }));
+        reason: candidateId === 'c1' || (candidateId !== 'c3' && i === 0) ? '材料包含对应实践。' : candidateId === 'c3' ? '材料缺失或摘要与项目细节冲突。' : '材料明确缺少对应实践。', evidence: [source] }));
       if (request.stage === 'review') {
         if (request.scenario === 'rework' && request.round === 0 && candidateId === 'c1') criteria[0]!.evidence = [{ ...source, page: 99 }];
         result = { criteria, notes: ['合成评审，仅用于验证展示与编排'] };
