@@ -12,6 +12,8 @@ export interface FlowDefinition {
 
 export const nodeNames: Record<string, string> = {
   parse: '读取全部材料',
+  match: '匹配与推荐',
+  audit: '独立复核',
   requirements: '拆解岗位要求',
   'prepare-reviews': '分配评审任务',
   reviews: '四维并行评审',
@@ -152,6 +154,11 @@ export function graphLayout(definition: FlowDefinition) {
 
 // Explain the existing route, without inferring additional execution rules.
 const recruitmentRoutes: Record<string, string> = {
+  'parse:completed:match': '全部材料 → 匹配分析',
+  'match:completed:audit': '逐项证据与推荐 → 复核',
+  'audit:passed:render': '复核通过 → 生成报告',
+  'audit:revise:match': '分析或引用有误 → 修订',
+  'audit:rejected:end-rejected': '复核仍未通过 → 结束',
   'parse:completed:requirements': '材料文本 → 岗位拆解',
   'requirements:completed:prepare-reviews': '岗位要求 → 分配评审',
   'prepare-reviews:completed:reviews': '候选人 × 四个维度',

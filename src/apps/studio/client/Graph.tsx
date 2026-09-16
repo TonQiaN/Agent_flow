@@ -178,7 +178,7 @@ export function Graph({
   storageKey: string;
 }) {
   const initial = useMemo(() => graphLayout(definition), [definition]);
-  const layoutKey = 'layout:v3:' + storageKey;
+  const layoutKey = 'layout:v4:' + storageKey + ':' + Object.keys(definition.nodes).join(',');
   const [nodes, setNodes] = useState<Node[]>([]),
     [instance, setInstance] = useState<ReactFlowInstance>(),
     [minimap, setMinimap] = useState(false);

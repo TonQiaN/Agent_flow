@@ -224,6 +224,20 @@ function Inspector({
       e.content.kind !== 'artifact' &&
       e.content.kind !== 'queue',
   );
+  const output =
+    chosen?.result.status === 'accepted' ? chosen.result.output : undefined;
+  const generatedKeys =
+    view?.snapshot.workflowId === 'recruitment'
+      ? node === 'match'
+        ? ['requirements', 'recommendations', 'analysisIssues']
+        : node === 'audit'
+          ? ['audits', 'repairReasons', 'round']
+          : null
+      : null;
+  const generated =
+    generatedKeys && output && typeof output === 'object' && !Array.isArray(output)
+      ? Object.fromEntries(generatedKeys.map((key) => [key, output[key]]))
+      : null;
   return (
     <aside className="inspector">
       <div className="row">
@@ -364,16 +378,16 @@ function Inspector({
         <>
           <p className="muted">
             {view?.snapshot.workflowId === 'recruitment'
-              ? '这里是这一步的输出。最终招聘报告须等交付关卡通过。'
+              ? '本步骤输出；最终报告在复核通过后生成。'
               : '这里是本步骤已保存的输出。'}
           </p>
-          <Json
-            value={
-              chosen?.result.status === 'accepted'
-                ? chosen.result.output
-                : (chosen?.result ?? '尚未记录输出')
-            }
-          />
+          <Json value={generated ?? output ?? chosen?.result ?? '尚未记录输出'} />
+          {generated && (
+            <details>
+              <summary>完整传递数据（含原始材料）</summary>
+              <Json value={output} />
+            </details>
+          )}
         </>
       )}
       {tab === 'settings' && (

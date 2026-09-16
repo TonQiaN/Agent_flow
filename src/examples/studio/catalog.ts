@@ -33,7 +33,7 @@ export async function catalogue(): Promise<CatalogueItem[]> {
       id: 'recruitment',
       title: '简历与岗位匹配',
       description:
-        '一个岗位，多份简历。四维评审、独立复核与逐项证据，输出二元推荐。',
+        '读取材料、匹配推荐、独立复核、生成报告。一个岗位，多份简历，逐项证据与二元推荐。',
       entrypoint: 'recruitment/run.ts',
       input: 'recruitment',
       requires: ['docker', 'documents', 'harness'],

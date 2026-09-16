@@ -34,12 +34,8 @@ async function panToNode(page: Page, id: string) {
 }
 async function launch(page: Page, scenario = "normal") {
   await page.goto("/#/workflows");
-  await page
-    .getByRole("link", { name: "简历与岗位匹配", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "＋ 发起运行", exact: true })
-    .click();
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 发起运行", exact: true }).click();
   await page
     .getByLabel("运行名称", { exact: true })
     .fill("浏览器验收 · " + scenario);
@@ -84,13 +80,9 @@ async function settled(page: Page, id: string | undefined, status: string) {
           .locator(".page-header .badge")
           .allTextContents();
         return badges.some((text) =>
-          [
-            "已完成",
-            "执行失败",
-            "已取消",
-            "次数已用尽",
-            "进程已中断",
-          ].includes(text.trim()),
+          ["已完成", "执行失败", "已取消", "次数已用尽", "进程已中断"].includes(
+            text.trim(),
+          ),
         );
       },
       { timeout: 150000, intervals: [1000] },
@@ -104,13 +96,10 @@ async function settled(page: Page, id: string | undefined, status: string) {
   });
   expect(response.ok()).toBe(true);
   const latest = await response.json();
+  expect(latest.completion?.error ?? null, "workflow process error").toBeNull();
   expect(
-    latest.completion?.error ?? null,
-    "workflow process error",
-  ).toBeNull();
-  expect(
-    latest.runs.find((r: any) => !r.view.runId.startsWith("parallel-"))
-      ?.view.snapshot.status,
+    latest.runs.find((r: any) => !r.view.runId.startsWith("parallel-"))?.view
+      .snapshot.status,
   ).toBe(status);
   await page.reload();
   await expect(page.locator(".page-header .badge")).toContainText(
@@ -127,11 +116,9 @@ test("workflow catalogue separates business flows from examples and opens a read
 }) => {
   await page.goto("/#/workflows");
   await expect(page.locator(".workflow-entry")).toHaveCount(5);
-  await expect(page.locator('[data-workflow="parallel-map"]')).toHaveCount(
-    0,
-  );
+  await expect(page.locator('[data-workflow="parallel-map"]')).toHaveCount(0);
   await expect(page.locator('[data-workflow="recruitment"]')).toContainText(
-    "14 个节点",
+    "4 个节点",
   );
   await expect(
     page.getByRole("link", { name: "试卷批改 · Agent", exact: true }),
@@ -145,16 +132,10 @@ test("workflow catalogue separates business flows from examples and opens a read
   });
   await page.getByRole("button", { name: "技术示例", exact: true }).click();
   await expect(page.locator(".workflow-entry")).toHaveCount(4);
-  await expect(
-    page.locator('[data-workflow="parallel-map"]'),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "业务工作流", exact: true })
-    .click();
-  await page
-    .getByRole("link", { name: "简历与岗位匹配", exact: true })
-    .click();
-  await expect(page.locator(".react-flow__node")).toHaveCount(16);
+  await expect(page.locator('[data-workflow="parallel-map"]')).toBeVisible();
+  await page.getByRole("button", { name: "业务工作流", exact: true }).click();
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(6);
   await expect(page.locator(".inspector")).toHaveCount(0);
   await expect(page.locator(".node-status")).toHaveCount(0);
   await expect
@@ -201,17 +182,19 @@ test("workflow catalogue separates business flows from examples and opens a read
   expect(canvas!.height).toBeGreaterThan(650);
   // Main steps continue right beyond the viewport; opening a long workflow
   // must not shrink it into an unreadable overview or wrap its primary path.
-  for (let i = 1; i < 14; i++) {
+  for (let i = 1; i < 4; i++) {
     expect(geometry[i]!.x).toBeGreaterThan(
       geometry[i - 1]!.x + geometry[i - 1]!.w,
     );
     expect(geometry[i]!.y).toBeCloseTo(geometry[0]!.y);
   }
-  expect(geometry[13]!.x).toBeGreaterThan(canvas!.x + canvas!.width);
-  await expect(page.locator(".flow-edge-label")).toHaveCount(18);
+  expect(geometry[3]!.x + geometry[3]!.w).toBeGreaterThan(
+    canvas!.x + canvas!.width,
+  );
+  await expect(page.locator(".flow-edge-label")).toHaveCount(6);
   await expect(
     page.getByRole("button", {
-      name: "连线：材料文本 → 岗位拆解",
+      name: "连线：全部材料 → 匹配分析",
       exact: true,
     }),
   ).toBeInViewport();
@@ -237,8 +220,8 @@ test("workflow catalogue separates business flows from examples and opens a read
     body: await page.screenshot(),
     contentType: "image/png",
   });
-  await (await panToNode(page, "evidence-gate")).click();
-  await expect(page.locator(".inspector h3")).toHaveText("检查证据与归属");
+  await (await panToNode(page, "audit")).click();
+  await expect(page.locator(".inspector h3")).toHaveText("独立复核");
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await test.info().attach("workflow-conditions", {
     body: await page.screenshot(),
@@ -249,19 +232,17 @@ test("workflow catalogue separates business flows from examples and opens a read
     page.locator('.react-flow__node[data-id="parse"]'),
   ).toBeInViewport();
   await page
-    .getByRole("button", { name: "连线：材料文本 → 岗位拆解", exact: true })
+    .getByRole("button", { name: "连线：全部材料 → 匹配分析", exact: true })
     .click();
-  await expect(
-    page.getByRole("heading", { name: "连线详情" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "连线详情" })).toBeVisible();
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.setViewportSize({ width: 731, height: 911 });
   await page.reload();
   await expect(
     page.locator('.react-flow__node[data-id="parse"]'),
   ).toBeInViewport();
-  await (await panToNode(page, "requirements")).click();
-  await expect(page.locator(".inspector h3")).toHaveText("拆解岗位要求");
+  await (await panToNode(page, "match")).click();
+  await expect(page.locator(".inspector h3")).toHaveText("匹配与推荐");
   await page.setViewportSize({ width: 1453, height: 874 });
   await page.goto("/#/workflows/repair-example");
   await expect(page.locator(".react-flow__node")).toHaveCount(3);
@@ -273,9 +254,7 @@ test("workflow catalogue separates business flows from examples and opens a read
   ).toBeVisible();
   // The lower repair branch must not visually pass through the successful end.
   const crossesEnd = await page.locator(".react-flow").evaluate((graph) => {
-    const end = graph
-      .querySelector(".task-node.end")!
-      .getBoundingClientRect();
+    const end = graph.querySelector(".task-node.end")!.getBoundingClientRect();
     return ["1", "2"].some((id) => {
       const path = graph.querySelector(
         `.react-flow__edge[data-id="${id}"] .react-flow__edge-path`,
@@ -297,12 +276,10 @@ test("workflow catalogue separates business flows from examples and opens a read
     crossesEnd,
     "repair edges must not suggest execution through the success end",
   ).toBe(false);
-  await test
-    .info()
-    .attach("existing-repair-canvas", {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
+  await test.info().attach("existing-repair-canvas", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
 });
 
 test("upload, canvas, evidence reports, PDF, historical replay, missing files and responsive navigation", async ({
@@ -340,9 +317,8 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
           .getPointAtLength(path.getTotalLength() * fraction)
           .matrixTransform(path.getScreenCTM()!);
         if (
-          document
-            .elementFromPoint(p.x, p.y)
-            ?.closest(".react-flow__edge") === edge
+          document.elementFromPoint(p.x, p.y)?.closest(".react-flow__edge") ===
+          edge
         )
           return { x: p.x, y: p.y };
       }
@@ -350,12 +326,8 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     });
   expect(edgePoint).not.toBeNull();
   await page.mouse.click(edgePoint!.x, edgePoint!.y);
-  await expect(
-    page.getByRole("heading", { name: "连线详情" }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "＋ 发起运行", exact: true })
-    .click();
+  await expect(page.getByRole("heading", { name: "连线详情" })).toBeVisible();
+  await page.getByRole("button", { name: "＋ 发起运行", exact: true }).click();
   await page
     .getByRole("button", { name: "确认材料，开始运行 →", exact: true })
     .click();
@@ -373,9 +345,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     body: await page.screenshot(),
     contentType: "image/png",
   });
-  await page
-    .getByRole("link", { name: "返回所属工作流", exact: true })
-    .click();
+  await page.getByRole("link", { name: "返回所属工作流", exact: true }).click();
   await expect(page.locator(".latest-run-strip")).toContainText(
     "浏览器验收 · normal",
   );
@@ -386,33 +356,33 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await expect(
     page.getByRole("heading", { name: "浏览器验收 · normal", exact: true }),
   ).toBeVisible();
-  await (await panToNode(page, "reviews")).click();
-  await expect(page.locator(".node-children > button")).toHaveCount(12);
-  const childName = await page
-    .locator(".node-children > button")
-    .first()
-    .innerText();
-  await page.locator(".node-children > button").first().click();
-  await expect(page.locator(".react-flow__node")).toHaveCount(2);
-  await expect(page.getByLabel("查看步骤范围")).toHaveValue(/^parallel-/);
-  await expect(page.locator(".run-picker")).toContainText(
-    childName.split("\n")[0]!,
+  await (await panToNode(page, "match")).click();
+  await expect(page.locator(".node-children > button")).toHaveCount(0);
+  await page
+    .locator(".inspector")
+    .getByRole("button", { name: "输入", exact: true })
+    .click();
+  await expect(page.locator(".inspector")).toContainText("document-3.md");
+  await page
+    .locator(".inspector")
+    .getByRole("button", { name: "输出", exact: true })
+    .click();
+  await expect(page.locator(".inspector")).toContainText("推荐通过");
+  await expect(page.locator(".inspector")).toContainText("推荐不通过");
+  const generatedOutput = page.locator(".inspector > pre");
+  await expect(generatedOutput).toContainText('"requirements"');
+  await expect(generatedOutput).toContainText('"recommendations"');
+  await expect(generatedOutput).not.toContainText('"documents"');
+  await page.getByText("完整传递数据（含原始材料）", { exact: true }).click();
+  await expect(page.locator(".inspector details[open] pre")).toContainText(
+    "document-3.md",
   );
-  await page
-    .locator(".run-picker")
-    .getByRole("button", { name: "四维并行评审", exact: true })
-    .click();
-  await expect(page.locator(".node-children > button")).toHaveCount(12);
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
-  await page
-    .getByRole("button", { name: "定位最后步骤", exact: true })
-    .click();
+  await page.getByRole("button", { name: "定位最后步骤", exact: true }).click();
   await expect(page.locator(".inspector h3")).toHaveText("生成报告与 PDF");
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.getByRole("button", { name: "适应画布", exact: true }).click();
-  await page
-    .getByRole("button", { name: "结果与报告", exact: true })
-    .click();
+  await page.getByRole("button", { name: "结果与报告", exact: true }).click();
   await expect(page.locator(".candidate-report")).toHaveCount(3);
   await expect(
     page.locator(".candidate-report .recommendation.yes"),
@@ -448,9 +418,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await expect(page.locator(".container-card").first()).toContainText(
     "sha256:",
   );
-  await page
-    .getByRole("button", { name: "工作流画布", exact: true })
-    .click();
+  await page.getByRole("button", { name: "工作流画布", exact: true }).click();
   await page.getByRole("button", { name: "回到起点", exact: true }).click();
   await page.locator('.react-flow__node[data-id="parse"]').click();
   await page
@@ -461,6 +429,29 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   const current = await (
     await page.request.get("/api/runs/" + id, { maxRetries: 2 })
   ).json();
+  const currentMain = current.runs.find(
+    (r: any) => !r.view.runId.startsWith("parallel-"),
+  ).view;
+  expect(current.runs).toHaveLength(1);
+  expect(currentMain.snapshot.steps.map((s: any) => s.node)).toEqual([
+    "parse",
+    "match",
+    "audit",
+    "render",
+  ]);
+  await test.info().attach("recruitment-input-output", {
+    body: Buffer.from(
+      JSON.stringify(
+        {
+          input: currentMain.values[0].value,
+          output: currentMain.snapshot.lastAccepted.result.output,
+        },
+        null,
+        2,
+      ),
+    ),
+    contentType: "application/json",
+  });
   const mainId = current.runs.find(
     (r: any) => !r.view.runId.startsWith("parallel-"),
   ).view.runId;
@@ -468,22 +459,19 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     await page.request.get(`/api/runs/${id}/history?run=${mainId}`)
   ).json();
   const active = timeline.entries.findIndex(
-    (r: any) => r.snapshot.status === "parallel_wait",
+    (r: any) =>
+      r.snapshot.currentNode === "match" && r.snapshot.status === "running",
   );
   expect(active).toBeGreaterThanOrEqual(0);
   await page.getByRole("slider", { name: "回放进度" }).fill(String(active));
-  await expect(page.locator(".node-status.parallel_wait")).toHaveCount(1);
-  await page
-    .getByRole("button", { name: "定位当前步骤", exact: true })
-    .click();
-  await expect(page.locator(".inspector h3")).toHaveText("四维并行评审");
-  await expect(page.locator(".node-children > button")).toHaveCount(12);
+  await expect(page.locator(".node-status.running")).toHaveCount(1);
+  await page.getByRole("button", { name: "定位当前步骤", exact: true }).click();
+  await expect(page.locator(".inspector h3")).toHaveText("匹配与推荐");
+  await expect(page.locator(".node-children > button")).toHaveCount(0);
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.getByRole("slider", { name: "回放进度" }).fill("0");
   await expect(page.getByText("历史回放", { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "结果与报告", exact: true })
-    .click();
+  await page.getByRole("button", { name: "结果与报告", exact: true }).click();
   await expect(page.locator(".candidate-report")).toHaveCount(0);
   await expect(page.locator(".panel")).toContainText("尚无经过交付关卡");
   await page
@@ -493,9 +481,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await page.getByRole("button", { name: "播放", exact: true }).click();
   await expect
     .poll(async () =>
-      Number(
-        await page.getByRole("slider", { name: "回放进度" }).inputValue(),
-      ),
+      Number(await page.getByRole("slider", { name: "回放进度" }).inputValue()),
     )
     .toBeGreaterThan(1);
   await page.getByRole("button", { name: "暂停", exact: true }).click();
@@ -521,9 +507,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   ).toBeLessThanOrEqual(390);
   await expect(page.locator("input,textarea")).toHaveCount(0);
   await page.getByRole("link", { name: "工作流", exact: true }).click();
-  await page
-    .getByRole("link", { name: "简历与岗位匹配", exact: true })
-    .click();
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
   const mobileStart = page.locator('.react-flow__node[data-id="parse"]');
   await expect
     .poll(async () => {
@@ -544,33 +528,23 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     id!,
     "tasks/archive",
   );
-  const archive = (await readdir(archiveRoot)).find(
-    (n) => !n.startsWith("."),
-  )!;
-  await rename(
-    join(archiveRoot, archive),
-    join(archiveRoot, "." + archive),
-  );
+  const archive = (await readdir(archiveRoot)).find((n) => !n.startsWith("."))!;
+  await rename(join(archiveRoot, archive), join(archiveRoot, "." + archive));
   try {
     await page.goto("/#/runs/" + id);
     await page.getByRole("button", { name: "文件", exact: true }).click();
-    await expect(
-      page.getByText("归档不可用", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText("归档不可用", { exact: true })).toBeVisible();
     await page
       .getByRole("button")
       .filter({ hasText: "文件归档不可用" })
       .click();
     await expect(page.getByRole("alert")).toContainText("丢失或校验失败");
   } finally {
-    await rename(
-      join(archiveRoot, "." + archive),
-      join(archiveRoot, archive),
-    );
+    await rename(join(archiveRoot, "." + archive), join(archiveRoot, archive));
   }
 });
 
-for (const scenario of ["rework", "retry", "failure", "cancel"])
+for (const scenario of ["rework", "retry", "failure", "cancel", "exhausted"])
   test(`real service shows ${scenario} without creating a false candidate recommendation`, async ({
     page,
   }) => {
@@ -584,7 +558,11 @@ for (const scenario of ["rework", "retry", "failure", "cancel"])
           ? "cancelled"
           : "succeeded",
     );
-    if (scenario === "failure" || scenario === "cancel") {
+    if (
+      scenario === "failure" ||
+      scenario === "cancel" ||
+      scenario === "exhausted"
+    ) {
       await page
         .getByRole("button", { name: "结果与报告", exact: true })
         .click();
@@ -600,47 +578,33 @@ for (const scenario of ["rework", "retry", "failure", "cancel"])
         expect(
           detail.runs
             .find((r: any) => !r.view.runId.startsWith("parallel-"))
-            .view.snapshot.steps.filter(
-              (s: any) => s.node === "evidence-gate",
-            ),
+            .view.snapshot.steps.filter((s: any) => s.node === "audit"),
         ).toHaveLength(2);
         const main = detail.runs.find(
           (r: any) => !r.view.runId.startsWith("parallel-"),
         ).view;
-        const rounds = main.attempts.filter(
-          (a: any) => a.node === "reviews",
-        );
-        await (await panToNode(page, "reviews")).click();
+        const rounds = main.attempts.filter((a: any) => a.node === "match");
+        expect(rounds).toHaveLength(2);
+        await (await panToNode(page, "match")).click();
         await page
           .getByLabel("本步骤的执行次数", { exact: true })
           .selectOption("0");
-        await expect(page.locator(".node-children > button")).toHaveCount(
-          rounds[0].parallel.children.length,
-        );
-        await page.locator(".node-children > button").first().click();
-        await expect(page.getByLabel("查看步骤范围")).toHaveValue(
-          rounds[0].parallel.children[0].runId,
-        );
         await page
-          .locator(".run-picker")
-          .getByRole("button", { name: "四维并行评审", exact: true })
+          .locator(".inspector")
+          .getByRole("button", { name: "输出", exact: true })
           .click();
-        await expect(
-          page.getByLabel("本步骤的执行次数", { exact: true }),
-        ).toHaveValue("0");
+        await expect(page.locator(".inspector")).toContainText('"page": 99');
         await page
           .getByLabel("本步骤的执行次数", { exact: true })
           .selectOption("1");
-        await expect(page.locator(".node-children > button")).toHaveCount(
-          rounds[1].parallel.children.length,
+        await expect(page.locator(".inspector")).not.toContainText(
+          '"page": 99',
         );
       }
       if (scenario === "retry")
         expect(
           detail.runs.some((r: any) =>
-            r.view.attempts.some(
-              (a: any) => a.identity.attemptNumber === 2,
-            ),
+            r.view.attempts.some((a: any) => a.identity.attemptNumber === 2),
           ),
         ).toBe(true);
       await page
@@ -665,10 +629,48 @@ test("reconnecting refreshes the history query after a network error", async ({
   await page.getByRole("link", { name: "运行历史", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("暂时连不上本机服务");
   await page.unroute("**/api/runs?**");
-  const response = page.waitForResponse((r) =>
-    r.url().includes("/api/runs?"),
-  );
+  const response = page.waitForResponse((r) => r.url().includes("/api/runs?"));
   await page.getByRole("button", { name: "重新连接", exact: true }).click();
   expect((await response).ok()).toBe(true);
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("parallel task navigation and replay remain available in the Map example", async ({
+  page,
+}) => {
+  await page.goto("/#/workflows/parallel-map");
+  await page.getByRole("button", { name: "＋ 发起运行", exact: true }).click();
+  await page.getByLabel("运行名称", { exact: true }).fill("并行任务导航验收");
+  await page
+    .getByRole("button", { name: "确认材料，开始运行 →", exact: true })
+    .click();
+  await page.waitForURL("**/#/runs/run-*");
+  const id = page.url().split("/runs/")[1];
+  await settled(page, id, "succeeded");
+  await (await panToNode(page, "batch")).click();
+  await expect(page.locator(".node-children > button")).toHaveCount(3);
+  await page.locator(".node-children > button").first().click();
+  await expect(page.getByLabel("查看步骤范围")).toHaveValue(/^parallel-/);
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await page
+    .locator(".run-picker")
+    .getByRole("button", { name: "并行任务组", exact: true })
+    .click();
+  await expect(page.locator(".node-children > button")).toHaveCount(3);
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
+  const detail = await (await page.request.get("/api/runs/" + id)).json();
+  const mainId = detail.runs.find(
+    (r: any) => !r.view.runId.startsWith("parallel-"),
+  ).view.runId;
+  const timeline = await (
+    await page.request.get(`/api/runs/${id}/history?run=${mainId}`)
+  ).json();
+  const active = timeline.entries.findIndex(
+    (r: any) => r.snapshot.status === "parallel_wait",
+  );
+  expect(active).toBeGreaterThanOrEqual(0);
+  await page.getByRole("slider", { name: "回放进度" }).fill(String(active));
+  await page.getByRole("button", { name: "定位当前步骤", exact: true }).click();
+  await expect(page.locator(".node-status.parallel_wait")).toHaveCount(1);
+  await expect(page.locator(".node-children > button")).toHaveCount(3);
 });

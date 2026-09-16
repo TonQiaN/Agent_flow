@@ -473,6 +473,7 @@ export function Upload({
                 'job-rework': '岗位证据返工',
                 retry: '执行失败后重试',
                 failure: '最终执行失败',
+                exhausted: '证据始终错误，耗尽返工',
                 cancel: '队列取消',
               }).map(([k, v]) => (
                 <option key={k} value={k}>
