@@ -41,24 +41,29 @@ async function launch(page: Page, scenario = "normal") {
   return page.url().split("/runs/")[1];
 }
 async function settled(page: Page, id: string | undefined, status: string) {
-  let latest: any;
+  // The page already polls the real service. Observe its displayed progress;
+  // a second full-snapshot poll duplicates several MB per request during rework.
   await expect
     .poll(
       async () => {
-        latest = await (
-          await page.request.get("/api/runs/" + id, { maxRetries: 2 })
-        ).json();
-        const current = latest.runs.find(
-          (r: any) => !r.view.runId.startsWith("parallel-"),
-        )?.view.snapshot.status;
-        return (
-          !!latest.completion ||
-          ["succeeded", "failed", "cancelled", "exhausted"].includes(current)
+        const badges = await page
+          .locator(".page-header .badge")
+          .allTextContents();
+        return badges.some((text) =>
+          ["已完成", "执行失败", "已取消", "次数已用尽", "进程已中断"].includes(
+            text.trim(),
+          ),
         );
       },
       { timeout: 150000, intervals: [1000] },
     )
     .toBe(true);
+  // Read the persisted result once after the user-visible terminal state.
+  // Keep the process-error and exact engine-state assertions; do not infer
+  // workflow success from a green label alone.
+  const response = await page.request.get("/api/runs/" + id, { maxRetries: 2 });
+  expect(response.ok()).toBe(true);
+  const latest = await response.json();
   expect(latest.completion?.error ?? null, "workflow process error").toBeNull();
   expect(
     latest.runs.find((r: any) => !r.view.runId.startsWith("parallel-"))?.view
@@ -202,6 +207,12 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await page.getByRole("button", { name: "关闭上传弹窗" }).click();
   const id = await launch(page);
   await settled(page, id, "succeeded");
+  await expect(
+    page
+      .locator(".run-summary > div")
+      .filter({ hasText: "文件" })
+      .locator("strong"),
+  ).toHaveText(/[1-9]\d*/);
   await test.info().attach("completed-run-canvas", {
     body: await page.screenshot(),
     contentType: "image/png",
@@ -341,12 +352,10 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     .toBe(true);
   await mobileStart.click();
   await expect(page.locator(".inspector h3")).toHaveText("读取全部材料");
-  await test
-    .info()
-    .attach("mobile-node-details", {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
+  await test.info().attach("mobile-node-details", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   // A missing immutable archive must remain visible as missing, not silently vanish.
   const archiveRoot = resolve(
