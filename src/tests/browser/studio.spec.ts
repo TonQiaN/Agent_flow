@@ -3,7 +3,8 @@ import { resolve, join } from "node:path";
 import { readdir, rename } from "node:fs/promises";
 const fixtures = resolve("src/examples/recruitment/fixtures");
 async function launch(page: Page, scenario = "normal") {
-  await page.goto("/#/workflows/recruitment");
+  await page.goto("/#/workflows");
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
   await page.getByRole("button", { name: "＋ 发起运行", exact: true }).click();
   await page
     .getByLabel("运行名称", { exact: true })
@@ -44,7 +45,9 @@ async function settled(page: Page, id: string | undefined, status: string) {
   await expect
     .poll(
       async () => {
-        latest = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
+        latest = await (
+          await page.request.get("/api/runs/" + id, { maxRetries: 2 })
+        ).json();
         const current = latest.runs.find(
           (r: any) => !r.view.runId.startsWith("parallel-"),
         )?.view.snapshot.status;
@@ -71,6 +74,81 @@ async function settled(page: Page, id: string | undefined, status: string) {
   );
 }
 
+test("workflow catalogue separates business flows from examples and opens a readable node canvas", async ({
+  page,
+}) => {
+  await page.goto("/#/workflows");
+  await expect(page.locator(".workflow-entry")).toHaveCount(5);
+  await expect(page.locator('[data-workflow="parallel-map"]')).toHaveCount(0);
+  await expect(page.locator('[data-workflow="recruitment"]')).toContainText(
+    "14 个节点",
+  );
+  await expect(
+    page.getByRole("link", { name: "试卷批改 · Agent", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "试卷批改 · 持久化", exact: true }),
+  ).toBeVisible();
+  await test.info().attach("workflow-library", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page.getByRole("button", { name: "技术示例", exact: true }).click();
+  await expect(page.locator(".workflow-entry")).toHaveCount(4);
+  await expect(page.locator('[data-workflow="parallel-map"]')).toBeVisible();
+  await page.getByRole("button", { name: "业务工作流", exact: true }).click();
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(16);
+  await expect(page.locator(".inspector")).toHaveCount(0);
+  await expect(page.locator(".node-status")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator(".react-flow__node")
+        .first()
+        .evaluate((e) => e.getBoundingClientRect().width),
+    )
+    .toBeGreaterThan(180);
+  const geometry = await page
+    .locator(".react-flow__node")
+    .evaluateAll((nodes) =>
+      nodes.map((n) => {
+        const rect = n.getBoundingClientRect();
+        const title = n.querySelector(".node-title")!;
+        return {
+          x: rect.x,
+          y: rect.y,
+          w: rect.width,
+          h: rect.height,
+          font:
+            (parseFloat(getComputedStyle(title).fontSize) * rect.width) /
+            (n as HTMLElement).offsetWidth,
+        };
+      }),
+    );
+  for (const [i, a] of geometry.entries()) {
+    expect(
+      a.font,
+      "default node titles must remain readable",
+    ).toBeGreaterThanOrEqual(12);
+    for (const b of geometry.slice(i + 1))
+      expect(
+        a.x + a.w <= b.x ||
+          b.x + b.w <= a.x ||
+          a.y + a.h <= b.y ||
+          b.y + b.h <= a.y,
+        "default nodes must not overlap",
+      ).toBe(true);
+  }
+  const canvas = await page.locator(".graph").boundingBox();
+  expect(canvas!.width).toBeGreaterThan(1250);
+  expect(canvas!.height).toBeGreaterThan(650);
+  await test.info().attach("workflow-canvas", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 test("upload, canvas, evidence reports, PDF, historical replay, missing files and responsive navigation", async ({
   page,
 }) => {
@@ -86,6 +164,16 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   expect(after!.x - before!.x).toBeGreaterThan(40);
   await node.click();
   await expect(page.locator(".inspector")).toContainText("读取全部材料");
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
+  await page.reload();
+  await expect(node).toBeVisible();
+  await expect
+    .poll(async () => (await node.boundingBox())!.x)
+    .toBeGreaterThan(before!.x + 40);
+  await page.getByRole("button", { name: "自动布局", exact: true }).click();
+  await expect
+    .poll(async () => (await node.boundingBox())!.x)
+    .toBeLessThan(after!.x - 40);
   const edgePoint = await page
     .locator(".react-flow__edge")
     .first()
@@ -114,6 +202,38 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await page.getByRole("button", { name: "关闭上传弹窗" }).click();
   const id = await launch(page);
   await settled(page, id, "succeeded");
+  await test.info().attach("completed-run-canvas", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page.getByRole("link", { name: "返回所属工作流", exact: true }).click();
+  await expect(page.locator(".latest-run-strip")).toContainText(
+    "浏览器验收 · normal",
+  );
+  await page.getByRole("link", { name: /查看完整运行/ }).click();
+  await expect(page).toHaveURL(new RegExp("/runs/" + id + "$"));
+  await page.locator('.react-flow__node[data-id="reviews"]').click();
+  await expect(page.locator(".node-children > button")).toHaveCount(12);
+  const childName = await page
+    .locator(".node-children > button")
+    .first()
+    .innerText();
+  await page.locator(".node-children > button").first().click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.getByLabel("查看步骤范围")).toHaveValue(/^parallel-/);
+  await expect(page.locator(".run-picker")).toContainText(
+    childName.split("\n")[0]!,
+  );
+  await page
+    .locator(".run-picker")
+    .getByRole("button", { name: "四维并行评审", exact: true })
+    .click();
+  await expect(page.locator(".node-children > button")).toHaveCount(12);
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
+  await page.getByRole("button", { name: "定位最后步骤", exact: true }).click();
+  await expect(page.locator(".inspector h3")).toHaveText("生成报告与 PDF");
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
+  await page.getByRole("button", { name: "适应画布", exact: true }).click();
   await page.getByRole("button", { name: "结果与报告", exact: true }).click();
   await expect(page.locator(".candidate-report")).toHaveCount(3);
   await expect(
@@ -129,6 +249,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     .getByRole("button", { name: "查看个人 PDF ↗", exact: true })
     .first()
     .click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   const pdf = page.locator(".pdf-preview canvas");
   await expect(pdf).toHaveAttribute("data-ready", "true");
   await page.getByText("查看本页文字", { exact: true }).click();
@@ -153,7 +274,25 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     .getByRole("button", { name: "输入", exact: true })
     .click();
   await expect(page.locator(".inspector")).toContainText("document-0.md");
-  const current = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
+  const current = await (
+    await page.request.get("/api/runs/" + id, { maxRetries: 2 })
+  ).json();
+  const mainId = current.runs.find(
+    (r: any) => !r.view.runId.startsWith("parallel-"),
+  ).view.runId;
+  const timeline = await (
+    await page.request.get(`/api/runs/${id}/history?run=${mainId}`)
+  ).json();
+  const active = timeline.entries.findIndex(
+    (r: any) => r.snapshot.status === "parallel_wait",
+  );
+  expect(active).toBeGreaterThanOrEqual(0);
+  await page.getByRole("slider", { name: "回放进度" }).fill(String(active));
+  await expect(page.locator(".node-status.parallel_wait")).toHaveCount(1);
+  await page.getByRole("button", { name: "定位当前步骤", exact: true }).click();
+  await expect(page.locator(".inspector h3")).toHaveText("四维并行评审");
+  await expect(page.locator(".node-children > button")).toHaveCount(12);
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.getByRole("slider", { name: "回放进度" }).fill("0");
   await expect(page.getByText("历史回放", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "结果与报告", exact: true }).click();
@@ -170,7 +309,9 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     )
     .toBeGreaterThan(1);
   await page.getByRole("button", { name: "暂停", exact: true }).click();
-  const unchanged = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
+  const unchanged = await (
+    await page.request.get("/api/runs/" + id, { maxRetries: 2 })
+  ).json();
   expect(unchanged.runs.map((r: any) => [r.key, r.view.revision])).toEqual(
     current.runs.map((r: any) => [r.key, r.view.revision]),
   );
@@ -189,6 +330,24 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
   await expect(page.locator("input,textarea")).toHaveCount(0);
+  await page.getByRole("link", { name: "工作流", exact: true }).click();
+  await page.getByRole("link", { name: "简历与岗位匹配", exact: true }).click();
+  const mobileStart = page.locator('.react-flow__node[data-id="parse"]');
+  await expect
+    .poll(async () => {
+      const rect = await mobileStart.boundingBox();
+      return !!rect && rect.x >= 0 && rect.x + rect.width <= 390;
+    })
+    .toBe(true);
+  await mobileStart.click();
+  await expect(page.locator(".inspector h3")).toHaveText("读取全部材料");
+  await test
+    .info()
+    .attach("mobile-node-details", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   // A missing immutable archive must remain visible as missing, not silently vanish.
   const archiveRoot = resolve(
     ".local/studio-browser-tests/runs",
@@ -234,13 +393,44 @@ for (const scenario of ["rework", "retry", "failure", "cancel"])
         "不等于候选人被判不通过",
       );
     } else {
-      const detail = await (await page.request.get("/api/runs/" + id, { maxRetries: 2 })).json();
-      if (scenario === "rework")
+      const detail = await (
+        await page.request.get("/api/runs/" + id, { maxRetries: 2 })
+      ).json();
+      if (scenario === "rework") {
         expect(
           detail.runs
             .find((r: any) => !r.view.runId.startsWith("parallel-"))
             .view.snapshot.steps.filter((s: any) => s.node === "evidence-gate"),
         ).toHaveLength(2);
+        const main = detail.runs.find(
+          (r: any) => !r.view.runId.startsWith("parallel-"),
+        ).view;
+        const rounds = main.attempts.filter((a: any) => a.node === "reviews");
+        await page.locator('.react-flow__node[data-id="reviews"]').click();
+        await page
+          .getByLabel("本步骤的执行次数", { exact: true })
+          .selectOption("0");
+        await expect(page.locator(".node-children > button")).toHaveCount(
+          rounds[0].parallel.children.length,
+        );
+        await page.locator(".node-children > button").first().click();
+        await expect(page.getByLabel("查看步骤范围")).toHaveValue(
+          rounds[0].parallel.children[0].runId,
+        );
+        await page
+          .locator(".run-picker")
+          .getByRole("button", { name: "四维并行评审", exact: true })
+          .click();
+        await expect(
+          page.getByLabel("本步骤的执行次数", { exact: true }),
+        ).toHaveValue("0");
+        await page
+          .getByLabel("本步骤的执行次数", { exact: true })
+          .selectOption("1");
+        await expect(page.locator(".node-children > button")).toHaveCount(
+          rounds[1].parallel.children.length,
+        );
+      }
       if (scenario === "retry")
         expect(
           detail.runs.some((r: any) =>

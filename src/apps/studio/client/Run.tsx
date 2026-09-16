@@ -8,8 +8,10 @@ import {
   type Artifact,
   type RunDetail,
   type RunView,
+  type Workflow,
 } from './api';
 import { Graph, labels, type Selection } from './Graph';
+import { outcomeNames } from './graph-model';
 const PdfPreview = lazy(() => import('./PdfPreview'));
 export function Json({ value }: { value: unknown }) {
   return <pre className="json">{pretty(value)}</pre>;
@@ -101,31 +103,34 @@ function Inspector({
   selection,
   events,
   onClose,
+  runs = [],
+  childName,
+  onOpenRun,
 }: {
   view?: RunView;
   definition: any;
   selection: Selection;
   events: any[];
   onClose: () => void;
+  runs?: RunDetail['runs'];
+  childName?: (view: RunView) => string;
+  onOpenRun?: (runId: string) => void;
 }) {
   const [tab, setTab] = useState('detail'),
     [attempt, setAttempt] = useState(-1);
   useEffect(() => {
     setTab('detail');
-    setAttempt(-1);
-  }, [selection?.id, selection?.kind]);
-  if (!selection)
-    return (
-      <aside className="inspector empty">
-        <span>◎</span>
-        <h3>看看每一步</h3>
-        <p>
-          点击画布上的节点查看内容，
-          <br />
-          点击连线查看怎样流转。
-        </p>
-      </aside>
+    setAttempt(
+      selection?.kind === 'node' && selection.nodeTaskId
+        ? (view?.snapshot.steps
+            .filter((s) => s.node === selection.id)
+            .findIndex(
+              (s) => s.result.identity.nodeTaskId === selection.nodeTaskId,
+            ) ?? -1)
+        : -1,
     );
+  }, [selection?.id, selection?.kind, selection?.nodeTaskId, view?.runId]);
+  if (!selection) return null;
   if (selection.kind === 'edge') {
     const route = definition.routes?.[Number(selection.id)];
     return (
@@ -148,7 +153,7 @@ function Inspector({
             {labels[route.to.node] ?? route.to.node ?? '结束：' + route.to.end}
           </dd>
           <dt>何时走这条线</dt>
-          <dd>{route.outcome}</dd>
+          <dd>{outcomeNames[route.outcome] ?? route.outcome}</dd>
           <dt>返工次数限制</dt>
           <dd>
             {route.limit
@@ -182,14 +187,36 @@ function Inspector({
       view?.snapshot.steps
         .map((s, i) => ({ ...s, index: i }))
         .filter((s) => s.node === node) ?? [],
-    chosen = attempt < 0 ? all.at(-1) : all[attempt];
+    chosen =
+      attempt < 0 &&
+      view?.snapshot.currentNode === node &&
+      !terminal(view.snapshot.status)
+        ? undefined
+        : attempt < 0
+          ? all.at(-1)
+          : all[attempt];
   const component = view?.execution?.structure.components[node],
     binding = view?.execution?.bindings[node],
     values = (view?.values ?? []) as any[];
-  const current = view?.snapshot.currentNode === node;
+  const current = view?.snapshot.currentNode === node && attempt < 0;
+  const pendingInvocation = current
+    ? (view?.attempts as any[] | undefined)?.findLast(
+        (a) => a.node === node && a.resultStep === null,
+      )
+    : undefined;
   const identity =
     chosen?.result.identity ??
-    (current ? view?.snapshot.currentIdentity : null);
+    (current
+      ? (view?.snapshot.currentIdentity ?? pendingInvocation?.identity)
+      : null);
+  const invocation = (view?.attempts as any[] | undefined)?.findLast(
+    (a) =>
+      a.node === node &&
+      a.identity?.nodeTaskId === identity?.nodeTaskId &&
+      a.identity?.attemptNumber === identity?.attemptNumber,
+  );
+  const children = invocation?.parallel?.children as
+    { id: string; runId: string }[] | undefined;
   const log = events.filter(
     (e) =>
       identity &&
@@ -209,14 +236,19 @@ function Inspector({
         </button>
       </div>
       <p className="mono muted">{node}</p>
-      {all.length > 1 && (
+      {(all.length > 1 || (current && all.length > 0)) && (
         <label>
           本步骤的执行次数
           <select
+            aria-label="本步骤的执行次数"
             value={attempt}
             onChange={(e) => setAttempt(Number(e.target.value))}
           >
-            <option value={-1}>最近一次</option>
+            <option value={-1}>
+              {current && !terminal(view!.snapshot.status)
+                ? '正在执行的一次'
+                : '最近一次'}
+            </option>
             {all.map((s, i) => (
               <option key={i} value={i}>
                 第 {i + 1} 次 · {s.result.identity.nodeTaskId}
@@ -251,6 +283,35 @@ function Inspector({
                 : (chosen?.result.status ?? '尚未执行')
             }
           />
+          {children && (
+            <section className="node-children">
+              <h4>
+                本次并行子任务 <span>{children.length}</span>
+              </h4>
+              {children.map((child) => {
+                const run = runs.find(
+                  (r) => r.view.runId === child.runId,
+                )?.view;
+                return (
+                  <button
+                    key={child.runId}
+                    disabled={!run}
+                    onClick={() => onOpenRun?.(child.runId)}
+                  >
+                    <span>
+                      {run ? (childName?.(run) ?? child.id) : child.id}
+                    </span>
+                    {run ? (
+                      <Badge status={run.snapshot.status} />
+                    ) : (
+                      <small>此时尚无记录</small>
+                    )}
+                    <b aria-hidden="true">→</b>
+                  </button>
+                );
+              })}
+            </section>
+          )}
           <dl>
             <dt>组件</dt>
             <dd>
@@ -356,6 +417,7 @@ export function WorkflowCanvas({
   return (
     <div className="canvas-layout">
       <Graph
+        key={title}
         definition={definition}
         selection={selection}
         onSelect={setSelection}
@@ -370,12 +432,21 @@ export function WorkflowCanvas({
     </div>
   );
 }
-export function RunPage({ id }: { id: string }) {
+export function RunPage({
+  id,
+  workflows,
+}: {
+  id: string;
+  workflows: Workflow[];
+}) {
   const [detail, setDetail] = useState<RunDetail>(),
     [error, setError] = useState(''),
     [selection, setSelection] = useState<Selection>(null),
     [selectedRun, setSelectedRun] = useState(''),
     [tab, setTab] = useState('canvas');
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [tab]);
   const [events, setEvents] = useState<any[]>([]),
     [nextEvents, setNextEvents] = useState<number | null>(null),
     [history, setHistory] = useState<any[]>([]),
@@ -596,6 +667,25 @@ export function RunPage({ id }: { id: string }) {
       ? `${(final?.candidates ?? (parent?.values[0] as any)?.value?.candidates)?.find((c: any) => c.id === person)?.name ?? person} · ${input?.dimension ?? (v.snapshot.workflowId.startsWith('audits-') ? '独立复核' : v.snapshot.workflowId.startsWith('decisions-') ? '二元推荐' : v.snapshot.workflowId)}`
       : v.snapshot.workflowId;
   };
+  const workflow = workflows.find((w) => w.id === detail?.meta.workflowId);
+  const openRun = (target: string) => {
+    ++seekRequest.current;
+    setSeeking(false);
+    setSelectedRun(target);
+    setSelection(null);
+    setReplay(
+      cutoff === undefined
+        ? undefined
+        : historicalRuns?.find((r) => r.view.runId === target)?.view,
+    );
+    setPosition(-1);
+    setFile(undefined);
+    setPlaying(false);
+    setTab('canvas');
+  };
+  const owner = parent?.attempts.find((a: any) =>
+    a.parallel?.children.some((c: any) => c.runId === runId),
+  ) as any;
   if (!detail)
     return (
       <div className="empty-page">
@@ -604,19 +694,33 @@ export function RunPage({ id }: { id: string }) {
       </div>
     );
   return (
-    <>
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">RUN / {id.slice(-8)}</p>
+    <section
+      className={'run-workspace ' + (tab === 'canvas' ? 'canvas-active' : '')}
+    >
+      <header className="page-header workspace-header">
+        <a
+          className="back-workflows"
+          href={workflow ? '#/workflows/' + workflow.id : '#/history'}
+          aria-label="返回所属工作流"
+        >
+          ←
+        </a>
+        <div className="workspace-title">
+          <a
+            className="run-workflow-link"
+            href={workflow ? '#/workflows/' + workflow.id : '#/history'}
+          >
+            {workflow?.title ?? detail.meta.workflowId} <span>/ 本次运行</span>
+          </a>
           <h1>{detail.meta.title}</h1>
-          <p>
+          <span>
             {date(detail.meta.createdAt)} ·{' '}
             {detail.meta.fixture
               ? '合成测试响应'
               : detail.meta.source === 'cli'
                 ? '原 CLI 入口'
                 : '本机真实运行'}
-          </p>
+          </span>
         </div>
         <Badge
           status={
@@ -651,23 +755,30 @@ export function RunPage({ id }: { id: string }) {
       )}
       <div className="run-summary">
         <div>
-          <span>已执行步骤</span>
+          <span>步骤执行</span>
           <strong>{view?.snapshot.steps.length ?? 0}</strong>
         </div>
         <div>
-          <span>当前步骤</span>
+          <span>
+            {terminal(view?.snapshot.status ?? '') ? '最后步骤' : '当前步骤'}
+          </span>
           <strong>
-            {labels[view?.snapshot.currentNode ?? ''] ??
+            {labels[
               view?.snapshot.currentNode ??
-              '流程已结束'}
+                view?.snapshot.steps.at(-1)?.node ??
+                ''
+            ] ??
+              view?.snapshot.currentNode ??
+              view?.snapshot.steps.at(-1)?.node ??
+              '等待执行'}
           </strong>
         </div>
         <div>
-          <span>关联运行</span>
-          <strong>{runs.length}</strong>
+          <span>并行子任务</span>
+          <strong>{Math.max(0, runs.length - 1)}</strong>
         </div>
         <div>
-          <span>保存的文件</span>
+          <span>文件</span>
           <strong>{artifacts.length}</strong>
         </div>
       </div>
@@ -690,35 +801,82 @@ export function RunPage({ id }: { id: string }) {
         ))}
       </div>
       {detail.runs.length > 1 && (
-        <label className="run-picker">
-          查看运行
+        <div className="run-picker">
+          <button
+            className={runId === parent?.runId ? 'scope-current' : ''}
+            onClick={() => parent && openRun(parent.runId)}
+          >
+            主流程
+          </button>
+          {runId !== parent?.runId && (
+            <>
+              <span className="scope-divider">/</span>
+              <button
+                onClick={() => {
+                  if (parent) {
+                    openRun(parent.runId);
+                    if (owner)
+                      setSelection({
+                        kind: 'node',
+                        id: owner.node,
+                        nodeTaskId: owner.identity.nodeTaskId,
+                      });
+                  }
+                }}
+              >
+                {labels[owner?.node] ?? owner?.node ?? '并行节点'}
+              </button>
+              <span className="scope-divider">/</span>
+            </>
+          )}
           <select
+            aria-label="查看步骤范围"
             value={runId ?? ''}
-            onChange={(e) => {
-              setSelectedRun(e.target.value);
-              setSelection(null);
-              setReplay(
-                cutoff === undefined
-                  ? undefined
-                  : historicalRuns?.find((r) => r.view.runId === e.target.value)
-                      ?.view,
-              );
-              setPosition(-1);
-              setFile(undefined);
-              setPlaying(false);
-            }}
+            onChange={(e) => openRun(e.target.value)}
           >
             {runs.map((r) => (
               <option key={r.key} value={r.view.runId}>
                 {r.view.runId === parent?.runId
-                  ? '主工作流'
+                  ? '全部主流程步骤'
                   : candidateName(r.view)}{' '}
                 · {r.view.runId.slice(-7)}
               </option>
             ))}
           </select>
-        </label>
+        </div>
       )}
+      {tab === 'canvas' &&
+        (nodes ? (
+          <div className="canvas-layout">
+            <Graph
+              key={runId}
+              definition={nodes}
+              view={view}
+              selection={selection}
+              onSelect={setSelection}
+              storageKey={id + '-' + runId}
+            />
+            <Inspector
+              definition={nodes}
+              view={view}
+              selection={selection}
+              events={events.filter(
+                (e) =>
+                  cutoff === undefined ||
+                  (cutoff !== null && e.recordedAt <= cutoff),
+              )}
+              onClose={() => setSelection(null)}
+              runs={runs}
+              childName={candidateName}
+              onOpenRun={openRun}
+            />
+          </div>
+        ) : (
+          <div className="empty-page">
+            <h3>等待第一条运行记录</h3>
+            <p>若旧数据没有保存结构，页面会保留缺失说明。</p>
+          </div>
+        ))}
       <section className={`replay-bar ${replay ? 'replaying' : ''}`}>
         <div className="row">
           <strong>{replay ? '历史回放' : '当前记录'}</strong>
@@ -793,34 +951,6 @@ export function RunPage({ id }: { id: string }) {
           </button>
         )}
       </section>
-      {tab === 'canvas' &&
-        (nodes ? (
-          <div className="canvas-layout">
-            <Graph
-              definition={nodes}
-              view={view}
-              selection={selection}
-              onSelect={setSelection}
-              storageKey={id + '-' + runId}
-            />
-            <Inspector
-              definition={nodes}
-              view={view}
-              selection={selection}
-              events={events.filter(
-                (e) =>
-                  cutoff === undefined ||
-                  (cutoff !== null && e.recordedAt <= cutoff),
-              )}
-              onClose={() => setSelection(null)}
-            />
-          </div>
-        ) : (
-          <div className="empty-page">
-            <h3>等待第一条运行记录</h3>
-            <p>若旧数据没有保存结构，页面会保留缺失说明。</p>
-          </div>
-        ))}
       {tab === 'tasks' && (
         <section className="panel">
           <h3>并行任务</h3>
@@ -832,14 +962,7 @@ export function RunPage({ id }: { id: string }) {
               <button
                 className="child-run"
                 key={r.key}
-                onClick={() => {
-                  setSelectedRun(r.view.runId);
-                  setPlaying(false);
-                  setReplay(cutoff === undefined ? undefined : r.view);
-                  setPosition(-1);
-                  setTab('canvas');
-                  setSelection(null);
-                }}
+                onClick={() => openRun(r.view.runId)}
               >
                 <strong>
                   {r.view.runId === parent?.runId
@@ -1168,6 +1291,6 @@ export function RunPage({ id }: { id: string }) {
           ))}
         </section>
       )}
-    </>
+    </section>
   );
 }

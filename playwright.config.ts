@@ -9,7 +9,7 @@ export default defineConfig({
   use: {
     actionTimeout: 15000,
     baseURL: 'http://127.0.0.1:3597',
-    viewport: { width: 1440, height: 960 },
+    viewport: { width: 1453, height: 874 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

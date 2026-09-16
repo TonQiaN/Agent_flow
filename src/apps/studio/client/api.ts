@@ -9,6 +9,8 @@ export interface Workflow {
   requires: string[];
   missing: string[];
   definition: any;
+  category: 'business' | 'example';
+  family: string;
 }
 export interface Catalogue {
   workflows: Workflow[];
@@ -48,6 +50,8 @@ export const date = (time: number | null | undefined) =>
     ? new Date(time).toLocaleString('zh-CN', { hour12: false })
     : '时间未记录';
 export const statusNames: Record<string, string> = {
+  pending: '未执行',
+  rejected: '校验未通过',
   queued: '排队中',
   running: '运行中',
   parallel_wait: '等待并行任务',
