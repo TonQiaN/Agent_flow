@@ -133,6 +133,15 @@ function FlowEdge(props: EdgeProps) {
     labelY = sy - Math.min(28, Math.abs(tx - sx) / 5);
     const bend = (tx - sx) / 4;
     path = `M ${sx} ${sy} C ${sx + bend} ${sy}, ${labelX - bend} ${labelY}, ${labelX} ${labelY} C ${labelX + bend} ${labelY}, ${tx - bend} ${ty}, ${tx} ${ty}`;
+  } else if (
+    Math.abs(sx - tx) < 2 &&
+    [Position.Top, Position.Bottom].includes(props.sourcePosition) &&
+    [Position.Top, Position.Bottom].includes(props.targetPosition)
+  ) {
+    labelX = sx + Math.min(28, Math.abs(ty - sy) / 5);
+    labelY = (sy + ty) / 2;
+    const bend = (ty - sy) / 4;
+    path = `M ${sx} ${sy} C ${sx} ${sy + bend}, ${labelX} ${labelY - bend}, ${labelX} ${labelY} C ${labelX} ${labelY + bend}, ${tx} ${ty - bend}, ${tx} ${ty}`;
   }
   return (
     <>
@@ -280,7 +289,11 @@ export function Graph({
           y: 0,
         };
         const repair = !!r.limit;
-        const returning = repair || targetPosition.x <= sourcePosition.x;
+        // Bounded routes can go forward into a repair branch. Sending those
+        // over the top would cut through the success end node in that column.
+        const returning =
+          targetPosition.x <= sourcePosition.x &&
+          Math.abs(targetPosition.y - sourcePosition.y) < 2;
         const taken = view?.snapshot.steps.some(
           (s) =>
             s.node === r.from &&

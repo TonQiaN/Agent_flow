@@ -240,12 +240,10 @@ test("workflow catalogue separates business flows from examples and opens a read
   await (await panToNode(page, "evidence-gate")).click();
   await expect(page.locator(".inspector h3")).toHaveText("检查证据与归属");
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
-  await test
-    .info()
-    .attach("workflow-conditions", {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
+  await test.info().attach("workflow-conditions", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
   await page.getByRole("button", { name: "回到起点", exact: true }).click();
   await expect(
     page.locator('.react-flow__node[data-id="parse"]'),
@@ -264,6 +262,47 @@ test("workflow catalogue separates business flows from examples and opens a read
   ).toBeInViewport();
   await (await panToNode(page, "requirements")).click();
   await expect(page.locator(".inspector h3")).toHaveText("拆解岗位要求");
+  await page.setViewportSize({ width: 1453, height: 874 });
+  await page.goto("/#/workflows/repair-example");
+  await expect(page.locator(".react-flow__node")).toHaveCount(3);
+  await expect(
+    page.getByRole("button", {
+      name: "连线：修订完成 → 检查草稿",
+      exact: true,
+    }),
+  ).toBeVisible();
+  // The lower repair branch must not visually pass through the successful end.
+  const crossesEnd = await page.locator(".react-flow").evaluate((graph) => {
+    const end = graph
+      .querySelector(".task-node.end")!
+      .getBoundingClientRect();
+    return ["1", "2"].some((id) => {
+      const path = graph.querySelector(
+        `.react-flow__edge[data-id="${id}"] .react-flow__edge-path`,
+      ) as SVGPathElement;
+      return Array.from({ length: 39 }, (_, i) => {
+        const point = path
+          .getPointAtLength((path.getTotalLength() * (i + 1)) / 40)
+          .matrixTransform(path.getScreenCTM()!);
+        return (
+          point.x > end.left &&
+          point.x < end.right &&
+          point.y > end.top &&
+          point.y < end.bottom
+        );
+      }).some(Boolean);
+    });
+  });
+  expect(
+    crossesEnd,
+    "repair edges must not suggest execution through the success end",
+  ).toBe(false);
+  await test
+    .info()
+    .attach("existing-repair-canvas", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
 });
 
 test("upload, canvas, evidence reports, PDF, historical replay, missing files and responsive navigation", async ({
