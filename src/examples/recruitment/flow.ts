@@ -1,3 +1,4 @@
+import { collectAudits } from './contracts.js';
 import { cp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { JsonValue, ComponentDefinition } from '@agentflow/domain';
@@ -68,7 +69,7 @@ export async function createRecruitmentFlow(root: string, documentsRoot: string,
   fn('prepare-reviews', 'state', 'tasks', input => ({ outcome: 'completed', output: jsonValue(tasks(asState(input), 'review')) }));
   fn('collect-reviews', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, reviews: [...(state.reviews ?? []).filter(r => !updated.has(r.candidateId)), ...tasks.map(t => ({ ...t.result as object, round: t.round }))] }) }; });
   fn('prepare-audits', 'state', 'tasks', input => ({ outcome: 'completed', output: jsonValue(tasks(asState(input), 'audit')) }));
-  fn('collect-audits', 'joined', 'state', input => { const { state, tasks } = joined(input), updated = new Set(tasks.map(t => t.candidateId)); return { outcome: 'completed', output: jsonValue({ ...state, audits: [...(state.audits ?? []).filter(a => !updated.has(a.candidateId)), ...tasks.map(t => ({ ...t.result as object }))] }) }; });
+  fn('collect-audits', 'joined', 'state', input => { const { state, tasks } = joined(input); return { outcome: 'completed', output: jsonValue({ ...state, audits: collectAudits(state, tasks) }) }; });
   fn('evidence-gate', 'state', 'state', input => {
     const state = asState(input), jobIssues = state.requirements!.flatMap(r => evidenceErrors(r.evidence, state.documents, 'job')), reasons: string[] = [...jobIssues];
     const repairCandidates = state.candidates.filter(c => {

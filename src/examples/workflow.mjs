@@ -8,7 +8,7 @@ if (!Number.isInteger(maxRepairs) || maxRepairs < 0 || maxRepairs > 10) throw ne
 const plan = createRepairExample(maxRepairs);
 const original = { revision: 0 };
 const history = await localWorkflowHistory('workflow.mjs');
-const run = new WorkflowRuntime(undefined, history.observer(plan)).start(plan, 'example', original);
+const run = new WorkflowRuntime(undefined, history.observer(plan)).start(plan, process.env.AGENTFLOW_STUDIO_RUN_ID ?? 'example', original);
 const result = await run.completion;
 console.log(JSON.stringify({ status: result.status, outcome: result.outcome, reason: result.reason, original,
   steps: result.steps.map(step => ({ node: step.node, nodeTaskId: step.result.identity.nodeTaskId, status: step.result.status,

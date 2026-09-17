@@ -60,3 +60,18 @@ export function recommendationErrors(raw: unknown, state: RecruitmentState, owne
   const inspect = (v: unknown): void => { if (Array.isArray(v)) v.forEach(inspect); else if (object(v)) for (const [key, value] of Object.entries(v)) { if (/score|ranking|rank|总分|评分|排名/i.test(key)) issues.push('禁止总分或排名字段'); inspect(value); } };
   inspect(raw); return issues;
 }
+
+/** Correlate model findings with the assigned task before merging any audit. */
+export function collectAudits(state: RecruitmentState, tasks: readonly { candidateId: string; result?: unknown }[]): NonNullable<RecruitmentState['audits']> {
+  const expected = new Set(state.candidates.filter(c => !state.repairCandidates?.length || state.repairCandidates.includes(c.id)).map(c => c.id));
+  const updated = new Set<string>();
+  const fresh = tasks.map(task => {
+    const audit = task.result as NonNullable<RecruitmentState['audits']>[number] | undefined;
+    if (!expected.has(task.candidateId) || updated.has(task.candidateId) || !audit || audit.candidateId !== task.candidateId || !Array.isArray(audit.issues)) throw new Error('AUDIT_CANDIDATE_MISMATCH');
+    updated.add(task.candidateId); return audit;
+  });
+  if (updated.size !== expected.size) throw new Error('INCOMPLETE_CANDIDATE_AUDITS');
+  const all = [...(state.audits ?? []).filter(a => !updated.has(a.candidateId)), ...fresh];
+  if (new Set(all.map(a => a.candidateId)).size !== all.length || all.some(a => !state.candidates.some(c => c.id === a.candidateId))) throw new Error('DUPLICATE_OR_UNKNOWN_AUDITS');
+  return all;
+}
