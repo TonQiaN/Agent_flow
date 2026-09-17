@@ -6,17 +6,31 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fork } from 'node:child_process';
 import { once } from 'node:events';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import { SqliteRunRecordStore } from '@agentflow/integrations';
 import { docker } from '../../packages/integrations/docker/process.js';
 const enabled = process.env['AGENTFLOW_DOCKER_TESTS'] === '1';
 const fixture = fileURLToPath(new URL('../fixtures/runner-resource.mjs', import.meta.url));
+function trace(root: string, phase: string, detail: Record<string, unknown> = {}) {
+  const directory = process.env['AGENTFLOW_CI_ARTIFACTS'];
+  if (!directory) return;
+  mkdirSync(resolve(directory, 'runner-resource'), { recursive: true });
+  appendFileSync(resolve(directory, 'runner-resource', basename(root) + '.ndjson'), JSON.stringify({ at: new Date().toISOString(), phase, ...detail }) + '\n');
+}
 function child(root: string, operation: string, stage: string) {
+  trace(root, 'child-start', { operation, stage });
   const process = fork(fixture, [root, operation, stage], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'], execArgv: [] });
-  let stdout = '', stderr = ''; process.stdout!.on('data', b => { stdout += b; }); process.stderr!.on('data', b => { stderr += b; });
+  let stdout = '', stderr = '';
+  process.stdout!.on('data', b => { stdout += b; if (stdout.length <= 65536) trace(root, 'child-stdout', { operation, stage, output: String(b) }); });
+  process.stderr!.on('data', b => { stderr += b; if (stderr.length <= 65536) trace(root, 'child-stderr', { operation, stage, output: String(b) }); });
+  process.on('message', message => trace(root, 'child-message', { operation, stage, message }));
+  process.on('exit', (code, signal) => trace(root, 'child-exit', { operation, stage, code, signal }));
   return { process, exited: once(process, 'exit'), output: () => ({ stdout, stderr }) };
 }
 async function setup(stage: string) {
   const root = await mkdtemp(join(tmpdir(), 'af-runner-resource-'));
+  trace(root, 'prepare', { stage });
   await mkdir(join(root, 'source')); await writeFile(join(root, 'source/input.txt'), 'original');
   const running = child(root, 'run', stage);
   const [message] = await Promise.race([once(running.process, 'message'), running.exited.then(() => { throw new Error(running.output().stderr || 'exited before pause'); })]);
@@ -91,13 +105,23 @@ test('Docker query outage remains unconfirmed and a later common recovery can fi
     assert.equal(JSON.parse(restored.output().stdout).confirmed, true);
   } finally { await docker(['rm', '-f', resource]).catch(() => {}); await rm(root, { recursive: true, force: true }); }
 });
-test('same container name with mismatched task ownership is not stopped or removed by restoration', { skip: !enabled, timeout: 15000 }, async () => {
+test('same container name with mismatched task ownership is not stopped or removed by restoration', { skip: !enabled, timeout: 15000 }, async t => {
+  const started = Date.now();
+  let phase = 'prepare';
+  const pending = 'ownership-' + process.pid;
+  const mark = (next: string) => { phase = next; trace(pending, phase, { elapsedMs: Date.now() - started }); };
+  t.signal.addEventListener('abort', () => trace(pending, 'aborted', { activePhase: phase, elapsedMs: Date.now() - started }), { once: true });
+  mark('prepare');
   const { root, resource } = await setup('allocated');
+  trace(pending, 'resource', { root, resource });
   try {
+    mark('create-conflicting-container');
     await docker(['run', '-d', '--name', resource, '--label', `agentflow.resource=${resource}`, '--label', 'agentflow.run=other', '--entrypoint', '/bin/sh', process.env['AGENTFLOW_TEST_IMAGE'] ?? 'alpine:3', '-c', 'sleep 60']);
+    mark('restore');
     const restoring = child(root, 'restore', 'allocated'); const [code] = await restoring.exited;
     assert.equal(code, 0, restoring.output().stderr); const result = JSON.parse(restoring.output().stdout);
     assert.equal(result.confirmed, false); assert.equal(result.error, 'RESOURCE_EXECUTION_MISMATCH');
+    mark('query');
     assert.equal(await docker(['inspect', '--format', '{{.State.Running}}', resource]), 'true');
-  } finally { await docker(['rm', '-f', resource]); await rm(root, { recursive: true, force: true }); }
+  } finally { mark('cleanup'); await docker(['rm', '-f', resource]); await rm(root, { recursive: true, force: true }); mark('done'); }
 });
