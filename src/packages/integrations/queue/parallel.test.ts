@@ -18,11 +18,16 @@ async function setup(t:{after(fn:()=>Promise<void>):void},options:any={}){
  async reopen(){store.close();store=await SqliteRunRecordStore.open(join(root,'db'));queue=new PersistentNodeQueue(store,a.configuration,clock);},
  async load(){const l=await loadWorkflowCheckpoint(a.compiled,'run',queue.records());const c=l.checkpoint;await l.dispose();return c;}};
 }
-test('Map expands once, waits without a Worker, completes out of order and joins original indices',async t=>{
- const completed:string[]=[],s=await setup(t,{maxConcurrency:3,observe:async({input,component}:any)=>{if(component!=='finish'){await new Promise(r=>setTimeout(r,({a:100,b:10,c:40} as any)[input.id]));completed.push(input.id);}}});
+test('Map expands once, waits without a Worker, completes out of order and joins original indices',{timeout:15000},async t=>{
+ const latch=()=>{let release!:()=>void;const wait=new Promise<void>(resolve=>release=resolve);return {wait,release};};
+ const started=latch(),gates=Object.fromEntries(input.map(item=>[item.id,latch()])),finished=Object.fromEntries(input.map(item=>[item.id,latch()]));
+ let active=0;const completed:string[]=[],s=await setup(t,{maxConcurrency:3,observe:async({input,component}:any)=>{if(component!=='finish'){if(++active===3)started.release();await gates[input.id]!.wait;}}});
+ t.after(()=>{for(const gate of Object.values(gates))gate.release();});
  await s.submit();const expansion=await s.worker().runOnce();assert.equal(expansion!.waiting,'PARALLEL_WAIT');assert.equal(expansion!.error,null);
  assert.equal((await s.queue().query())[0]!.state,'waiting');assert.equal((await s.queue().query())[0]!.owner,null);assert.equal((await s.queue().query()).length,4);assert.equal((await s.load()).attempts.length,1);
- const children=await Promise.all([s.worker().runOnce(),s.worker().runOnce(),s.worker().runOnce()]);assert.ok(children.every(r=>r?.error===null));assert.deepEqual(completed,['b','c','a']);
+ const children=Promise.all(input.map(async()=>{const result=await s.worker().runOnce();assert.equal(result?.error,null,JSON.stringify(result));const id=(result!.snapshot!.lastAccepted!.result as any).output.id;completed.push(id);finished[id]!.release();return result;}));
+ void children.catch(()=>{started.release();for(const gate of [...Object.values(gates),...Object.values(finished)])gate.release();});
+ await started.wait;for(const id of ['b','c','a']){gates[id]!.release();await finished[id]!.wait;}await children;assert.deepEqual(completed,['b','c','a']);
  const joined=await s.worker().runOnce();assert.equal(joined!.error,null);assert.equal(joined!.snapshot!.steps.length,1);
  const output=(joined!.snapshot!.lastAccepted!.result as any).output;assert.deepEqual(output.items.map((i:any)=>i.id),['a','b','c']);assert.deepEqual(output.items.map((i:any)=>i.index),[0,1,2]);assert.deepEqual(output.items.map((i:any)=>i.output),input);
  const done=await s.worker().runOnce();assert.equal(done!.snapshot!.status,'succeeded');assert.equal(await s.worker().runOnce(),null);assert.equal((await s.load()).attempts.length,2);
