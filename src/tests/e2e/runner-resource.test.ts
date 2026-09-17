@@ -110,7 +110,10 @@ test('same container name with mismatched task ownership is not stopped or remov
   let phase = 'prepare';
   const pending = 'ownership-' + process.pid;
   const mark = (next: string) => { phase = next; trace(pending, phase, { elapsedMs: Date.now() - started }); };
-  t.signal.addEventListener('abort', () => trace(pending, 'aborted', { activePhase: phase, elapsedMs: Date.now() - started }), { once: true });
+  // node:test also aborts the context after successful completion. Only record unfinished work.
+  t.signal.addEventListener('abort', () => {
+    if (phase !== 'done') trace(pending, 'aborted', { activePhase: phase, elapsedMs: Date.now() - started, reason: String(t.signal.reason) });
+  }, { once: true });
   mark('prepare');
   const { root, resource } = await setup('allocated');
   trace(pending, 'resource', { root, resource });
