@@ -14,6 +14,7 @@ export async function prepareUpload(form: FormData, root: string, workflow: { id
     const file = form.get(`file-${i}`); if (!(file instanceof File) || !file.size || file.size > 20 * 1024 ** 2 || !text(file.name, 255)) throw new Error('每个文件须为 1 字节至 20 MiB');
     total += file.size; if (total > 128 * 1024 ** 2) throw new Error('所有文件合计不能超过 128 MiB');
     const extension = file.name.split('.').at(-1)!.toLowerCase();
+    if (workflow.input === 'grading' && extension !== 'json') throw new Error('批卷材料必须是有效的 JSON 文件');
     let path: string;
     if (workflow.input === 'recruitment') {
       if (!extensions.has(extension)) throw new Error('招聘材料支持 PDF、DOCX、TXT、MD、PNG、JPG');

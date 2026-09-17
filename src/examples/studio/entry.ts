@@ -38,6 +38,7 @@ if (operation === 'catalogue') {
       ),
       runId = id;
     process.env['AGENTFLOW_STUDIO_RUN_ROOT'] = root;
+    process.env['AGENTFLOW_STUDIO_RUN_ID'] = runId;
     const key = manifest.workflowId;
     if (key === 'recruitment')
       await runRecruitment(root, runId, manifest.input);
