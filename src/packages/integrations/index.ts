@@ -69,3 +69,5 @@ export type { RunView, RunMetadata } from './observability/views.js';
 export { ExecutionLogCapture } from './observability/logs.js';
 export type { ExecutionEvent, ExecutionEventSink } from './observability/logs.js';
 export type { CredentialRunnerOptions } from './execution/credential-runner.js';
+export { JsonTaskWorkflowCatalog } from './workflow/json-task.js';
+export { localWorkflowHistory } from './observability/local-history.js';

@@ -12,6 +12,7 @@ Agent_flow/
 ├── tsconfig*.json                 # 共享严格构建与独立测试检查
 ├── src/
 │   ├── apps/cli/                  # demo 与显式本地认证管理/登录命令
+│   ├── apps/studio/               # 本机 HTTP 展示/启动服务及受信镜像定义
 │   ├── packages/domain/           # 业务类型与执行身份
 │   ├── apps/deepseek-tools/        # 容器内文件服务，使用镜像提供的 SDK
 │   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth/persistence 接口；无环境依赖
@@ -78,3 +79,5 @@ Agent_flow/
 `src/packages/engine/workflow/execution.ts` 组合实际执行绑定描述；脚本环境由 `ScriptExecutor` 和具体 backend 提供，engine 不解析 Docker 配置。见[执行绑定指南](../guides/workflow-execution-snapshot.md)。
 
 `src/packages/engine/workflow/checkpoint.ts` 组合实际定义、流程状态和值保存端口；runtime.ts 的普通与持久入口共用执行循环。具体文件归档留在 integrations/workflow/files.ts，见[指南](../guides/workflow-checkpoints.md)。
+
+`src/examples/studio` 登记原有入口；`src/examples/recruitment` 保存招聘应用、离线材料解析和虚构素材。`integrations/observability` 保存查看记录与脱敏日志，不执行回放。
