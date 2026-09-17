@@ -15,3 +15,11 @@ Blackbox 参考：`xiaoxuanli-a/Agent_workflow` commit `4dc0f4ac630d6e54036dcbfa
 更新后的六场景 Docker 矩阵全部通过（6/6，173.7 秒）；默认 `npm run check` 为 440 通过、194 个显式条件关闭的 Docker 用例跳过、0 失败。CI 为 Node 24/26 构建文档镜像，并显式打开原 Docker 与六场景矩阵。上传幂等性另补跨 multipart boundary 的同内容重试验证。
 
 同步 main c8e1890 后的 Linux CI 发现旧的容量保持测试使用 300ms 真实租约，在未确认后继结果写入前偶发过期。该用例改用固定时钟，使断言只验证前一步的成功不能释放后一步未知资源的容量；独立到期/跨进程恢复用例保持原覆盖。
+
+
+## 2026-09-17 合并前复核
+
+- 工作台创建的检查、Map、Fork 运行使用分配的运行 ID，真实本机服务回归验证元数据与主运行身份一致。
+- 独立复核汇总拒绝候选人 ID 替换、重复与漏项，保留的旧复核也不能重复归属。
+- 批卷接口拒绝伪装为固定 JSON 目标路径的 PDF/TXT 和无效 JSON；有效 JSON 正常接纳。
+- `npm run check:quality` 通过；`node --import tsx --test src/apps/studio/server.test.ts src/apps/studio/upload.test.ts src/examples/recruitment/contracts.test.ts` 8/8 通过。检查使用临时数据目录，无真实模型调用，不改变用户的运行历史。

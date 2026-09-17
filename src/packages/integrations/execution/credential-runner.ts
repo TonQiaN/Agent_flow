@@ -294,7 +294,6 @@ export class CredentialExecution {
       const integrity = await this.logs.finish();
       if (!integrity.complete) {
         this.#diagnostics.push('LOG_CAPTURE_INCOMPLETE');
-        if (this.#harness) this.#harness = { ...this.#harness, status: 'failed', outcome: null, diagnostics: [...this.#harness.diagnostics, 'LOG_CAPTURE_INCOMPLETE'] };
       }
     }
   }

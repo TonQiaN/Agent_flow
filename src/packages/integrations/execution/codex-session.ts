@@ -7,13 +7,18 @@ const child = spawn('codex', args, {stdio:'inherit'});
 child.on('error', () => process.exitCode = 1);
 child.on('close', code => {
   const records = []; let bytes=0, truncated=false, error=null;
+  // Budget encoded records, including JSON escaping, commas and envelope overhead.
+  const limit=16*1024*1024-1024;
   const visit = directory => { if (!fs.existsSync(directory)) return; for (const entry of fs.readdirSync(directory,{withFileTypes:true})) {
     const file=path.join(directory,entry.name);
     if (entry.isDirectory()) visit(file);
     else if(entry.isFile() && entry.name.endsWith('.jsonl')) {
       const size=fs.statSync(file).size;
-      if((bytes+=size)>12*1024*1024) {truncated=true;continue;}
-      records.push({path:path.relative('/task/state/codex/sessions',file),content:fs.readFileSync(file,'utf8')});
+      if(size>limit) {truncated=true;continue;}
+      const record={path:path.relative('/task/state/codex/sessions',file),content:fs.readFileSync(file,'utf8')};
+      const encoded=Buffer.byteLength(JSON.stringify(record))+1;
+      if(bytes+encoded>limit) {truncated=true;continue;}
+      bytes+=encoded;records.push(record);
     }
   }};
   try {visit('/task/state/codex/sessions');} catch {error='SESSION_READ_FAILED';}
