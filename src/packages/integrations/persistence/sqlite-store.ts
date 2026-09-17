@@ -123,6 +123,30 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
         });
     } catch (error) { throw mapped(error); }
   }
+  /** Read one saved revision without decoding every earlier payload. */
+  async revision(runId: string, revision: number): Promise<RunRevision | null> {
+    id(runId);
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new RunStoreError('INVALID_RUN_RECORD');
+    try {
+      this.#ready();
+      return this.#revisionRow(runId, this.#database.prepare('SELECT sequence, revision, recorded_at, payload, digest FROM run_history WHERE run_id = ? AND revision = ?').get(runId, revision));
+    } catch (error) { throw mapped(error); }
+  }
+  /** Unknown legacy timestamps cannot participate in a wall-clock replay. */
+  async revisionAt(runId: string, recordedAt: number, throughSequence = Number.MAX_SAFE_INTEGER): Promise<RunRevision | null> {
+    id(runId);
+    if (!Number.isSafeInteger(recordedAt) || recordedAt < 0 || !Number.isSafeInteger(throughSequence) || throughSequence < 1) throw new RunStoreError('INVALID_RUN_RECORD');
+    try {
+      this.#ready();
+      return this.#revisionRow(runId, this.#database.prepare('SELECT sequence, revision, recorded_at, payload, digest FROM run_history WHERE run_id = ? AND recorded_at <= ? AND sequence <= ? ORDER BY sequence DESC LIMIT 1').get(runId, recordedAt, throughSequence));
+    } catch (error) { throw mapped(error); }
+  }
+  #revisionRow(runId: string, row: Record<string, unknown> | undefined): RunRevision | null {
+    if (!row) return null;
+    const revision = Number(row['revision']), payload = String(row['payload']);
+    if (row['digest'] !== checksum(runId, revision, payload)) throw new RunStoreError('RUN_STORE_CORRUPT');
+    return { runId, revision, sequence: Number(row['sequence']), recordedAt: row['recorded_at'] === null ? null : Number(row['recorded_at']), content: snapshotJson(JSON.parse(payload)) };
+  }
   /** The caller provides already-redacted event data, never credentials or raw private state. */
   async appendEvent(runId: string, content: JsonValue): Promise<RunEvent> {
     id(runId); const payload = encode(content);

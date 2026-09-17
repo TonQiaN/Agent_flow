@@ -26,4 +26,4 @@
 
 ## 本机工作台（尚未指定发布版本）
 
-[Issue #39](https://github.com/TonQiaN/Agent_flow/issues/39) 按三层依赖交付：运行历史与日志 → 本机服务和招聘 → TypeScript 画布及浏览器验收。当前已提供保存与查询基础、本机启动服务和招聘流程，后续层交付页面及完整用户体验；不改变 0.1.1–0.1.3 的发布目标。
+[Issue #39](https://github.com/TonQiaN/Agent_flow/issues/39) 按三层依赖交付：运行历史与日志 → 本机服务和招聘 → TypeScript 画布及浏览器验收。范围为成员本机部署、一次上传启动、其余设置与控制只读、单岗位多简历二元证据结论。实现和作者验证见[验收记录](../validation/2026-09-15-issue39-studio.md)；PR 审阅与合入独立核对，不据此宣告版本发布。

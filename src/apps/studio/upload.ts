@@ -37,7 +37,7 @@ export async function prepareUpload(form: FormData, root: string, workflow: { id
     if (mapped.filter((d: any) => d.owner === 'job' && d.kind === 'job').length !== 1) throw new Error('请上传且只上传一份岗位说明');
     for (const person of candidates) if (mapped.filter((d: any) => d.owner === person.id && d.kind === 'resume').length !== 1) throw new Error(`${person.name} 需要一份简历`);
     if (mapped.some((d: any) => !['job', ...candidates.map((c: any) => c.id)].includes(d.owner) || !['job', 'resume', 'supplement'].includes(d.kind) || d.kind === 'job' && d.owner !== 'job' || d.kind === 'resume' && d.owner === 'job')) throw new Error('文件归属不正确');
-    input = { job: { name: manifest.job.name, notes: typeof manifest.job.notes === 'string' ? manifest.job.notes.slice(0, 10000) : '' }, candidates, documents: mapped, ...(fixture ? { scenario: ['normal', 'rework', 'job-rework', 'retry', 'failure', 'cancel'].includes(manifest.scenario) ? manifest.scenario : 'normal' } : {}) };
+    input = { job: { name: manifest.job.name, notes: typeof manifest.job.notes === 'string' ? manifest.job.notes.slice(0, 10000) : '' }, candidates, documents: mapped, ...(fixture ? { scenario: ['normal', 'rework', 'job-rework', 'retry', 'failure', 'cancel', 'exhausted'].includes(manifest.scenario) ? manifest.scenario : 'normal' } : {}) };
   } else if (workflow.input === 'grading') {
     if (['source/paper.json', 'source/key.json', 'source/submission.json'].some(p => !used.has(p)) || checked.length !== 3) throw new Error('请一次上传 source/paper.json、key.json、submission.json');
   } else if (workflow.input.startsWith('tutor-')) {

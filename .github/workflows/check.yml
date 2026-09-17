@@ -116,10 +116,59 @@ jobs:
           path: .local/ci/
           include-hidden-files: true
           retention-days: 14
+  browser:
+    name: Browser journeys
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AGENTFLOW_CI_DOCKER: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node src/tooling/ci/stage.mjs install -- npm ci
+      - run: node src/tooling/ci/stage.mjs documents-image -- docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
+      - run: node src/tooling/ci/stage.mjs chromium -- npx playwright install --with-deps chromium
+      - run: node src/tooling/ci/stage.mjs browser -- npm run studio:test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-browser
+          path: |
+            .local/ci/
+            playwright-report/
+            test-results/
+            .local/studio-browser-tests/runs/*/completion.json
+            .local/studio-browser-tests/runs/*/worker.log
+          include-hidden-files: true
+          retention-days: 14
+  visual:
+    name: Screenshot comparison
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node src/tooling/ci/stage.mjs visual -- node src/tooling/ci/visual.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-visual
+          path: |
+            .local/ci/
+            .local/visual-comparison/
+          include-hidden-files: true
+          retention-days: 14
   required:
     name: CI required
     if: always()
-    needs: [quality, unit, integration, workflows]
+    needs: [quality, unit, integration, workflows, browser, visual]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -127,6 +176,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node src/tooling/ci/gate.mjs quality unit integration workflows
+      - run: node src/tooling/ci/gate.mjs quality unit integration workflows browser visual
         env:
           CI_NEEDS: ${{ toJSON(needs) }}

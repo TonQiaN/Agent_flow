@@ -4,6 +4,8 @@
 
 **当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。三家官方合成批卷正常/返修、图片与多出口已通过，两种订阅新登录及所选真实续期证据已核对；Codex 凭据撤销后重新登录复验通过，详见 [2026-09-15 联合验收](validation/2026-09-15-official-harness-acceptance.md)；真实 Codex 已完成一题合成扫描件，并从草稿修正和单独报告续跑完成一份16页真实学生作答的批改、独立复核及18页 PDF。详情见学生验收记录，未证明空白冷启动一次成功。**
 
+**本机前端：** 已增加 TypeScript 工作台及单岗位多简历招聘流程，可查看画布、容器配置、运行、文件、报告和历史回放。部署见[本机工作台](guides/local-studio.md)，当前验证与外部环境限制见[#39 验收](validation/2026-09-15-issue39-studio.md)。
+
 | 入口 | 内容 |
 | --- | --- |
 | [架构](architecture/README.md) | 当前边界与尚待设计的问题 |
