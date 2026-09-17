@@ -16,7 +16,11 @@
     "test": "npm run build && npm run typecheck:tests && node src/tooling/run-tests.mjs",
     "check": "npm run check:boundaries && npm test",
     "demo": "npm run build && node src/apps/cli/dist/index.js demo",
-    "studio": "npm run build && node src/apps/studio/dist/server.js"
+    "studio": "npm run build && node src/apps/studio/dist/server.js",
+    "check:quality": "npm run check:boundaries && npm run build && npm run typecheck:tests",
+    "test:unit": "node src/tooling/run-tests.mjs --group unit",
+    "test:integration": "node src/tooling/run-tests.mjs --group integration",
+    "test:workflows": "node src/tooling/run-tests.mjs --group workflows"
   },
   "devDependencies": {
     "@types/node": "26.5.0",
