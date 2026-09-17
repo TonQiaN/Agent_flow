@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, mkdir, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile, mkdir, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startStudio } from './server.js';
-import { safeFile } from './data.js';
+import { safeFile, openRecords } from './data.js';
+import { DatabaseSync } from 'node:sqlite';
 import { seedArtifactRun } from '../../tests/fixtures/studio-artifacts.js';
 test('local service validates origin and uploads, starts original workflow once and reads history after restart', async t => {
   const root = await mkdtemp(join(tmpdir(), 'af-studio-')); let app = await startStudio({ dataRoot: root, port: 0 });
@@ -25,6 +26,7 @@ test('local service validates origin and uploads, starts original workflow once 
   assert.equal(recruitment.execution.structure.components.match.kind, 'agent');
   assert.equal(JSON.stringify(catalog).includes('Descriptor only; never executed.'), false);
   assert.equal(JSON.stringify(catalog).includes('af-catalogue-'), false, 'temporary inspection paths are not runtime settings');
+  assert.doesNotMatch(JSON.stringify(catalog.workflows.map((w: any) => w.execution)), /"(?:privateState|credentialRef|credentialSource|workspaceRoot|admissionToken)"/);
   assert.deepEqual((await (await fetch(origin + '/api/runs')).json() as any).runs, [], 'describing tasks must not start a Run');
   const form = new FormData(); form.set('manifest', JSON.stringify({ workflowId: 'repair-example', title: '原 CLI 的返工', documents: [] }));
   // Retries share a semantic fingerprint independent of the multipart boundary.
@@ -83,7 +85,35 @@ for (const workflowId of ['parallel-map', 'parallel-fork']) test(`${workflowId} 
     if (detail.completion) break;
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+  assert.equal(detail.completion?.error, null, await readFile(join(root, 'runs', id, 'worker.log'), 'utf8'));
   assert.equal(detail.meta.mainRunId, id);
   assert.equal(detail.runs.find((r: any) => r.view.runId === id)?.view.snapshot.status, 'succeeded');
   assert.ok(!detail.runs.some((r: any) => r.view.runId === 'example'));
+});
+
+
+test('replay API carries the selected global sequence across parent, child and timing queries', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'af-studio-cutoff-'));
+  const run = await seedArtifactRun(root);
+  const records = await openRecords(run.root);
+  const parent = (await records.read(run.id))!.content as any;
+  const child = structuredClone(parent);
+  child.snapshot.runId = 'parallel-child'; child.snapshot.status = 'running';
+  await records.create('parallel-child', child);
+  await records.compareAndSwap(run.id, (await records.read(run.id))!.revision, parent);
+  const boundary = (await records.history(run.id)).at(-1)!;
+  child.snapshot.status = 'succeeded';
+  await records.compareAndSwap('parallel-child', 1, child);
+  records.close();
+  const db = new DatabaseSync(join(run.root, 'records', 'runs.sqlite'));
+  db.exec('UPDATE run_history SET recorded_at = 50'); db.close();
+  const app = await startStudio({ dataRoot: root, port: 0 });
+  t.after(async () => { await new Promise<void>(resolve => app.server.close(() => resolve())); await rm(root, { recursive: true, force: true }); });
+  const url = `http://127.0.0.1:${app.port}/api/runs/${run.id}`;
+  const past = await (await fetch(url + `/at?time=50&sequence=${boundary.sequence}`)).json() as any;
+  assert.equal(past.runs.find((r: any) => r.key === 'parallel-child').view.snapshot.status, 'running');
+  const times = await (await fetch(url + `/timing?run=parallel-child&at=50&sequence=${boundary.sequence}`)).json() as any;
+  assert.equal(times.revisions.length, 1); assert.equal(times.finishedAt, null);
+  const current = await (await fetch(url + '/at?time=50')).json() as any;
+  assert.equal(current.runs.find((r: any) => r.key === 'parallel-child').view.snapshot.status, 'succeeded');
 });

@@ -115,3 +115,19 @@ test('direct replay queries preserve timestamp boundaries, save order and payloa
   database.exec("UPDATE run_history SET payload = 'null' WHERE revision = 3"); database.close();
   await assert.rejects(store.revisionAt('replay', 20), { code: 'RUN_STORE_CORRUPT' });
 });
+
+
+test('global save order prevents future parallel revisions at an identical timestamp', async t => {
+  const root = await directory(t), store = await SqliteRunRecordStore.open(root); t.after(() => store.close());
+  t.mock.method(Date, 'now', () => 50);
+  await store.create('parent', { status: 'waiting' });
+  await store.create('child', { status: 'running' });
+  await store.compareAndSwap('parent', 1, { status: 'waiting-on-child' });
+  const boundary = (await store.revision('parent', 2))!.sequence;
+  await store.compareAndSwap('child', 1, { status: 'completed' });
+  await store.create('later-child', { status: 'queued' });
+  assert.deepEqual((await store.revisionAt('child', 50, boundary))!.content, { status: 'running' });
+  assert.equal(await store.revisionAt('later-child', 50, boundary), null);
+  assert.deepEqual((await store.revisionAt('child', 50))!.content, { status: 'completed' });
+  await assert.rejects(store.revisionAt('child', 50, 0), { code: 'INVALID_RUN_RECORD' });
+});

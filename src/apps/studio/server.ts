@@ -314,20 +314,24 @@ export async function startStudio(
         const root = join(dataRoot, 'runs', match[1]!),
           action = match[2] ?? '',
           meta = await jsonFile(join(root, 'meta.json'));
-        if (!action)
+        if (!action) {
+          // Completion is written after the final checkpoint. Read it first so
+          // a response cannot combine an older snapshot with a newer completion.
+          const completion = await jsonFile(join(root, 'completion.json')).catch(() => null);
           return json(response, 200, {
             meta,
             runs: await views(root).catch((error) => {
               if (error.code === 'ENOENT') return [];
               throw new Error('本地运行记录损坏或无法读取，请检查数据目录。');
             }),
-            completion: await jsonFile(join(root, 'completion.json')).catch(
-              () => null,
-            ),
+            completion,
           });
+        }
+        const throughSequence = url.searchParams.has('sequence') ? Number(url.searchParams.get('sequence')) : undefined;
+        if (throughSequence !== undefined && (!Number.isSafeInteger(throughSequence) || throughSequence < 1)) throw new Error('无效的记录位置');
         if (action === 'at')
           return json(response, 200, {
-            runs: await viewsAt(root, Number(url.searchParams.get('time'))),
+            runs: await viewsAt(root, Number(url.searchParams.get('time')), throughSequence),
           });
         if (action === 'files')
           return json(response, 200, {
@@ -337,6 +341,7 @@ export async function startStudio(
                 url.searchParams.has('at')
                   ? Number(url.searchParams.get('at'))
                   : undefined,
+                throughSequence,
               ),
             ),
           });
@@ -385,7 +390,7 @@ export async function startStudio(
             for (;;) {
               const page = await store.history(selected.key, after, 100);
               for (const row of page) {
-                if (revision !== undefined && row.revision > revision) continue;
+                if (revision !== undefined && row.revision > revision || throughSequence !== undefined && row.sequence > throughSequence) continue;
                 const raw = row.content as any, value = raw?.checkpoint ?? raw, s = value?.snapshot;
                 if (s) rows.push({ ...row, content: { snapshot: { runId: s.runId, currentNode: s.currentNode, currentIdentity: s.currentIdentity, status: s.status,
                   steps: s.steps.map((step: any) => ({ node: step.node, result: { identity: step.result.identity } })) },
@@ -397,7 +402,7 @@ export async function startStudio(
             after = 0;
             for (;;) {
               const page = await store.events(selected.view.runId, after, 500);
-              events.push(...page.filter(row => (row.content as any).kind === 'execution' && (revision === undefined || at !== undefined)));
+              events.push(...page.filter(row => (row.content as any).kind === 'execution' && (revision === undefined || at !== undefined) && (throughSequence === undefined || at === undefined || row.recordedAt < at)));
               if (page.length < 500) break;
               after = page.at(-1)!.sequence;
             }
