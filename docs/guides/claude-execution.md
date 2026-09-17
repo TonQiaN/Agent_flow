@@ -1,6 +1,6 @@
 # Claude 订阅执行组合
 
-ClaudeSubscriptionRunner 把独立 ClaudeAdapter、Profile、私有凭据绑定、Docker Runner 和受控 CONNECT 代理组合起来；ClaudeAgentDriver 将其接入 AgentExecutor 的文件契约和收据。当前已通过合成 CLI 的完整执行/刷新/文件交接，以及真实 Claude 2.1.226 的断网启动和本地凭据格式检查。实际工具隔离现已由断网本地协议替身驱动真实 CLI 验证；真实模型交付和 OAuth 刷新仍未验收。
+ClaudeSubscriptionRunner 把独立 ClaudeAdapter、Profile、私有凭据绑定、Docker Runner 和受控 CONNECT 代理组合起来；ClaudeAgentDriver 将其接入 AgentExecutor 的文件契约和收据。当前已通过合成 CLI 的完整执行/刷新/文件交接，以及真实 Claude 2.1.226 的断网启动和本地凭据格式检查。实际工具隔离现已由断网本地协议替身驱动真实 CLI 验证；本轮[官方验收](../validation/2026-09-15-official-harness-acceptance.md)已通过正常/返修、图片多出口、新登录和人工提前缓存到期后的真实 OAuth 续期；自然等待到期未另测。
 
 ## 接口与目录
 
