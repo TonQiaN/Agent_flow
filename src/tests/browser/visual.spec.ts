@@ -97,8 +97,14 @@ test('generic artifacts, grouped files and multi-page PDF are not recruitment-sp
   await expect(page.locator('.file-group')).toHaveCount(2);
   await shot(page, 'files-by-node');
   await page.locator('.file-row').filter({ hasText: 'build.pdf' }).click();
+  await expect(page.locator('.pdf-preview canvas')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.pdf-text')).toContainText('Build report: Python output');
   await page.getByRole('button', { name: '下一页', exact: true }).click();
   await expect(page.locator('.pdf-preview')).toContainText('第 2 / 2 页');
   await expect(page.locator('.pdf-preview')).toContainText('Verification complete');
+  await expect(page.locator('.pdf-preview canvas')).toHaveAttribute('data-ready', 'true');
+  // Anchor the inspected view after PDF layout settles, independent of render speed.
+  await page.locator('.preview h3').scrollIntoViewIfNeeded();
+  await expect.poll(() => page.locator('.preview').evaluate(el => el.scrollTop)).toBe(0);
   await shot(page, 'generic-pdf');
 });
