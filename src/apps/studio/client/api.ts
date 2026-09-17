@@ -1,6 +1,8 @@
 import type { RunView } from '@agentflow/integrations';
 import type { WorkflowDisplayDefinition } from '@agentflow/engine';
 export type { RunView };
+export type { RunTimeline, AttemptTiming } from '../display-types';
+export type { FileSource } from '../display-types';
 export interface TaskNote {
   summary: string;
   input: string;
@@ -36,18 +38,7 @@ export interface RunDetail {
   runs: { key: string; view: RunView }[];
   completion: any;
 }
-export interface Artifact {
-  id: string;
-  name: string;
-  bytes: number;
-  mediaType: string;
-  sha256: string;
-  accepted: boolean;
-  runId: string;
-  nodeTaskId?: string;
-  sequence?: number;
-  unavailable?: string;
-}
+export type { Artifact } from '../display-types';
 export async function api<T>(path: string): Promise<T> {
   const response = await fetch('/api/' + path).catch(() => {
     throw new Error('暂时连不上本机服务，请确认服务已启动，再点击重新连接。');
@@ -60,7 +51,7 @@ export async function api<T>(path: string): Promise<T> {
 }
 export const pretty = (v: unknown) => JSON.stringify(v, null, 2) ?? '没有保存';
 export const date = (time: number | null | undefined) =>
-  time
+  time !== null && time !== undefined && Number.isFinite(time)
     ? new Date(time).toLocaleString('zh-CN', { hour12: false })
     : '时间未记录';
 export const statusNames: Record<string, string> = {

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { resolve, join } from "node:path";
 import { readdir, rename } from "node:fs/promises";
+import { seedArtifactRun } from '../fixtures/studio-artifacts.js';
 const fixtures = resolve("src/examples/recruitment/fixtures");
 async function panToNode(page: Page, id: string) {
   const node = page.locator(`.react-flow__node[data-id="${id}"]`);
@@ -154,6 +155,47 @@ test("node tasks expose full prompts, commands and containers without launching 
   expect(await inspector.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
   const after = await (await page.request.get('/api/runs')).json();
   expect(after.runs.map((run: any) => run.id)).toEqual(before.runs.map((run: any) => run.id));
+});
+
+test('generic results support Python, unrelated multi-page PDFs, grouped same-name files and bounded previews', async ({ page }) => {
+  const seeded = await seedArtifactRun(resolve(process.env['AGENTFLOW_BROWSER_DATA'] ?? '.local/studio-browser-tests'));
+  await page.goto('/#/runs/' + seeded.id);
+  await expect(page.locator('.run-time-range')).toContainText('耗时');
+  await page.getByRole('button', { name: '结果与产物', exact: true }).click();
+  await expect(page.locator('.candidate-report')).toHaveCount(0);
+  await expect(page.locator('.output-values')).toContainText('Python');
+  await page.locator('.artifact-cards button').filter({ hasText: 'analysis.py' }).click();
+  await expect(page.locator('.code-preview')).toContainText('def normalize(values)');
+  await expect(page.locator('.file-origin')).toContainText('build');
+  await expect(page.locator('.file-group')).toHaveCount(2);
+  await expect(page.locator('.file-row').filter({ hasText: 'result.json' })).toHaveCount(2);
+  const download = page.waitForEvent('download');
+  await page.getByRole('link', { name: '下载文件 ↓', exact: true }).click();
+  expect((await download).suggestedFilename()).toBe('analysis.py');
+  await page.locator('.file-row').filter({ hasText: 'empty.log' }).click();
+  await expect(page.locator('.text-preview')).toHaveText('空文件');
+  await page.getByLabel('搜索文件或节点').fill('build');
+  await expect(page.locator('.file-row').filter({ hasText: 'analysis.py' })).toBeVisible();
+  await page.getByLabel('搜索文件或节点').fill('');
+  await page.locator('.file-row').filter({ hasText: 'build.pdf' }).click();
+  await expect(page.locator('.pdf-preview')).toContainText('第 1 / 2 页');
+  await page.getByRole('button', { name: '下一页', exact: true }).click();
+  await expect(page.locator('.pdf-preview')).toContainText('第 2 / 2 页');
+  await expect(page.locator('.pdf-preview')).toContainText('Verification complete');
+  await test.info().attach('generic-pdf', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.locator('.file-row').filter({ hasText: 'large.txt' }).click();
+  await expect(page.locator('.preview')).toContainText('预览前 256 KiB');
+  await page.locator('.file-row').filter({ hasText: 'page.html' }).click();
+  await expect(page.locator('.code-preview')).toContainText('<script>');
+  expect(await page.title()).not.toBe('EXECUTED');
+  await page.locator('.file-row').filter({ hasText: 'payload.bin' }).click();
+  await expect(page.locator('.preview')).toContainText('此格式可下载');
+  await page.locator('.file-row').filter({ hasText: 'analysis.py' }).click();
+  await test.info().attach('generic-code-by-node', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.setViewportSize({ width: 731, height: 911 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.locator('.file-origin').click();
+  await expect(page.locator('.inspector h3')).toHaveText('build');
 });
 
 test("workflow catalogue separates business flows from examples and opens a readable node canvas", async ({
@@ -448,7 +490,7 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await expect(page.locator(".inspector h3")).toHaveText("生成报告与 PDF");
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.getByRole("button", { name: "适应画布", exact: true }).click();
-  await page.getByRole("button", { name: "结果与报告", exact: true }).click();
+  await page.getByRole("button", { name: "结果与产物", exact: true }).click();
   await expect(page.locator(".candidate-report")).toHaveCount(3);
   await expect(
     page.locator(".candidate-report .recommendation.yes"),
@@ -537,13 +579,13 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   await page.getByRole("slider", { name: "回放进度" }).fill("0");
   await expect(page.getByText("历史回放", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "结果与报告", exact: true }).click();
+  await page.getByRole("button", { name: "结果与产物", exact: true }).click();
   await expect(page.locator(".candidate-report")).toHaveCount(0);
   await expect(page.locator(".panel")).toContainText("尚无经过交付关卡");
   await page
     .getByRole("button", { name: "步骤与并行任务", exact: true })
     .click();
-  await expect(page.locator(".child-run")).toHaveCount(1);
+  await expect(page.locator(".child-run")).toHaveCount(0);
   await page.getByRole("button", { name: "播放", exact: true }).click();
   await expect
     .poll(async () =>
@@ -631,7 +673,7 @@ for (const scenario of ["rework", "retry", "failure", "cancel", "exhausted"])
       scenario === "exhausted"
     ) {
       await page
-        .getByRole("button", { name: "结果与报告", exact: true })
+        .getByRole("button", { name: "结果与产物", exact: true })
         .click();
       await expect(page.locator(".candidate-report")).toHaveCount(0);
       await expect(page.locator(".panel")).toContainText(
@@ -677,9 +719,19 @@ for (const scenario of ["rework", "retry", "failure", "cancel", "exhausted"])
       await page
         .getByRole("button", { name: "步骤与并行任务", exact: true })
         .click();
-      await expect(page.locator(".child-run").first()).toBeVisible();
+      await expect(page.locator(".child-run")).toHaveCount(0);
+      const main = detail.runs.find((r: any) => !r.view.runId.startsWith('parallel-')).view;
+      await expect(page.locator('.table-wrap tbody tr')).toHaveCount(main.snapshot.steps.length);
+      const times = await (await page.request.get(`/api/runs/${id}/timing`)).json();
+      expect(times.attempts.length).toBeGreaterThanOrEqual(main.snapshot.steps.length);
+      await expect(page.locator('.time-cell').first()).toHaveText(/\d{4}\/\d{2}\/\d{2}.*\d{2}:\d{2}:\d{2}\.\d{3}/);
+      if (scenario === 'retry') {
+        const sameTask = times.attempts.filter((a: any) => a.node === 'match');
+        expect(sameTask.map((a: any) => a.identity.attemptNumber)).toEqual([1, 2]);
+        expect(sameTask[0].finishedAt).toBeLessThanOrEqual(sameTask[1].startedAt);
+      }
       await page
-        .getByRole("button", { name: "结果与报告", exact: true })
+        .getByRole("button", { name: "结果与产物", exact: true })
         .click();
       await expect(page.locator(".candidate-report")).toHaveCount(3);
     }
@@ -719,6 +771,10 @@ test("parallel task navigation and replay remain available in the Map example", 
   await page.locator(".node-children > button").first().click();
   await expect(page.getByLabel("查看步骤范围")).toHaveValue(/^parallel-/);
   await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  const childId = await page.getByLabel('查看步骤范围').inputValue();
+  const childTime = await (await page.request.get(`/api/runs/${id}/timing?run=${encodeURIComponent(childId)}`)).json();
+  await expect(page.locator('.run-time-range time').first()).toHaveAttribute('datetime', new Date(childTime.startedAt).toISOString());
+  await expect(page.locator('.run-time-range time').nth(1)).toHaveAttribute('datetime', new Date(childTime.finishedAt).toISOString());
   await page
     .locator(".run-picker")
     .getByRole("button", { name: "并行任务组", exact: true })

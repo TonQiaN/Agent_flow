@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import {
   api,
   date,
@@ -14,7 +14,11 @@ import { Graph, labels, type Selection } from './Graph';
 import { outcomeNames } from './graph-model';
 import { NodeTask, TaskRequirements, taskFacts } from './NodeTask';
 import type { TaskNote } from './api';
-const PdfPreview = lazy(() => import('./PdfPreview'));
+import type { RunTimeline } from './api';
+import { attemptTiming, attemptDuration, clockTime, duration, isRecruitmentOutput, sameAttempt, timestamp } from './presentation';
+import { Timing } from './Timing';
+import { Files } from './Files';
+import { ArtifactCards, OutputValue } from './Outputs';
 export function Json({ value }: { value: unknown }) {
   return <pre className="json">{pretty(value)}</pre>;
 }
@@ -113,6 +117,7 @@ function Inspector({
   runs = [],
   childName,
   onOpenRun,
+  timeline,
 }: {
   view?: RunView;
   workflow?: Workflow;
@@ -123,6 +128,7 @@ function Inspector({
   runs?: RunDetail['runs'];
   childName?: (view: RunView) => string;
   onOpenRun?: (runId: string) => void;
+  timeline?: RunTimeline;
 }) {
   const panel = useRef<HTMLElement>(null);
   const [tab, setTab] = useState('task'),
@@ -218,7 +224,7 @@ function Inspector({
       )
     : undefined;
   const identity =
-    chosen?.result.identity ??
+    (current && attempt < 0 && !terminal(view!.snapshot.status) ? view?.snapshot.currentIdentity ?? pendingInvocation?.identity : null) ?? chosen?.result.identity ??
     (current
       ? (view?.snapshot.currentIdentity ?? pendingInvocation?.identity)
       : null);
@@ -232,13 +238,13 @@ function Inspector({
     { id: string; runId: string }[] | undefined;
   const log = events.filter(
     (e) =>
-      identity &&
-      e.content.identity?.nodeTaskId === identity.nodeTaskId &&
+      sameAttempt(e.content.identity, identity) &&
       e.content.kind !== 'artifact' &&
       e.content.kind !== 'queue',
   );
   const output =
     chosen?.result.status === 'accepted' ? chosen.result.output : undefined;
+  const nodeTime = attemptTiming(timeline?.attempts, identity);
   const generatedKeys =
     view?.snapshot.workflowId === 'recruitment'
       ? node === 'match'
@@ -263,6 +269,10 @@ function Inspector({
         </button>
       </div>
       <p className="mono muted">{node}</p>
+      {view && identity && <div className="node-time-strip" title="节点起止保存记录，包含准备、执行与清理">
+        <span>{clockTime(nodeTime?.startedAt)} → {nodeTime && !nodeTime.ended ? '尚未结束' : clockTime(nodeTime?.finishedAt)}</span>
+        <b>{attemptDuration(nodeTime, timeline?.updatedAt)}</b>
+      </div>}
       {(all.length > 1 || (current && all.length > 0)) && (
         <label>
           本步骤的执行次数
@@ -307,6 +317,7 @@ function Inspector({
         end={!definition.nodes?.[node] ? node.replace(/^end-/, '') : undefined} />}
       {(tab === 'detail' || tab === 'task' && !!children) && (
         <>
+          {view && <Timing value={nodeTime} at={timeline?.updatedAt} />}
           <Badge
             status={
               current
@@ -357,7 +368,7 @@ function Inspector({
             <dt>本次结果</dt>
             <dd>
               {chosen?.result.status === 'accepted'
-                ? chosen.result.outcome
+                ? outcomeNames[chosen.result.outcome] ?? chosen.result.outcome
                 : chosen?.result.status === 'failed'
                   ? chosen.result.code
                   : current
@@ -485,13 +496,12 @@ export function RunPage({
   const [events, setEvents] = useState<any[]>([]),
     [nextEvents, setNextEvents] = useState<number | null>(null),
     [history, setHistory] = useState<any[]>([]),
-    [nextHistory, setNextHistory] = useState<number | null>(null),
     [replay, setReplay] = useState<RunView>(),
     [position, setPosition] = useState(-1),
     [playing, setPlaying] = useState(false),
     [artifacts, setArtifacts] = useState<Artifact[]>([]),
-    [file, setFile] = useState<Artifact>(),
-    [text, setText] = useState('');
+    [file, setFile] = useState<Artifact>();
+  const [timeline, setTimeline] = useState<RunTimeline>(), [replayTimeline, setReplayTimeline] = useState<RunTimeline>();
   const [cutoff, setCutoff] = useState<number | null>(),
     [seeking, setSeeking] = useState(false);
   const seekRequest = useRef(0),
@@ -519,6 +529,7 @@ export function RunPage({
       }
     };
     setDetail(undefined);
+    setTimeline(undefined); setReplayTimeline(undefined);
     setSelectedRun('');
     setReplay(undefined);
     setPosition(-1);
@@ -541,7 +552,6 @@ export function RunPage({
       return;
     if (historyRun.current !== runId) {
       setHistory([]);
-      setNextHistory(null);
       setEvents([]);
       setNextEvents(null);
       setPlaying(false);
@@ -551,17 +561,18 @@ export function RunPage({
     const base = `runs/${id}/`;
     Promise.all([
       api<any>(base + 'events?run=' + encodeURIComponent(runId)),
-      api<any>(base + 'history?run=' + encodeURIComponent(runId)),
+      api<RunTimeline>(base + 'timing?run=' + encodeURIComponent(runId)),
+      cutoff != null ? api<RunTimeline>(base + 'timing?run=' + encodeURIComponent(runId) + '&at=' + cutoff) : Promise.resolve(undefined),
     ])
-      .then(([logs, rows]) => {
+      .then(([logs, times, pastTimes]) => {
         if (!alive) return;
         setEvents(logs.entries);
         setNextEvents(logs.next);
-        setHistory(rows.entries);
-        setNextHistory(rows.next);
+        setTimeline(times); setReplayTimeline(pastTimes);
+        setHistory(times.revisions);
         if (cutoff != null)
           setPosition(
-            rows.entries.findLastIndex(
+            times.revisions.findLastIndex(
               (r: any) => r.recordedAt !== null && r.recordedAt <= cutoff,
             ),
           );
@@ -590,36 +601,12 @@ export function RunPage({
       alive = false;
     };
   }, [id, original?.revision, cutoff]);
-  useEffect(() => {
-    if (
-      !file ||
-      (!file.mediaType.startsWith('text/') &&
-        file.mediaType !== 'application/json')
-    )
-      return;
-    let alive = true;
-    setText('正在读取…');
-    fetch(`/api/runs/${id}/file/${file.id}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json()).error ?? '文件无法读取');
-        return r.text();
-      })
-      .then((t) => {
-        if (alive) setText(t);
-      })
-      .catch((e) => {
-        if (alive) setText('文件不可用：' + e.message);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [file?.id, id]);
   const seek = async (index: number) => {
     const request = ++seekRequest.current;
     if (index < 0) {
       setPosition(-1);
       setCutoff(undefined);
-      setReplay(undefined);
+      setReplay(undefined); setReplayTimeline(undefined);
       setHistoricalRuns(undefined);
       setFile(undefined);
       setSeeking(false);
@@ -629,17 +616,18 @@ export function RunPage({
     if (!row) return;
     setSeeking(true);
     try {
-      const [data, group] = await Promise.all([
+      const [data, group, times] = await Promise.all([
         api<any>(
           `runs/${id}/revision?run=${encodeURIComponent(runId!)}&revision=${row.revision}`,
         ),
         row.recordedAt !== null
           ? api<any>(`runs/${id}/at?time=${row.recordedAt}`)
           : Promise.resolve({ runs: [] }),
+        api<RunTimeline>(`runs/${id}/timing?run=${encodeURIComponent(runId!)}&revision=${row.revision}` + (row.recordedAt !== null ? `&at=${row.recordedAt}` : '')),
       ]);
       if (request !== seekRequest.current) return;
       setPosition(index);
-      setReplay(data.view);
+      setReplay(data.view); setReplayTimeline(times);
       setCutoff(row.recordedAt);
       setHistoricalRuns(
         group.runs.map((r: RunDetail['runs'][number]) =>
@@ -668,28 +656,26 @@ export function RunPage({
     }, 850);
     return () => clearTimeout(timer);
   }, [playing, seeking, position, history.length]);
-  const loadMore = async (kind: 'events' | 'history') => {
+  const loadMore = async () => {
     try {
       const data = await api<any>(
-        `runs/${id}/${kind}?run=${encodeURIComponent(runId!)}&after=${kind === 'events' ? nextEvents : nextHistory}`,
+        `runs/${id}/events?run=${encodeURIComponent(runId!)}&after=${nextEvents}`,
       );
-      if (kind === 'events') {
-        setEvents((v) => [...v, ...data.entries]);
-        setNextEvents(data.next);
-      } else {
-        setHistory((v) => [...v, ...data.entries]);
-        setNextHistory(data.next);
-      }
+      setEvents((v) => [...v, ...data.entries]);
+      setNextEvents(data.next);
     } catch (e) {
       setError((e as Error).message);
     }
   };
+  const activeTimeline = cutoff === undefined ? timeline : replayTimeline;
+  const currentPosition = position < 0 ? Math.max(0, history.length - 1) : position;
+  const selectedTime = cutoff === undefined ? timeline?.updatedAt : cutoff;
   const nodes = view?.execution?.structure.workflow,
     runs = historicalRuns ?? detail?.runs ?? [];
   const parent = (historicalRuns ?? detail?.runs)?.find(
     (r) => !r.view.runId.startsWith('parallel-'),
   )?.view;
-  const final =
+  const parentFinal =
     parent?.snapshot.status === 'succeeded' &&
     parent.snapshot.outcome === 'completed' &&
     parent.snapshot.lastAccepted?.result.status === 'accepted'
@@ -699,9 +685,17 @@ export function RunPage({
     const input = (v.values[0] as any)?.value;
     const person = input?.candidateId;
     return person
-      ? `${(final?.candidates ?? (parent?.values[0] as any)?.value?.candidates)?.find((c: any) => c.id === person)?.name ?? person} · ${input?.dimension ?? (v.snapshot.workflowId.startsWith('audits-') ? '独立复核' : v.snapshot.workflowId.startsWith('decisions-') ? '二元推荐' : v.snapshot.workflowId)}`
+      ? `${(parentFinal?.candidates ?? (parent?.values[0] as any)?.value?.candidates)?.find((c: any) => c.id === person)?.name ?? person} · ${input?.dimension ?? (v.snapshot.workflowId.startsWith('audits-') ? '独立复核' : v.snapshot.workflowId.startsWith('decisions-') ? '二元推荐' : v.snapshot.workflowId)}`
       : v.snapshot.workflowId;
   };
+  const final = view?.snapshot.status === 'succeeded' && view.snapshot.outcome !== 'rejected' && view.snapshot.lastAccepted?.result.status === 'accepted' ? view.snapshot.lastAccepted.result.output as any : null;
+  const mainRun = runId === parent?.runId;
+  const runStartedAt = mainRun ? detail?.meta.createdAt ?? timeline?.startedAt : timeline?.startedAt;
+  const runFinishedAt = cutoff === undefined && mainRun ? detail?.completion?.finishedAt ?? activeTimeline?.finishedAt : activeTimeline?.finishedAt;
+  const runEnded = terminal(view?.snapshot.status ?? '') || cutoff === undefined && mainRun && !!detail?.completion;
+  const lastResult = view?.snapshot.lastAccepted?.result;
+  const resultFiles = artifacts.filter(f => f.accepted && f.sources?.some(source => source.role === 'output' && source.runId === runId && (view?.snapshot.workflowId !== 'recruitment' || source.nodeTaskId === lastResult?.identity.nodeTaskId && source.attemptNumber === lastResult?.identity.attemptNumber)));
+  const openFile = (f: Artifact) => { setFile(f); setTab('files'); };
   const workflow = workflows.find((w) => w.id === detail?.meta.workflowId);
   const openRun = (target: string) => {
     ++seekRequest.current;
@@ -716,6 +710,7 @@ export function RunPage({
     setPosition(-1);
     setFile(undefined);
     setPlaying(false);
+    setTimeline(undefined); setReplayTimeline(undefined);
     setTab('canvas');
   };
   const owner = parent?.attempts.find((a: any) =>
@@ -730,7 +725,7 @@ export function RunPage({
     );
   return (
     <section
-      className={'run-workspace ' + (tab === 'canvas' ? 'canvas-active' : '')}
+      className={'run-workspace ' + (tab === 'canvas' ? 'canvas-active' : tab === 'files' ? 'files-active' : '')}
     >
       <header className="page-header workspace-header">
         <a
@@ -817,11 +812,17 @@ export function RunPage({
           <strong>{artifacts.length}</strong>
         </div>
       </div>
+      <div className="run-time-range" aria-label="运行时间">
+        <span>开始 <time dateTime={runStartedAt == null ? undefined : new Date(runStartedAt).toISOString()}>{timestamp(runStartedAt)}</time></span>
+        <span>结束 <time dateTime={!runEnded || runFinishedAt == null ? undefined : new Date(runFinishedAt).toISOString()}>{runEnded ? timestamp(runFinishedAt) : cutoff === undefined ? '尚未结束' : '当时尚未结束'}</time></span>
+        <span>{runEnded ? '耗时' : '截至记录已用'} <b>{duration(runStartedAt, runEnded ? runFinishedAt : selectedTime)}</b></span>
+        <small>{Intl.DateTimeFormat().resolvedOptions().timeZone}</small>
+      </div>
       <div className="tabs">
         {[
           ['canvas', '工作流画布'],
           ['tasks', '步骤与并行任务'],
-          ['results', '结果与报告'],
+          ['results', '结果与产物'],
           ['files', '文件'],
           ['logs', '运行日志'],
           ['settings', '本次设置'],
@@ -887,6 +888,7 @@ export function RunPage({
               key={runId}
               definition={nodes}
               view={view}
+              timeline={activeTimeline}
               selection={selection}
               onSelect={setSelection}
               storageKey={id + '-' + runId}
@@ -894,6 +896,7 @@ export function RunPage({
             <Inspector
               definition={nodes}
               view={view}
+              timeline={activeTimeline}
               selection={selection}
               events={events.filter(
                 (e) =>
@@ -917,17 +920,18 @@ export function RunPage({
           <strong>{replay ? '历史回放' : '当前记录'}</strong>
           <span>
             {position >= 0
-              ? date(history[position]?.recordedAt)
-              : '按保存顺序和实际时间查看'}
+              ? timestamp(history[position]?.recordedAt)
+              : timestamp(selectedTime)}
           </span>
-          <small>回放只查看，不执行</small>
+          <span className="replay-elapsed">已过去 {duration(timeline?.startedAt, selectedTime)}</span>
+          <small>记录 {history.length ? currentPosition + 1 : 0} / {history.length} · 按记录播放</small>
         </div>
         <div className="replay-controls">
           <button
             className="secondary"
             disabled={!history.length}
             onClick={() => {
-              if (position >= history.length - 1) void seek(0);
+              if (position < 0 || position >= history.length - 1) void seek(0);
               setPlaying((v) => !v);
             }}
           >
@@ -935,10 +939,10 @@ export function RunPage({
           </button>
           <button
             className="secondary"
-            disabled={position <= 0}
+            disabled={!history.length || currentPosition <= 0 || seeking}
             onClick={() => {
               setPlaying(false);
-              void seek(position - 1);
+              void seek(currentPosition - 1);
             }}
           >
             上一步
@@ -957,10 +961,10 @@ export function RunPage({
           />
           <button
             className="secondary"
-            disabled={position >= history.length - 1}
+            disabled={!history.length || currentPosition >= history.length - 1 || seeking}
             onClick={() => {
               setPlaying(false);
-              void seek(position + 1);
+              void seek(currentPosition + 1);
             }}
           >
             下一步
@@ -975,24 +979,16 @@ export function RunPage({
             回到当前
           </button>
         </div>
+        <div className="replay-endpoints"><time>{timestamp(history[0]?.recordedAt)}</time><time>{timestamp(history.at(-1)?.recordedAt)}</time></div>
         {replay && cutoff === null && (
           <p className="notice">
             这条旧记录没有保存时间；仅能查看本修订，不能对齐子运行、文件和日志。
           </p>
         )}
-        {nextHistory && (
-          <button className="text-button" onClick={() => loadMore('history')}>
-            加载更后的历史记录
-          </button>
-        )}
       </section>
       {tab === 'tasks' && (
         <section className="panel">
-          <h3>并行任务</h3>
-          <p className="muted">
-            每行来自独立子运行；点开后可查看该候选人的步骤、尝试与日志。
-          </p>
-          <div className="task-grid">
+          {runs.length > 1 && <><h3>运行与子任务</h3><div className="task-grid">
             {runs.map((r) => (
               <button
                 className="child-run"
@@ -1008,7 +1004,7 @@ export function RunPage({
                 <small>{r.view.runId.slice(-12)}</small>
               </button>
             ))}
-          </div>
+          </div></>}
           <h3>执行步骤</h3>
           <div className="table-wrap">
             <table>
@@ -1017,7 +1013,7 @@ export function RunPage({
                   <th>步骤</th>
                   <th>节点任务</th>
                   <th>尝试</th>
-                  <th>结果</th>
+                  <th>结果</th><th>开始时间</th><th>结束时间</th><th>耗时</th>
                 </tr>
               </thead>
               <tbody>
@@ -1025,18 +1021,24 @@ export function RunPage({
                   <tr
                     key={i}
                     onClick={() => {
-                      setSelection({ kind: 'node', id: s.node });
+                      setSelection({ kind: 'node', id: s.node, nodeTaskId: s.result.identity.nodeTaskId });
                       setTab('canvas');
                     }}
                   >
-                    <td>{labels[s.node] ?? s.node}</td>
+                    <td><button className="text-button" onClick={() => {
+                      setSelection({ kind: 'node', id: s.node, nodeTaskId: s.result.identity.nodeTaskId });
+                      setTab('canvas');
+                    }}>{labels[s.node] ?? s.node} ↗</button></td>
                     <td>{s.result.identity.nodeTaskId}</td>
                     <td>{s.result.identity.attemptNumber}</td>
                     <td>
                       {s.result.status === 'accepted'
-                        ? s.result.outcome
+                        ? outcomeNames[s.result.outcome] ?? s.result.outcome
                         : s.result.code}
                     </td>
+                    <td className="time-cell">{timestamp(attemptTiming(activeTimeline?.attempts, s.result.identity)?.startedAt)}</td>
+                    <td className="time-cell">{timestamp(attemptTiming(activeTimeline?.attempts, s.result.identity)?.finishedAt)}</td>
+                    <td>{duration(attemptTiming(activeTimeline?.attempts, s.result.identity)?.startedAt, attemptTiming(activeTimeline?.attempts, s.result.identity)?.finishedAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1046,18 +1048,20 @@ export function RunPage({
           {view?.attempts.map((a: any, i) => (
             <details key={i}>
               <summary>
-                {a.node} · {a.identity?.nodeTaskId} · 第{' '}
+                {labels[a.node] ?? a.node} · {a.identity?.nodeTaskId} · 第{' '}
                 {a.identity?.attemptNumber} 次 {a.retry ? '· 等待重试' : ''}
               </summary>
-              <Json value={a} />
+              <Timing value={attemptTiming(activeTimeline?.attempts, a.identity)} at={activeTimeline?.updatedAt} />
+              <details><summary>完整执行记录</summary><Json value={a} /></details>
             </details>
           ))}
         </section>
       )}
       {tab === 'results' && (
         <section className="panel">
-          <h2>结果与报告</h2>
-          {final?.recommendations ? (
+          <div className="row"><h2>结果与产物</h2><span className="muted">{view?.snapshot.status === 'succeeded' ? '已结束' : '当前已保存输出'} · {outcomeNames[view?.snapshot.outcome ?? ''] ?? view?.snapshot.outcome ?? ''}</span></div>
+          {!isRecruitmentOutput(view?.snapshot.workflowId, final) && <ArtifactCards files={resultFiles} onOpen={openFile} />}
+          {isRecruitmentOutput(view?.snapshot.workflowId, final) ? (
             <>
               <p className="muted">逐项结论与原文证据；没有总分或排名。</p>
               <div className="table-wrap">
@@ -1185,93 +1189,18 @@ export function RunPage({
             </>
           ) : (
             <>
-              <p className="notice">
-                {detail.meta.workflowId === 'recruitment'
-                  ? '尚无经过交付关卡的最终招聘报告。执行失败、取消或未通过校验，不等于候选人被判不通过。'
-                  : '以下为当前工作流已保存的输出；文件产物请在“文件”页查看。'}
-              </p>
-              <Json value={view?.snapshot.lastAccepted?.result ?? '暂无输出'} />
+              {view?.snapshot.workflowId === 'recruitment'
+                ? <p className="notice">尚无经过交付关卡的最终招聘报告。执行失败、取消或未通过校验，不等于候选人被判不通过。</p>
+                : <h3>工作流输出</h3>}
+              <OutputValue value={lastResult?.status === 'accepted' ? lastResult.output : undefined} />
             </>
           )}
+          {isRecruitmentOutput(view?.snapshot.workflowId, final) && <details><summary>全部交付文件 · {resultFiles.length}</summary><ArtifactCards files={resultFiles} onOpen={openFile} /></details>}
+          {lastResult?.status === 'accepted' && <details className="raw-output"><summary>原始输出 JSON</summary><Json value={lastResult.output} /></details>}
         </section>
       )}
-      {tab === 'files' && (
-        <section className="files-layout">
-          <div className="panel file-list">
-            <h3>文件 · {artifacts.length}</h3>
-            <p className="muted">
-              节点契约通过只代表本步骤格式有效；最终报告见“结果与报告”。
-            </p>
-            {artifacts.length === 0 && <p>尚无文件记录，或原文件不可用。</p>}
-            {artifacts.map((f) => (
-              <button
-                className={`file-row ${file?.id === f.id ? 'active' : ''}`}
-                key={f.id}
-                onClick={() => setFile(f)}
-              >
-                <strong>{f.name}</strong>
-                <small>
-                  {Math.ceil(f.bytes / 1024)} KB ·{' '}
-                  {f.nodeTaskId
-                    ? `${detail.runs.find((r) => r.view.runId === f.runId)?.view.runId === parent?.runId ? '主工作流' : detail.runs.find((r) => r.view.runId === f.runId) ? candidateName(detail.runs.find((r) => r.view.runId === f.runId)!.view) : f.runId} · ${f.nodeTaskId}`
-                    : '原始输入 / 历史文件'}
-                </small>
-                <span className={f.accepted ? '' : 'draft'}>
-                  {f.unavailable
-                    ? '归档不可用'
-                    : f.accepted
-                      ? '节点输出 / 输入'
-                      : '未接纳的草稿'}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="panel preview">
-            {file?.unavailable ? (
-              <div className="error" role="alert">
-                {file.unavailable}
-              </div>
-            ) : file ? (
-              <>
-                <div className="row">
-                  <h3>{file.name}</h3>
-                  <a
-                    className="secondary"
-                    href={`/api/runs/${id}/file/${file.id}?download=1`}
-                  >
-                    下载文件 ↓
-                  </a>
-                </div>
-                <p className="muted mono">SHA256 {file.sha256}</p>
-                {file.mediaType === 'application/pdf' ? (
-                  <Suspense fallback={<p>正在读取 PDF 查看器…</p>}>
-                    <PdfPreview
-                      key={file.id}
-                      name={file.name}
-                      url={`/api/runs/${id}/file/${file.id}`}
-                    />
-                  </Suspense>
-                ) : file.mediaType.startsWith('image/') ? (
-                  <img
-                    alt={file.name}
-                    src={`/api/runs/${id}/file/${file.id}`}
-                  />
-                ) : file.mediaType.startsWith('text/') ||
-                  file.mediaType === 'application/json' ? (
-                  <pre className="text-preview">{text}</pre>
-                ) : (
-                  <p>此格式请下载后查看。</p>
-                )}
-              </>
-            ) : (
-              <div className="empty-page">
-                <h3>选择一份文件</h3>
-                <p>支持文本、JSON、图片和 PDF 预览。</p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      {tab === 'files' && <Files id={id} files={artifacts} runs={runs} selected={file} onSelect={setFile}
+        onNode={(targetRun, node, nodeTaskId) => { if (targetRun !== runId) openRun(targetRun); else setTab('canvas'); setSelection({ kind: 'node', id: node, nodeTaskId }); }} />}
       {tab === 'logs' && (
         <section className="panel">
           <h3>事件与执行日志</h3>
@@ -1294,7 +1223,7 @@ export function RunPage({
               <details className="log-entry" key={e.sequence}>
                 <summary>
                   <span className="mono">#{e.sequence}</span>{' '}
-                  {date(e.recordedAt)} ·{' '}
+                  {timestamp(e.recordedAt)} ·{' '}
                   {e.content.identity?.nodeTaskId ?? '工作流'} ·{' '}
                   {e.content.kind}
                 </summary>
@@ -1302,7 +1231,7 @@ export function RunPage({
               </details>
             ))}
           {nextEvents && (
-            <button className="secondary" onClick={() => loadMore('events')}>
+            <button className="secondary" onClick={() => loadMore()}>
               加载更多日志
             </button>
           )}

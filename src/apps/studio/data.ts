@@ -1,3 +1,4 @@
+import type { FileSource } from './display-types.js';
 import { constants } from 'node:fs';
 import { readFile, readdir, lstat, realpath, open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -156,18 +157,20 @@ interface ListedFile {
   path: string;
   sequence?: number;
   unavailable?: string;
+  sources: FileSource[];
 }
 export async function files(root: string, at?: number): Promise<ListedFile[]> {
   const result: ListedFile[] = [],
-    known = new Set<string>();
+    known = new Map<string, ListedFile[]>();
   const meta = await jsonFile(join(root, 'meta.json'));
-  for (const file of meta.uploads ?? [])
+  for (const file of at !== undefined && meta.createdAt > at ? [] : meta.uploads ?? [])
     result.push({
       ...file,
       id: hash('upload:' + file.path),
       accepted: true,
       runId: meta.mainRunId,
       archiveRoot: null,
+      sources: [{ runId: meta.mainRunId, role: 'input', recordedAt: meta.createdAt }],
     });
   const candidates: {
     saved: any;
@@ -176,6 +179,7 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
     nodeTaskId?: string;
     sequence?: number;
     unavailable?: string;
+    source: FileSource;
   }[] = [];
   const store = await openRecords(root).catch(() => null);
   if (!store) return result;
@@ -183,12 +187,21 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
     for (const { view } of await (at === undefined
       ? views(root)
       : viewsAt(root, at))) {
+      const identities = [...view.snapshot.steps.map(step => ({ node: step.node, identity: step.result.identity })), ...view.attempts as any[]];
+      const source = (identity: any, role: FileSource['role'], node?: string, recordedAt?: number): FileSource => ({
+        runId: view.runId, role, ...(node ? { node } : {}),
+        ...(identity ? { node: identities.find(item => item.identity?.nodeTaskId === identity.nodeTaskId)?.node ?? node,
+          nodeTaskId: identity.nodeTaskId, attemptId: identity.attemptId, attemptNumber: identity.attemptNumber } : {}),
+        ...(recordedAt !== undefined ? { recordedAt } : {}),
+      });
       for (const entry of view.values as any[])
         if (entry.saved?.schema === 'agentflow-workflow-files/v1')
           candidates.push({
             saved: entry.saved,
             accepted: true,
             runId: view.runId,
+            nodeTaskId: entry.identity?.nodeTaskId,
+            source: source(entry.identity ?? entry.saved.receipt?.identity, entry.identity ? 'output' : 'input', entry.node),
           });
       let after = 0;
       for (;;) {
@@ -205,6 +218,7 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
               runId: view.runId,
               nodeTaskId: event.identity?.nodeTaskId,
               sequence: row.sequence,
+              source: source(event.identity, event.accepted ? 'output' : 'draft', undefined, row.recordedAt),
             });
         }
         if (page.length < 500) break;
@@ -213,7 +227,17 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
     }
     for (const item of candidates) {
       const reference = item.saved.archive;
-      if (!reference || known.has(reference.id)) continue;
+      if (!reference) continue;
+      const existing = known.get(reference.id);
+      if (existing) {
+        for (const file of existing) {
+          file.accepted ||= item.accepted;
+          if (!file.sources.some(s => JSON.stringify(s) === JSON.stringify(item.source))) file.sources.push(item.source);
+          // An output event gives a more precise owner than an input snapshot.
+          if (item.nodeTaskId && !file.nodeTaskId) { file.nodeTaskId = item.nodeTaskId; file.runId = item.runId; }
+        }
+        continue;
+      }
       let found = false;
       for (const folder of ['archive', 'tasks/archive', 'work/archive']) {
         try {
@@ -223,10 +247,10 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
               new FileContractRegistry(new ContractRegistry()),
             );
           const manifest = await archive.read(reference);
-          known.add(reference.id);
           found = true;
+          const listed: ListedFile[] = [];
           for (const file of manifest.files)
-            result.push({
+            listed.push({
               id: hash(reference.id + ':' + file.path),
               name: file.path,
               bytes: file.bytes,
@@ -239,15 +263,17 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
               archiveId: reference.id,
               path: file.path,
               ...(item.sequence ? { sequence: item.sequence } : {}),
+              sources: [item.source],
             });
+          known.set(reference.id, listed);
+          result.push(...listed);
           break;
         } catch {
           /* A different registered archive may own this reference. */
         }
       }
       if (!found) {
-        known.add(reference.id);
-        result.push({
+        const missing: ListedFile = {
           id: hash(reference.id),
           name: '文件归档不可用 · ' + reference.id,
           bytes: 0,
@@ -257,9 +283,12 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
           runId: item.runId,
           archiveRoot: null,
           path: '',
+          ...(item.nodeTaskId ? { nodeTaskId: item.nodeTaskId } : {}),
+          sources: [item.source],
           unavailable:
             '记录中的文件归档已丢失或校验失败，请检查本机数据目录或备份。',
-        });
+        };
+        known.set(reference.id, [missing]); result.push(missing);
       }
     }
     return result;
