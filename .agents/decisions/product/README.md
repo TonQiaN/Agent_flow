@@ -8,19 +8,19 @@
 
 ## P-20260909-harness-adapter
 
-[Harness Adapter 只生成调用并解释执行证据](proposed/P-20260909-harness-adapter.md)
+[Harness Adapter 只生成调用并解释执行证据](implemented/P-20260909-harness-adapter.md)
 
 ## P-20260909-auth-lifecycle
 
-[认证元数据、秘密与独占执行绑定分离](proposed/P-20260909-auth-lifecycle.md)
+[认证元数据、秘密与独占执行绑定分离](implemented/P-20260909-auth-lifecycle.md)
 
 ## P-20260909-runner-lifecycle
 
-[Runner 协调一次执行，Docker 后端管理具体资源](proposed/P-20260909-runner-lifecycle.md)
+[Runner 协调一次执行，Docker 后端管理具体资源](implemented/P-20260909-runner-lifecycle.md)
 
 ## P-20260909-component-execution
 
-[Component 定义、输入输出契约与一次执行分离](proposed/P-20260909-component-execution.md)
+[Component 定义、输入输出契约与一次执行分离](implemented/P-20260909-component-execution.md)
 
 ## P-20260905-initial-direction
 
