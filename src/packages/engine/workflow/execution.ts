@@ -36,3 +36,34 @@ export async function assertWorkflowExecutionMatches(compiled: CompiledWorkflow,
   try { expected = copyJson(saved); } catch { throw new DefinitionError('INVALID_WORKFLOW_EXECUTION_SNAPSHOT'); }
   if (canonical(expected) !== canonical(copyJson(current))) throw new DefinitionError('WORKFLOW_EXECUTION_MISMATCH');
 }
+
+/** A partial description is valid for viewing, never for execution recovery. */
+export interface WorkflowDisplayDefinition {
+  readonly structure: WorkflowStructureSnapshot;
+  readonly bindings: Readonly<Record<string, JsonValue>>;
+  readonly resourcePlans: Readonly<Record<string, InvocationResourcePlan>>;
+  readonly unavailable: Readonly<Record<string, string>>;
+}
+export async function inspectWorkflowExecution(compiled: CompiledWorkflow): Promise<WorkflowDisplayDefinition> {
+  const plan = getPlan(compiled), structure = snapshotWorkflowStructure(compiled);
+  const bindings: Record<string, JsonValue> = {}, resourcePlans: Record<string, InvocationResourcePlan> = {}, unavailable: Record<string, string> = {};
+  for (const [node, binding] of plan.bindings) {
+    try {
+      if (!binding.executor.executionDefinition) throw new Error('EXECUTION_DEFINITION_UNAVAILABLE');
+      bindings[node] = copyJson(await binding.executor.executionDefinition(copyJson(binding.component) as unknown as typeof binding.component));
+      const resources = await binding.executor.resourcePlan?.(binding.component);
+      if (resources) resourcePlans[node] = validateInvocationPlan(resources);
+    } catch (error) { unavailable[node] = error instanceof DefinitionError ? error.code : 'EXECUTION_DESCRIPTION_UNAVAILABLE'; }
+  }
+  return { structure, bindings, resourcePlans, unavailable };
+}
+/** Archive through the installed value owner without restoring or executing it. */
+export async function archiveWorkflowViewValue(compiled: CompiledWorkflow, node: string, contractId: string, value: JsonValue, runId: string): Promise<JsonValue> {
+  const binding = getPlan(compiled).bindings.get(node);
+  if (!binding) throw new DefinitionError('UNKNOWN_WORKFLOW_NODE');
+  const contract = [binding.input, ...binding.outcomes.values()].find(c => c.id === contractId);
+  if (!contract) throw new DefinitionError('UNKNOWN_CONTRACT');
+  if (contract.kind === 'json') return { schema: 'agentflow-json-value/v1', value: copyJson(value) };
+  if (!binding.executor.checkpointValue) throw new DefinitionError('WORKFLOW_VALUE_PERSISTENCE_UNAVAILABLE');
+  return copyJson(await binding.executor.checkpointValue(copyJson(value), runId, contractId));
+}

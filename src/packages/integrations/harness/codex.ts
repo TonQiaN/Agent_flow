@@ -18,8 +18,9 @@ export class CodexAdapter implements HarnessAdapter {
     if (!isExecutionIdentity(task.identity) || typeof task.prompt !== 'string' || !task.prompt.trim() || task.prompt.includes('\0')
       || task.prompt.length > 64 * 1024 || Object.keys(task).some(key => !['identity', 'prompt', 'config', 'outcomes'].includes(key))) throw new Error('INVALID_HARNESS_TASK');
     const config = task.config;
-    if (!record(config) || Object.keys(config).some(key => !['model', 'reasoning', 'subagents', 'search', 'inputImages'].includes(key))
+    if (!record(config) || Object.keys(config).some(key => !['model', 'reasoning', 'subagents', 'search', 'inputImages', 'persistSession'].includes(key))
       || !validToken(config['model']) || config['subagents'] !== false || config['search'] !== false
+      || config['persistSession'] !== undefined && typeof config['persistSession'] !== 'boolean'
       || config['reasoning'] !== undefined && !['low', 'medium', 'high', 'xhigh'].includes(String(config['reasoning']))) throw new Error('UNSUPPORTED_CODEX_CONFIGURATION');
     const images = codexInputImages(config);
     if (task.outcomes !== undefined && (!Array.isArray(task.outcomes) || task.outcomes.length < 2 || task.outcomes.length > 32
@@ -29,12 +30,13 @@ export class CodexAdapter implements HarnessAdapter {
     // avoid Codex's synthetic read-only metadata mounts while keeping state/config protected.
     const writableMetadata = [TASK_PATHS.input, TASK_PATHS.work, TASK_PATHS.outputs]
       .flatMap(root => ['.git', '.agents', '.codex'].map(name => `${JSON.stringify(`${root}/${name}`)}="write"`));
-    const argv = ['codex', 'exec', '--json', '--strict-config', '--ignore-user-config', '--ignore-rules', '--ephemeral',
+    const argv = ['codex', 'exec', '--json', '--strict-config', '--ignore-user-config', '--ignore-rules', ...(config['persistSession'] === true ? [] : ['--ephemeral']),
       '--skip-git-repo-check', '--color', 'never', '--cd', TASK_PATHS.work, '--model', config['model']];
     // These TOML values are generated from fixed paths and validated scalars, never arbitrary task config.
     const settings = ['approval_policy="never"', 'cli_auth_credentials_store="file"', 'features.multi_agent=false', 'web_search="disabled"',
       'default_permissions="agentflow"', 'permissions.agentflow.extends=":workspace"', 'permissions.agentflow.network.enabled=false',
       `permissions.agentflow.filesystem={ ${JSON.stringify(TASK_PATHS.input)}="write", ${JSON.stringify(TASK_PATHS.outputs)}="write", ${writableMetadata.join(', ')}, ${JSON.stringify(`${home}/auth.json`)}="deny", ${JSON.stringify(`${home}/profile.json`)}="deny", ${JSON.stringify(TASK_PATHS.config)}="read" }`];
+    if (config['persistSession'] === true) settings.push('memories.generate_memories=false', 'memories.use_memories=false');
     if (config['reasoning'] !== undefined) settings.push(`model_reasoning_effort=${JSON.stringify(config['reasoning'])}`);
     for (const setting of settings) argv.push('-c', setting);
     const configFiles: { name: string; content: string }[] = [];

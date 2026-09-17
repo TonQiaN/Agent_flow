@@ -8,8 +8,14 @@ import type { JsonValue } from '@agentflow/domain';
 import { RunStoreError, snapshotJson } from '@agentflow/engine';
 import type { RunRecord, AtomicRunRecordStore } from '@agentflow/engine';
 
-const application = 1095124785, version = 1, limit = 16 * 1024 * 1024;
+const application = 1095124785, version = 2, limit = 16 * 1024 * 1024;
 const schema = 'CREATE TABLE run_records (run_id TEXT PRIMARY KEY, revision INTEGER NOT NULL CHECK(revision > 0), payload TEXT NOT NULL, digest TEXT NOT NULL) WITHOUT ROWID';
+const historySchema = 'CREATE TABLE run_history (sequence INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, revision INTEGER NOT NULL, recorded_at INTEGER, payload TEXT NOT NULL, digest TEXT NOT NULL, UNIQUE(run_id, revision))';
+const eventSchema = 'CREATE TABLE run_events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL, recorded_at INTEGER NOT NULL, payload TEXT NOT NULL, digest TEXT NOT NULL)';
+export interface RunRevision extends RunRecord { readonly sequence: number; readonly recordedAt: number | null }
+export interface RunEvent { readonly sequence: number; readonly runId: string; readonly recordedAt: number; readonly content: JsonValue }
+export interface RecordPage { readonly after?: string; readonly limit?: number }
+const pageLimit = (value = 100): number => { if (!Number.isSafeInteger(value) || value < 1 || value > 1000) throw new RunStoreError('INVALID_RUN_RECORD'); return value; };
 const checksum = (runId: string, revision: number, payload: string): string => createHash('sha256').update(JSON.stringify([runId, revision, payload])).digest('hex');
 const id = (value: unknown): void => { if (!isIdentifier(value)) throw new RunStoreError('INVALID_RUN_RECORD'); };
 const encode = (value: JsonValue): string => {
@@ -52,7 +58,12 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
         const rev = database.prepare('PRAGMA user_version').get()!['user_version'];
         const entries = database.prepare("SELECT name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all();
         if (app === 0 && rev === 0 && entries.length === 0) {
-          database.exec(schema); database.exec(`PRAGMA application_id = ${application}; PRAGMA user_version = ${version}`);
+          database.exec(schema); database.exec(historySchema); database.exec(eventSchema); database.exec(`PRAGMA application_id = ${application}; PRAGMA user_version = ${version}`);
+        } else if (app === application && rev === 1 && entries.length === 1 && entries[0]!['sql'] === schema) {
+          database.exec(historySchema); database.exec(eventSchema);
+          // No timestamp or missing revisions can be reconstructed from a v1 latest-value row.
+          database.exec('INSERT INTO run_history (run_id, revision, recorded_at, payload, digest) SELECT run_id, revision, NULL, payload, digest FROM run_records');
+          database.exec(`PRAGMA user_version = ${version}`);
         } else SqliteRunRecordStore.verify(database);
         database.exec('COMMIT');
       } catch (error) { try { database.exec('ROLLBACK'); } catch {} throw error; }
@@ -66,7 +77,8 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
     if (database.prepare('PRAGMA application_id').get()!['application_id'] !== application
       || database.prepare('PRAGMA user_version').get()!['user_version'] !== version) throw new RunStoreError('RUN_STORE_UNSUPPORTED');
     const entries = database.prepare("SELECT name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%'").all();
-    if (entries.length !== 1 || entries[0]!['name'] !== 'run_records' || entries[0]!['sql'] !== schema) throw new RunStoreError('RUN_STORE_UNSUPPORTED');
+    const expected = new Map([['run_records', schema], ['run_history', historySchema], ['run_events', eventSchema]]);
+    if (entries.length !== expected.size || entries.some(entry => entry['sql'] !== expected.get(String(entry['name'])))) throw new RunStoreError('RUN_STORE_UNSUPPORTED');
   }
   #ready(): void { if (this.#closed) throw new RunStoreError('RUN_STORE_CLOSED'); SqliteRunRecordStore.verify(this.#database); }
   #load(runId: string): RunRecord | null {
@@ -84,11 +96,62 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
     try { const result = operation(); this.#database.exec('COMMIT'); return result; }
     catch (error) { try { this.#database.exec('ROLLBACK'); } catch {} throw error; }
   }
+  #history(runId: string, revision: number, payload: string): void {
+    this.#database.prepare('INSERT INTO run_history (run_id, revision, recorded_at, payload, digest) VALUES (?, ?, ?, ?, ?)')
+      .run(runId, revision, Date.now(), payload, checksum(runId, revision, payload));
+  }
+  /** Stable keyset pagination, including non-workflow records. Consumers must project their own schema. */
+  async list(options: RecordPage = {}): Promise<readonly RunRecord[]> {
+    const count = pageLimit(options.limit);
+    if (options.after !== undefined) id(options.after);
+    try {
+      this.#ready();
+      return this.#database.prepare('SELECT run_id FROM run_records WHERE run_id > ? ORDER BY run_id LIMIT ?').all(options.after ?? '', count)
+        .map(row => this.#load(String(row['run_id']))!);
+    } catch (error) { throw mapped(error); }
+  }
+  async history(runId: string, after = 0, count = 100): Promise<readonly RunRevision[]> {
+    id(runId); pageLimit(count);
+    if (!Number.isSafeInteger(after) || after < 0) throw new RunStoreError('INVALID_RUN_RECORD');
+    try {
+      this.#ready();
+      return this.#database.prepare('SELECT sequence, revision, recorded_at, payload, digest FROM run_history WHERE run_id = ? AND sequence > ? ORDER BY sequence LIMIT ?')
+        .all(runId, after, count).map(row => {
+          const revision = Number(row['revision']), payload = String(row['payload']);
+          if (row['digest'] !== checksum(runId, revision, payload)) throw new RunStoreError('RUN_STORE_CORRUPT');
+          return { runId, revision, sequence: Number(row['sequence']), recordedAt: row['recorded_at'] === null ? null : Number(row['recorded_at']), content: snapshotJson(JSON.parse(payload)) };
+        });
+    } catch (error) { throw mapped(error); }
+  }
+  /** The caller provides already-redacted event data, never credentials or raw private state. */
+  async appendEvent(runId: string, content: JsonValue): Promise<RunEvent> {
+    id(runId); const payload = encode(content);
+    try { return this.#transaction(() => {
+      const recordedAt = Date.now();
+      const result = this.#database.prepare('INSERT INTO run_events (run_id, recorded_at, payload, digest) VALUES (?, ?, ?, ?)')
+        .run(runId, recordedAt, payload, checksum(runId, recordedAt, payload));
+      return { runId, sequence: Number(result.lastInsertRowid), recordedAt, content: snapshotJson(JSON.parse(payload)) };
+    }); } catch (error) { throw mapped(error); }
+  }
+  async events(runId: string, after = 0, count = 100): Promise<readonly RunEvent[]> {
+    id(runId); pageLimit(count);
+    if (!Number.isSafeInteger(after) || after < 0) throw new RunStoreError('INVALID_RUN_RECORD');
+    try {
+      this.#ready();
+      return this.#database.prepare('SELECT sequence, recorded_at, payload, digest FROM run_events WHERE run_id = ? AND sequence > ? ORDER BY sequence LIMIT ?')
+        .all(runId, after, count).map(row => {
+          const recordedAt = Number(row['recorded_at']), payload = String(row['payload']);
+          if (row['digest'] !== checksum(runId, recordedAt, payload)) throw new RunStoreError('RUN_STORE_CORRUPT');
+          return { runId, sequence: Number(row['sequence']), recordedAt, content: snapshotJson(JSON.parse(payload)) };
+        });
+    } catch (error) { throw mapped(error); }
+  }
   async create(runId: string, content: JsonValue): Promise<RunRecord> {
     id(runId); const payload = encode(content);
     try { return this.#transaction(() => {
       if (this.#load(runId)) throw new RunStoreError('RUN_ALREADY_EXISTS');
       this.#database.prepare('INSERT INTO run_records (run_id, revision, payload, digest) VALUES (?, ?, ?, ?)').run(runId, 1, payload, checksum(runId, 1, payload));
+      this.#history(runId, 1, payload);
       return { runId, revision: 1, content: JSON.parse(payload) as JsonValue };
     }); } catch (error) { throw mapped(error); }
   }
@@ -106,6 +169,7 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
       const result = this.#database.prepare('UPDATE run_records SET revision = ?, payload = ?, digest = ? WHERE run_id = ? AND revision = ?')
         .run(revision, payload, checksum(runId, revision, payload), runId, expectedRevision);
       if (result.changes !== 1) throw new RunStoreError('RUN_REVISION_CONFLICT');
+      this.#history(runId, revision, payload);
       return { runId, revision, content: JSON.parse(payload) as JsonValue };
     }); } catch (error) { throw mapped(error); }
   }
@@ -128,7 +192,8 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
         const revision = (expected.get(runId) ?? 0) + 1;
         this.#database.prepare('INSERT INTO run_records (run_id, revision, payload, digest) VALUES (?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,digest=excluded.digest')
           .run(runId, revision, payload, checksum(runId, revision, payload));
-        return { runId, revision, content: JSON.parse(payload) as JsonValue };
+        this.#history(runId, revision, payload);
+      return { runId, revision, content: JSON.parse(payload) as JsonValue };
       });
     }); } catch (error) { throw mapped(error); }
   }
