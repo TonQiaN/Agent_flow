@@ -7,11 +7,12 @@ import {ContractRegistry,ComponentRegistry,FunctionRegistry,JsonFunctionWorkflow
 import {SqliteRunRecordStore,PersistentNodeQueue,systemClock} from '@agentflow/integrations';
 
 const kind=process.argv[2]??'map';
+const runId=process.env.AGENTFLOW_STUDIO_RUN_ID??'example';
 if(!['map','fork'].includes(kind))throw new Error('Use map or fork');
 const keep=process.env.AGENTFLOW_HISTORY_DISABLED!=='1'||!!process.env.AGENTFLOW_STUDIO_RUN_ROOT;
 const root=keep?(process.env.AGENTFLOW_STUDIO_RUN_ROOT??join(resolve(process.env.AGENTFLOW_STUDIO_DATA??'.local/studio'),'runs','cli-'+randomUUID())):await mkdtemp(join(tmpdir(),'agentflow-parallel-demo-'));
 await mkdir(root,{recursive:true,mode:0o700});
-if(keep&&!process.env.AGENTFLOW_STUDIO_RUN_ROOT)await writeFile(join(root,'meta.json'),JSON.stringify({id:root.split('/').at(-1),workflowId:'parallel-'+kind,title:'JSON '+kind,mainRunId:'example',createdAt:Date.now(),source:'cli'}),{mode:0o600});
+if(keep&&!process.env.AGENTFLOW_STUDIO_RUN_ROOT)await writeFile(join(root,'meta.json'),JSON.stringify({id:root.split('/').at(-1),workflowId:'parallel-'+kind,title:'JSON '+kind,mainRunId:runId,createdAt:Date.now(),source:'cli'}),{mode:0o600});
 const records=await SqliteRunRecordStore.open(join(root,'records'));
 try {
  const contracts=new ContractRegistry();
@@ -34,7 +35,7 @@ try {
  const configuration={roles:{coordinator:1,compute:2},credentials:[],workflows:{demo:{batch:{role:'coordinator',capability:'json'}},...Object.fromEntries(parallel.childWorkflows().map(child=>[child.definition.id,{unit:{role:'compute',capability:'json'}}]))}};
  const queue=new PersistentNodeQueue(records,configuration);
  const input=kind==='map'?[{id:'a',value:1},{id:'b',value:2},{id:'c',value:3}]:{id:'request',value:7};
- await new WorkflowRuntime().preparePersisted(flow,'example',input,queue.records());
+ await new WorkflowRuntime().preparePersisted(flow,runId,input,queue.records());
  const host={open:async(runId,store)=>{
   const row=await store.read(runId),checkpoint=row.content.checkpoint??row.content;
   const compiled=checkpoint.snapshot.workflowId==='demo'?flow:parallel.childWorkflow(checkpoint.snapshot.workflowId);
@@ -45,7 +46,7 @@ try {
  await worker('coordinator').runOnce();
  const runs=await Promise.all([worker('first').runUntilIdle(),worker('second').runUntilIdle()]);
  if(runs.flat().some(result=>result.error))throw new Error('Worker failed');
- const loaded=await loadWorkflowCheckpoint(flow,'example',queue.records());
+ const loaded=await loadWorkflowCheckpoint(flow,runId,queue.records());
  try {
   if(loaded.checkpoint.snapshot.status!=='succeeded')throw new Error('Example did not finish');
   console.log(JSON.stringify(loaded.checkpoint.snapshot.lastAccepted.result.output,null,2));

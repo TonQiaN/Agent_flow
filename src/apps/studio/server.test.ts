@@ -19,6 +19,7 @@ test('local service validates origin and uploads, starts original workflow once 
   const rebuilt = await fetch(origin + '/api/runs', { method: 'POST', headers: { origin, 'idempotency-key': 'test-submit-1' }, body: form }); assert.equal(rebuilt.status, 200); assert.equal((await rebuilt.json() as any).id, id);
   let detail: any;
   for (let n = 0; n < 80; n++) { detail = await (await fetch(origin + `/api/runs/${id}`)).json(); if (detail.runs[0]?.view.snapshot.status === 'succeeded') break; await new Promise(r => setTimeout(r, 100)); }
+  assert.equal(detail.meta.mainRunId, id); assert.equal(detail.runs[0].view.runId, id);
   assert.equal(detail.runs[0].view.snapshot.outcome, 'accepted'); assert.equal(detail.runs[0].view.snapshot.steps.length, 5);
   const historical = await (await fetch(origin + `/api/runs/${id}/history`)).json() as any; assert.ok(historical.entries.length > 5);
   const old = await (await fetch(origin + `/api/runs/${id}/revision?revision=1`)).json() as any; assert.equal(old.view.snapshot.status, 'queued');
@@ -31,4 +32,23 @@ test('local service validates origin and uploads, starts original workflow once 
 test('file preview never follows parent symlinks or accepts traversal', async t => {
   const root = await mkdtemp(join(tmpdir(), 'af-preview-')); t.after(() => rm(root, { recursive: true, force: true })); await mkdir(join(root, 'safe')); await writeFile(join(root, 'private.txt'), 'private'); await symlink(root, join(root, 'safe/link'));
   await assert.rejects(safeFile(join(root, 'safe'), '../private.txt')); await assert.rejects(safeFile(join(root, 'safe'), 'link/private.txt'));
+});
+for (const workflowId of ['parallel-map', 'parallel-fork']) test(`${workflowId} uses the assigned Studio run identity`, async t => {
+  const root = await mkdtemp(join(tmpdir(), 'af-studio-identity-'));
+  const app = await startStudio({ dataRoot: root, port: 0 });
+  t.after(async () => { await new Promise<void>(resolve => app.server.close(() => resolve())); await rm(root, { recursive: true, force: true }); });
+  const origin = `http://127.0.0.1:${app.port}`, form = new FormData();
+  form.set('manifest', JSON.stringify({ workflowId, title: workflowId, documents: [] }));
+  const created = await fetch(origin + '/api/runs', { method: 'POST', headers: { origin, 'idempotency-key': workflowId }, body: form });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { id } = await created.json() as any;
+  let detail: any;
+  for (let n = 0; n < 100; n++) {
+    detail = await (await fetch(origin + `/api/runs/${id}`)).json();
+    if (detail.completion) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(detail.meta.mainRunId, id);
+  assert.equal(detail.runs.find((r: any) => r.view.runId === id)?.view.snapshot.status, 'succeeded');
+  assert.ok(!detail.runs.some((r: any) => r.view.runId === 'example'));
 });

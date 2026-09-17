@@ -17,6 +17,7 @@ if (operation === 'catalogue') { console.log(JSON.stringify(await catalogue()));
 else if (operation === 'run' && root && id) {
   const manifest = JSON.parse(await readFile(join(root, 'input.json'), 'utf8')), runId = id;
   process.env['AGENTFLOW_STUDIO_RUN_ROOT'] = root;
+    process.env['AGENTFLOW_STUDIO_RUN_ID'] = runId;
   const key = manifest.workflowId;
   if (key === 'recruitment') await runRecruitment(root, runId, manifest.input);
   else if (['repair-example', 'parallel-map', 'parallel-fork'].includes(key)) {
