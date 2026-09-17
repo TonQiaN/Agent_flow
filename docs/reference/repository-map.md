@@ -19,7 +19,7 @@ Agent_flow/
 │   ├── packages/integrations/     # Docker、CONNECT 代理、三个 Harness 映射/parser、私有凭据存储/绑定、SQLite 状态存储、系统时钟
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
-│   └── tooling/                   # 依赖边界与测试发现工具
+│   └── tooling/                   # 依赖边界、测试分组；ci/ 保存诊断与汇总工具
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
@@ -34,7 +34,7 @@ Agent_flow/
 │   └── development/              # 与 product 相同的生命周期树
 ├── .github/
 │   ├── ISSUE_TEMPLATE/           # 功能、缺陷、研究、决策、维护五份完整表单与配置
-│   ├── workflows/check.yml       # Node 24/26 CI，含真实 Docker 用例
+│   ├── workflows/check.yml       # 质量、Node 24/26 单元、独立 Docker 集成与固定汇总检查
 │   └── PULL_REQUEST_TEMPLATE.md  # Issue、决策增量、验收与评审交接
 ├── docs/
 │   ├── README.md
