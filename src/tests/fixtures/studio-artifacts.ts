@@ -18,8 +18,8 @@ function pdf() {
   return result + `trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
 }
 /** Actual host Workflow plus immutable artifacts, only in an isolated test data root. */
-export async function seedArtifactRun(dataRoot: string) {
-  const id = 'run-code-' + randomUUID(), root = join(dataRoot, 'runs', id);
+export async function seedArtifactRun(dataRoot: string, id = 'run-code-' + randomUUID()) {
+  const root = join(dataRoot, 'runs', id);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const records = await SqliteRunRecordStore.open(join(root, 'records'));
   const contracts = new ContractRegistry(); contracts.register('data', true);

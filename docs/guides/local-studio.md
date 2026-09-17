@@ -104,3 +104,7 @@ npm run studio:test
 - 网络断开：页面显示连接错误；服务恢复后重新打开历史，已保存记录仍在。
 - Codex 不能联网：检查 VPN/DNS 是否把 `chatgpt.com`、`auth.openai.com` 解析到保留地址。受控代理只放行已允许的公网目的地，应修复 DNS 条件，不关闭隔离校验。
 - 本地文件丢失或损坏：从自己的备份恢复整个运行目录。页面不会伪造文件内容、旧时间或没采集的日志。
+
+## 页面截图回归
+
+改动页面后运行 `npm run studio:visual`，用与 CI 相同的固定 Linux Chromium 比较版本控制中的基准。失败报告包含新旧图和差异；只有查看并确认设计变化后，才运行 `npm run studio:visual -- --update-snapshots`。流程与产物路径见 [CI 使用与排查](../development/ci.md#浏览器与截图基准)。原有 `npm run studio:test` 继续执行真实服务的用户操作旅程。
