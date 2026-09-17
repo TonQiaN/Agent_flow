@@ -6,7 +6,7 @@ import { WorkflowRuntime, NodeWorker, snapshotJson } from '@agentflow/engine';
 import type { ArtifactStore, NodeTaskClaim, CredentialIdentity, QueueConfiguration } from '@agentflow/engine';
 import { SqliteRunRecordStore, PersistentNodeQueue, systemClock, FileCredentialStore, CodexSubscriptionCodec, ClaudeSubscriptionCodec, DeepSeekApiKeyCodec, createQueueCredentialAdmission, redactView } from '@agentflow/integrations';
 import { createRecruitmentFlow } from './flow.js';
-import { RecruitmentFixtureDriver, fixtureCredential } from './fixture-driver.js';
+import { RecruitmentFixtureDriver } from './fixture-driver.js';
 import { validateInput } from './contracts.js';
 import { selectGradingHarness, gradingHarness } from '../tutor-grading/selected-harness.js';
 
@@ -33,28 +33,28 @@ export async function runRecruitment(root: string, runId: string, input: unknown
   };
   try {
     const initial = await make();
-    const definitions = [initial.compiled.definition, ...initial.parallel.childWorkflows().map(c => c.definition)];
+    const definitions = [initial.compiled.definition];
     const credentials = new Map<string, { identity: CredentialIdentity; capacity: number | null }>();
     const configuration: QueueConfiguration = { roles: { coordinator: 1, compute: 2 }, credentials: [], workflows: Object.fromEntries(definitions.map(definition => [definition.id, Object.fromEntries(Object.entries(definition.nodes).map(([id, node]) => {
-      const resolved = initial.parallel.resolve(node.component), binding = resolved.executor.dispatchBinding?.(resolved.component);
+      const resolved = initial.files.resolve(node.component), binding = resolved.executor.dispatchBinding?.(resolved.component);
       if (binding) credentials.set(JSON.stringify(binding.credential), { identity: binding.credential, capacity: binding.capacity });
-      return [id, { role: id === 'unit' ? 'compute' : 'coordinator', capability: 'studio', ...(binding ? { credential: binding.credential, harness: binding.harness } : {}) }];
+      return [id, { role: ['match', 'audit'].includes(id) ? 'compute' : 'coordinator', capability: 'studio', ...(binding ? { credential: binding.credential, harness: binding.harness } : {}) }];
     }))])) };
     const queue = new PersistentNodeQueue(records, { ...configuration, credentials: [...credentials.values()] });
     await new WorkflowRuntime().preparePersisted(initial.compiled, runId, snapshotJson(input), queue.records());
     const host = { open: async (id: string, store: ReturnType<typeof queue.records>, claim: NodeTaskClaim) => {
       const app = await make(claim), row = await store.read(id); if (!row) throw new Error('RUN_MISSING');
       const raw = row.content as any, workflowId = (raw.checkpoint ?? raw).snapshot.workflowId;
-      const compiled = workflowId === app.compiled.definition.id ? app.compiled : app.parallel.childWorkflow(workflowId);
+      const compiled = workflowId === app.compiled.definition.id ? app.compiled : undefined;
       if (!compiled) throw new Error('WORKFLOW_MISSING');
       return { compiled, runtime: new WorkflowRuntime(), ...(app.admission ? { admission: app.admission } : {}) };
     } };
-    const workers = ['first', 'second', 'third'].map(id => new NodeWorker(queue, host, systemClock, id, ['studio'], 3000));
+    const workers = ['first', 'second', 'third'].map(id => new NodeWorker(queue, host, systemClock, id, ['studio']));
     let cancelled = false, previousQueue = '';
     for (;;) {
       const rows = await queue.query(), serialized = JSON.stringify(redactView(rows));
       if (serialized !== previousQueue) { await records.appendEvent(runId, { kind: 'queue', tasks: JSON.parse(serialized) }); previousQueue = serialized; }
-      if (fixture && input.scenario === 'cancel' && !cancelled && rows.some(r => r.children?.length)) { await queue.cancelReady(runId); cancelled = true; }
+      if (fixture && input.scenario === 'cancel' && !cancelled && rows.some(r => r.node === 'match' && r.state === 'ready')) { await queue.cancelReady(runId); cancelled = true; }
       const raw = (await queue.records().read(runId))!.content as any, snapshot = (raw.checkpoint ?? raw).snapshot;
       if (['succeeded', 'failed', 'cancelled', 'exhausted'].includes(snapshot.status)) { await writeFile(join(root, 'result.json'), JSON.stringify(redactView(snapshot)), { mode: 0o600 }); return snapshot; }
       const outcomes = await Promise.all(workers.map(w => w.runOnce()));

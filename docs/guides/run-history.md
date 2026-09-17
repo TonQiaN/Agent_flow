@@ -13,3 +13,5 @@ Codex/Claude/DeepSeek Runner 可传入受信 `events` 回调，保存每次尝�
 Codex 的可选 `persistSession: true` 保存本次隔离会话并归档 `sessions` 下的 JSONL，关闭长期记忆生成与使用。认证与 profile 文件不归档。此开关不恢复旧会话，也不承诺取得隐藏完整 CoT。未提供的摘要/压缩/记忆在消费端标明。默认未开启时保持原有临时会话行为。
 
 决策依据：[运行保存](../../.agents/decisions/product/README.md#p-20260909-run-persistence)、[Harness](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)。前端、接入清单与招聘工作流由 #39 的后续 stack 层提供。
+
+`revision(runId, revision)` 直接读取指定修订；`revisionAt(runId, recordedAt)` 读取该时刻之前最后保存的修订，同一时间按保存序号选择。未知的旧时间不参与时间查询，两种方法均只读并校验摘要。

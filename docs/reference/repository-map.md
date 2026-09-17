@@ -12,14 +12,14 @@ Agent_flow/
 ├── tsconfig*.json                 # 共享严格构建与独立测试检查
 ├── src/
 │   ├── apps/cli/                  # demo 与显式本地认证管理/登录命令
-│   ├── apps/studio/               # 本机 HTTP 展示/启动服务及受信镜像定义
+│   ├── apps/studio/               # React/TS 画布、本机 HTTP 服务及受信镜像定义
 │   ├── packages/domain/           # 业务类型与执行身份
 │   ├── apps/deepseek-tools/        # 容器内文件服务，使用镜像提供的 SDK
 │   ├── packages/engine/           # contracts、components、workflow、runner、harness/auth/persistence 接口；无环境依赖
 │   ├── packages/integrations/     # Docker、CONNECT 代理、三个 Harness 映射/parser、私有凭据存储/绑定、SQLite 状态存储、系统时钟
 │   ├── examples/                  # 合成示例入口
-│   ├── tests/                     # e2e 跨模块测试、fixtures 合成子进程
-│   └── tooling/                   # 依赖边界、测试分组；ci/ 保存诊断与汇总工具
+│   ├── tests/                     # e2e 跨模块、browser 用户旅程、fixtures 合成素材
+│   └── tooling/                   # 依赖边界、测试分组；ci/ 保存诊断、汇总与截图工具
 ├── .agents/decisions/
 │   ├── README.md
 │   ├── AGENTS.md                  # 决策目录的操作约束
@@ -34,7 +34,7 @@ Agent_flow/
 │   └── development/              # 与 product 相同的生命周期树
 ├── .github/
 │   ├── ISSUE_TEMPLATE/           # 功能、缺陷、研究、决策、维护五份完整表单与配置
-│   ├── workflows/check.yml       # 质量、Node 24/26 单元、独立 Docker 集成与固定汇总检查
+│   ├── workflows/check.yml       # 质量、Node 单元、Docker/工作流、浏览器与截图比较
 │   └── PULL_REQUEST_TEMPLATE.md  # Issue、决策增量、验收与评审交接
 ├── docs/
 │   ├── README.md
@@ -81,3 +81,5 @@ Agent_flow/
 `src/packages/engine/workflow/checkpoint.ts` 组合实际定义、流程状态和值保存端口；runtime.ts 的普通与持久入口共用执行循环。具体文件归档留在 integrations/workflow/files.ts，见[指南](../guides/workflow-checkpoints.md)。
 
 `src/examples/studio` 登记原有入口；`src/examples/recruitment` 保存招聘应用、离线材料解析和虚构素材。`integrations/observability` 保存查看记录与脱敏日志，不执行回放。
+
+`src/apps/studio/client` 是独立 DOM 编译环境；Vite 输出到忽略的 `public/`。`src/tests/browser` 的 Playwright 配置位于根目录，使用实际本机服务和合成招聘材料。`__screenshots__/visual/` 保存固定 Linux Chromium 的截图基准，维护与排查见 [CI 指南](../development/ci.md)。

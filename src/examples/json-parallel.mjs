@@ -1,3 +1,4 @@
+import {parallelDefinition} from './studio/parallel.mjs';
 import {randomUUID} from 'node:crypto';
 import {resolve} from 'node:path';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
@@ -31,7 +32,7 @@ try {
  const parallel=new ParallelWorkflowCatalog(contracts,source);
  const structure=kind==='map'?{component:'double',itemId:'id'}:{branches:{zeta:{component:'triple'},alpha:{component:'double'}}};
  parallel.register('batch',{kind,inputContract:kind==='map'?'items':'item',outputContract:'joined',outcome:'done',maxConcurrency:2,failurePolicy:'wait-all',...structure});
- const flow=compileWorkflow({id:'demo',start:'batch',maxSteps:1,input:{kind:'json',id:kind==='map'?'items':'item'},outcomes:{done:{kind:'json',id:'joined'}},nodes:{batch:{component:'batch'}},routes:[{from:'batch',outcome:'done',to:{end:'done'}}]},parallel);
+ const flow=compileWorkflow(parallelDefinition(kind),parallel);
  const configuration={roles:{coordinator:1,compute:2},credentials:[],workflows:{demo:{batch:{role:'coordinator',capability:'json'}},...Object.fromEntries(parallel.childWorkflows().map(child=>[child.definition.id,{unit:{role:'compute',capability:'json'}}]))}};
  const queue=new PersistentNodeQueue(records,configuration);
  const input=kind==='map'?[{id:'a',value:1},{id:'b',value:2},{id:'c',value:3}]:{id:'request',value:7};

@@ -9,12 +9,13 @@
 | 位置 | 当前职责 |
 | --- | --- |
 | `src/apps/cli/` | 可启动的命令行入口，组合包的公开接口 |
-| `src/apps/studio/` | 本机 HTTP 服务；通过固定 examples 子进程组合入口启动 Workflow |
+| `src/apps/studio/` | React/TypeScript 前端与本机 HTTP 服务；通过固定 examples 子进程入口启动 Workflow |
 | `src/packages/domain/` | 共同业务类型、执行身份，保持与运行环境无关 |
 | `src/packages/engine/` | 执行引擎、契约与所需接口 |
 | `src/packages/integrations/` | 文件、进程、容器等具体环境适配 |
 | 模块旁的 `*.test.ts` / `*.test.mjs` | 对应模块的单元测试 |
 | `src/tests/e2e/` | 跨模块、CLI 与运行环境集成测试 |
+| `src/tests/browser/` | Playwright 浏览器用户旅程，连接真实本机服务 |
 | `src/tests/fixtures/` | 合成子进程等测试素材 |
 | `src/examples/` | 示例入口 |
 | `src/tooling/` | 依赖边界检查与测试发现工具 |
@@ -37,12 +38,18 @@
 | `npm run check:boundaries` | 检查包导入方向、公共入口及环境依赖 |
 | `npm run typecheck:tests` | 独立检查测试的 TypeScript 类型 |
 | `npm test` | 构建、测试类型检查与 Node 测试 |
+| `npm run check` | 当前基础检查入口，包含依赖边界、浏览器源码/测试类型检查及上述测试 |
+| `npm run studio:build` | 构建服务和 Vite 前端 |
+| `npm run studio:typecheck` | 先构建依赖声明，再检查 DOM 前端和 Playwright 测试类型 |
+| `npm run studio:visual` | 固定 Linux/Chromium 环境下的截图基准比较 |
+| `npm run studio:test` | 构建后运行真实本机服务的 Chromium 用户旅程 |
 | `npm run check:quality` | 依赖边界、构建与测试类型检查，不启动测试 |
 | `npm run test:unit` | 仅单元测试，先执行 build |
 | `npm run test:integration` | 串行集成测试，先执行 build |
-| `npm run check` | 当前基础检查入口，包含依赖边界及上述测试 |
 | `npm run demo` | 构建并运行当前 CLI 示例，预期结果见使用指南 |
 
 普通 `npm run check` 会明确跳过需要 Docker 的用例；容器测试的前置条件和 `AGENTFLOW_DOCKER_TESTS=1` 用法见 [Runner 使用指南](../guides/runner.md)。`.github/workflows/check.yml` 分开运行快速质量检查、Node 24/26 单元测试和 Node 24 Docker 集成测试。Docker 任务独占 runner，显式准备镜像，组内文件串行。PR 不限制 base 分支，支持 stacked PR；push 只触发 main，保留手动入口。固定检查 `CI required` 要求本层所有任务成功。详见 [CI 使用与排查](ci.md)。配置存在不等于当前提交的远端检查已通过，验证与 PR 交接按 [开发工作指南](workflow.md) 记录。依赖检查是静态工程约束，不能代替执行隔离。
 
 源码目录、包职责、依赖或命令变化时，同步本指南、根 AGENTS.md 的布局、[完整结构图](../reference/repository-map.md) 和相关使用说明。构建输出、运行数据与秘密不进入提交。
+
+#39 增加 `AGENTFLOW_STUDIO_TESTS=1` 的断网材料与招聘矩阵，以及独立 Chromium CI；命令与镜像见[本机工作台指南](../guides/local-studio.md)。依赖扫描覆盖 TSX/JSX，排除明确生成的 studio/public。
