@@ -10,6 +10,9 @@
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test": "npm run build && npm run typecheck:tests && node src/tooling/run-tests.mjs",
     "check": "npm run check:boundaries && npm test",
+    "check:quality": "npm run check:boundaries && npm run build && npm run typecheck:tests",
+    "test:unit": "node src/tooling/run-tests.mjs --group unit",
+    "test:integration": "node src/tooling/run-tests.mjs --group integration",
     "demo": "npm run build && node src/apps/cli/dist/index.js demo"
   },
   "devDependencies": {

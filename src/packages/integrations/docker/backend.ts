@@ -1,3 +1,4 @@
+import type { DockerLogObserver } from './process.js';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join } from 'node:path';
@@ -73,7 +74,7 @@ export class DockerBackend implements ExecutionBackend {
   readonly #input: RunnerInputMaterializer | undefined;
   readonly #stateEnv: Readonly<Record<string, string>>;
 
-  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction, input?: RunnerInputMaterializer) {
+  constructor(options: DockerOptions, binding?: PrivateStateBinding, interaction?: DockerInteraction, input?: RunnerInputMaterializer, private readonly logObserver?: DockerLogObserver) {
     const defaults = { network: 'none' as const, sandbox: 'standard' as const, cpus: 1, memoryMiB: 512, pidsLimit: 128,
       uid: getuid?.() ?? 1000, gid: getgid?.() ?? 1000, logBytes: 1024 * 1024, maxInputBytes: 256 * 1024 ** 2, systemConfigMounts: [] as readonly SystemConfigMount[] };
     const config = { ...defaults, ...options };
@@ -276,7 +277,7 @@ export class DockerBackend implements ExecutionBackend {
     const existing = await this.#inspect(resource);
     if (!existing || existing.state.Status !== 'created' || owned.attached) throw new Error('INVALID_START_STATE');
     await owned.egress?.assertRunning();
-    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes, this.#interaction);
+    owned.attached = attach(owned.name, join(owned.directory, 'raw', 'stdout.bin'), join(owned.directory, 'raw', 'stderr.bin'), this.#options.logBytes, this.#interaction, this.logObserver);
   }
 
   async observe(resource: ExecutionResource): Promise<Observation> {

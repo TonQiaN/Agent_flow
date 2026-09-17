@@ -1,13 +1,45 @@
 name: Check
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
+env:
+  AGENTFLOW_CI_ARTIFACTS: .local/ci
+  CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
 jobs:
-  check:
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node src/tooling/ci/stage.mjs install -- npm ci
+      - run: node src/tooling/ci/stage.mjs quality -- npm run check:quality
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-quality
+          path: .local/ci/
+          include-hidden-files: true
+          retention-days: 14
+  unit:
+    name: Unit / Node ${{ matrix.node }}
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         node: [24, 26]
     steps:
@@ -16,11 +48,56 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - run: npm ci
-      - name: Prepare Docker test images
-        run: |
-          docker pull alpine:3
-          docker pull node:22-bookworm-slim
-      - run: npm run check
+      - run: node src/tooling/ci/stage.mjs install -- npm ci
+      - run: node src/tooling/ci/stage.mjs build -- npm run build
+      - run: node src/tooling/ci/stage.mjs unit -- npm run test:unit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-unit-${{ matrix.node }}
+          path: .local/ci/
+          include-hidden-files: true
+          retention-days: 14
+  integration:
+    name: Docker integration
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AGENTFLOW_DOCKER_TESTS: '1'
+      AGENTFLOW_CI_DOCKER: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node src/tooling/ci/stage.mjs install -- npm ci
+      - run: node src/tooling/ci/stage.mjs pull-alpine -- docker pull alpine:3
+      - run: node src/tooling/ci/stage.mjs pull-node -- docker pull node:22-bookworm-slim
+      - run: node src/tooling/ci/stage.mjs build -- npm run build
+      - run: node src/tooling/ci/stage.mjs integration -- npm run test:integration
+      - name: Final container state
+        if: always()
+        run: node src/tooling/ci/docker-state.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-integration
+          path: .local/ci/
+          include-hidden-files: true
+          retention-days: 14
+  required:
+    name: CI required
+    if: always()
+    needs: [quality, unit, integration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node src/tooling/ci/gate.mjs quality unit integration
         env:
-          AGENTFLOW_DOCKER_TESTS: '1'
+          CI_NEEDS: ${{ toJSON(needs) }}
