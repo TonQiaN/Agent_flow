@@ -87,10 +87,39 @@ jobs:
           path: .local/ci/
           include-hidden-files: true
           retention-days: 14
+  workflows:
+    name: Workflow acceptance
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AGENTFLOW_DOCKER_TESTS: '1'
+      AGENTFLOW_STUDIO_TESTS: '1'
+      AGENTFLOW_CI_DOCKER: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: node src/tooling/ci/stage.mjs install -- npm ci
+      - run: node src/tooling/ci/stage.mjs documents-image -- docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
+      - run: node src/tooling/ci/stage.mjs build -- npm run build
+      - run: node src/tooling/ci/stage.mjs workflows -- npm run test:workflows
+      - name: Final container state
+        if: always()
+        run: node src/tooling/ci/docker-state.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-${{ github.run_id }}-attempt-${{ github.run_attempt }}-workflows
+          path: .local/ci/
+          include-hidden-files: true
+          retention-days: 14
   required:
     name: CI required
     if: always()
-    needs: [quality, unit, integration]
+    needs: [quality, unit, integration, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -98,6 +127,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node src/tooling/ci/gate.mjs quality unit integration
+      - run: node src/tooling/ci/gate.mjs quality unit integration workflows
         env:
           CI_NEEDS: ${{ toJSON(needs) }}

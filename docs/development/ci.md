@@ -10,6 +10,8 @@
 | Unit / Node 24、26 | 无 Docker，各版本独立执行 | `npm run build && npm run test:unit` |
 | Docker integration | Node 24，真实 Docker；组内文件串行 | `npm run build && AGENTFLOW_DOCKER_TESTS=1 npm run test:integration` |
 
+本层另运行 `Workflow acceptance`：`npm run build && AGENTFLOW_STUDIO_TESTS=1 AGENTFLOW_DOCKER_TESTS=1 npm run test:workflows`，须先构建 `src/apps/studio/docker/Dockerfile.documents` 为 `agentflow/studio-documents:issue39`。该组验证材料解析、招聘真实流程与归档，不使用真实模型密钥。
+
 显式准备 Alpine 3 和 Node 22 Bookworm slim。原生 Harness、网络策略及真实模型仍使用各自显式环境；此次没有扩大原来的跳过范围，也没有把这些项目列为通过。上层功能 PR 添加工作流及浏览器任务时，必须同时加入 `needs` 和 gate 的预期任务列表。
 
 ## 看懂一次失败

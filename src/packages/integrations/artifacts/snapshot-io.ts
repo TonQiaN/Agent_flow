@@ -53,6 +53,7 @@ function media(path: string, prefix: Buffer): string {
   if (prefix.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) return 'image/jpeg';
   if (path.toLowerCase().endsWith('.txt')) return 'text/plain';
   if (path.toLowerCase().endsWith('.md')) return 'text/markdown';
+  if (path.toLowerCase().endsWith('.html')) return 'text/html';
   return 'application/octet-stream';
 }
 
