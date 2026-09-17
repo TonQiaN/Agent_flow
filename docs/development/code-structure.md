@@ -46,9 +46,10 @@
 | `npm run check:quality` | 依赖边界、构建与测试类型检查，不启动测试 |
 | `npm run test:unit` | 仅单元测试，先执行 build |
 | `npm run test:integration` | 串行集成测试，先执行 build |
+| `npm run test:workflows` | 工作流验收，先执行 build 并准备文档镜像及环境开关 |
 | `npm run demo` | 构建并运行当前 CLI 示例，预期结果见使用指南 |
 
-普通 `npm run check` 会明确跳过需要 Docker 的用例；容器测试的前置条件和 `AGENTFLOW_DOCKER_TESTS=1` 用法见 [Runner 使用指南](../guides/runner.md)。`.github/workflows/check.yml` 分开运行快速质量检查、Node 24/26 单元测试和 Node 24 Docker 集成测试。Docker 任务独占 runner，显式准备镜像，组内文件串行。PR 不限制 base 分支，支持 stacked PR；push 只触发 main，保留手动入口。固定检查 `CI required` 要求本层所有任务成功。详见 [CI 使用与排查](ci.md)。配置存在不等于当前提交的远端检查已通过，验证与 PR 交接按 [开发工作指南](workflow.md) 记录。依赖检查是静态工程约束，不能代替执行隔离。
+日常修改优先在本地运行受影响检查；普通 `npm run check` 会明确跳过需要 Docker 等显式环境的用例，也不覆盖两个 Node 版本及全部浏览器检查。容器测试的前置条件和 `AGENTFLOW_DOCKER_TESTS=1` 用法见 [Runner 使用指南](../guides/runner.md)。`.github/workflows/check.yml` 分开运行快速质量检查、Node 24/26 单元测试、Node 24 Docker 集成、工作流验收、浏览器旅程及截图比较。Docker 任务独占 runner，显式准备镜像，组内文件串行。云端由不限制 base 分支的 PR 和手动入口触发，支持 stacked PR；push（包括 main）不单独触发，已有 PR 的代码更新仍跑完整检查。固定检查 `CI required` 要求本层所有任务成功。完整本地 Linux 验证的顺序、命令与证据边界见 [CI 使用与排查](ci.md)。本地结果不能代替远端必需检查，验证与 PR 交接按 [开发工作指南](workflow.md) 记录。依赖检查是静态工程约束，不能代替执行隔离。
 
 源码目录、包职责、依赖或命令变化时，同步本指南、根 AGENTS.md 的布局、[完整结构图](../reference/repository-map.md) 和相关使用说明。构建输出、运行数据与秘密不进入提交。
 

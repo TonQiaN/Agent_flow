@@ -114,7 +114,7 @@
 
 - 前端 CI 增加固定 Linux/Chromium 的截图基准比较，覆盖画布、节点、时间、结果、分组文件与窄窗口；失败保存基准、实际图、差异和 trace，普通 CI 不能自动更新基准。浏览器旅程与工作流验收独立运行，并纳入固定合并检查。
 
-- CI 分为快速质量、Node 24/26 单元和独立 Docker 集成任务，固定 `CI required` 汇总；所有 PR base 受检，push 仅检查 main，避免功能分支重复运行。阶段日志、JUnit、逐测试事件、容器状态及恢复子进程证据按运行与重试次数分别保存。
+- 开发期优先本地验证，完整云端 CI 仅由所有 base 的 PR 和手动入口触发，取消 main 合并后的全量重跑；PR 创建、重开及代码更新仍保留全部检查与 `CI required` 门槛。本地基础检查与完整 Linux/Docker、Node 24/26 验证的命令和证据边界见 [CI 指南](docs/development/ci.md)及 [Issue #48](https://github.com/TonQiaN/Agent_flow/issues/48)。快速质量、单元、Docker 集成、工作流、浏览器与截图任务继续分组执行；阶段日志、JUnit、逐测试事件、容器状态及恢复子进程证据按运行与重试次数分别保存。
 
 #### 新增
 
