@@ -1,6 +1,6 @@
 # 开发工作指南
 
-当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置 Node 24/26 基础 CI，自动预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
+当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置分组 CI 和固定汇总检查，自动业务预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
 
 ## 建立和整理 Issue
 
@@ -59,6 +59,8 @@ PR 当前交接集中维护最新 head/base、实际审阅和验证入口；新�
 父子关系描述具体工作的归属，依赖描述阻塞，PR 引用描述本次交付，stacked PR 的 base 表达代码依赖；这些关系各自核对，不以一种代替另一种。主 Issue、子项、Assignees 与 PR 的关联演练见 Issue 指南。
 
 PR 引用本次覆盖的主 Issue 和实际存在的 Sub-issue。一个子项可以由多个 PR 交付；没有独立拆分价值时，无须为了 PR 创建子项。部分交付使用 `Refs #编号`，仅当某个工作项的完整验收已满足且最终 PR 面向默认分支时使用关闭关键字。[GitHub PR 关联说明](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)，2026-09-10 核对。
+
+CI 使用固定名称 `CI required` 汇总本层质量和测试任务，失败、取消、跳过或缺失都不放行。main 设置为要求该 GitHub Actions 检查且分支与 base 保持最新；实际保护写入及读回结果留在当前 PR，配置文件不能代替平台状态。旧分支需同步获得该检查，不能绕过。CI 不替代整体验收或合并授权。诊断与重跑方式见 [CI 使用与排查](ci.md)。
 
 合并前检查非 Draft、目标分支、冲突、阻塞反馈、实际要求的审阅及仓库已配置的必需检查。同步 base 或修改内容后重新核对受影响部分；不借用此前版本的通过结果。合并后确认进入默认分支的实际成果，子项按承担的工作核对，主 Issue 另验整体需求。子项全部关闭或一项 PR 合并都不能代替整体验收；取消与未实现如实区分。
 
