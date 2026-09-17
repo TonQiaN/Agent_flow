@@ -46,7 +46,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Verify the user journey against the real local service
         run: npm run studio:test
-      - name: Keep canvas screenshots and browser report
+      - name: Keep task details, canvas screenshots and browser report
         if: always()
         uses: actions/upload-artifact@v4
         with:

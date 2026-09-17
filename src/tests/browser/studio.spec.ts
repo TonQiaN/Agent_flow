@@ -111,6 +111,51 @@ async function settled(page: Page, id: string | undefined, status: string) {
   );
 }
 
+test("node tasks expose full prompts, commands and containers without launching a run", async ({ page, context }) => {
+  const before = await (await page.request.get('/api/runs')).json();
+  const catalogue = await (await page.request.get('/api/workflows')).json();
+  const recruitment = catalogue.workflows.find((w: any) => w.id === 'recruitment');
+  await page.goto('/#/workflows/recruitment');
+  await (await panToNode(page, 'parse')).click();
+  const inspector = page.locator('.inspector');
+  await expect(inspector).toContainText('当前流程定义');
+  await expect(inspector.locator('.task-command')).toHaveText('python3 /opt/agentflow/documents.py');
+  await expect(inspector).toContainText('扫描件使用 OCR');
+  await expect(inspector).toContainText('输入要求');
+  await expect(inspector).toContainText('输出要求');
+  await inspector.getByRole('button', { name: '设置', exact: true }).click();
+  expect(await inspector.evaluate(el => el.scrollTop)).toBe(0);
+  await expect(inspector.locator('.container-card')).toContainText('1024 MiB');
+  await expect(inspector.locator('.container-card')).toContainText('none');
+  await expect(inspector).not.toContainText('这个节点未记录容器配置');
+  await test.info().attach('node-script-container', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.getByRole('button', { name: '关闭详情', exact: true }).click();
+  await (await panToNode(page, 'match')).click();
+  await expect(inspector.locator('.task-prompt')).toHaveText(recruitment.tasks.match.prompt);
+  await inspector.getByRole('button', { name: '展开全文', exact: true }).click();
+  await expect(inspector.getByRole('button', { name: '收起全文', exact: true })).toBeVisible();
+  await inspector.getByRole('button', { name: '收起全文', exact: true }).click();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await inspector.getByRole('button', { name: '复制Prompt', exact: true }).click();
+  await expect(inspector.getByRole('button', { name: '已复制', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(recruitment.tasks.match.prompt);
+  await test.info().attach('node-full-prompt', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.getByRole('button', { name: '关闭详情', exact: true }).click();
+  await (await panToNode(page, 'audit')).click();
+  await expect(inspector.locator('.task-prompt')).toHaveText(recruitment.tasks.audit.prompt);
+  await page.getByRole('button', { name: '关闭详情', exact: true }).click();
+  await (await panToNode(page, 'render')).click();
+  await expect(inspector.locator('.task-command')).toHaveText('python3 /opt/agentflow/documents.py render');
+  await page.setViewportSize({ width: 731, height: 911 });
+  await expect(inspector).toBeVisible();
+  const rect = (await inspector.boundingBox())!;
+  expect(rect.x).toBeGreaterThanOrEqual(0);
+  expect(rect.x + rect.width).toBeLessThanOrEqual(731);
+  expect(await inspector.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const after = await (await page.request.get('/api/runs')).json();
+  expect(after.runs.map((run: any) => run.id)).toEqual(before.runs.map((run: any) => run.id));
+});
+
 test("workflow catalogue separates business flows from examples and opens a readable node canvas", async ({
   page,
 }) => {
@@ -358,6 +403,27 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   ).toBeVisible();
   await (await panToNode(page, "match")).click();
   await expect(page.locator(".node-children > button")).toHaveCount(0);
+  await expect(page.locator('.inspector')).toContainText('本次运行已保存');
+  const savedDetail = await (await page.request.get('/api/runs/' + id)).json();
+  const saved = savedDetail.runs.find((r: any) => r.view.snapshot.workflowId === 'recruitment');
+  await expect(page.locator('.task-prompt')).toHaveText(saved.view.execution.bindings.match.execution.prompt);
+  // Deliberately make the saved task different from today's definition. The
+  // page must display that saved task, including an honest missing-data state.
+  const old = structuredClone(savedDetail);
+  old.runs.find((r: any) => r.view.snapshot.workflowId === 'recruitment').view.execution.bindings.match.execution.prompt = '这次运行当时保存的旧版任务说明。';
+  const runEndpoint = '**/api/runs/' + id;
+  await page.route(runEndpoint, route => route.fulfill({ json: old }));
+  await page.reload();
+  await (await panToNode(page, 'match')).click();
+  await expect(page.locator('.task-prompt')).toHaveText('这次运行当时保存的旧版任务说明。');
+  delete old.runs.find((r: any) => r.view.snapshot.workflowId === 'recruitment').view.execution.bindings.match;
+  await page.reload();
+  await (await panToNode(page, 'match')).click();
+  await expect(page.locator('.task-prompt')).toHaveCount(0);
+  await expect(page.locator('.inspector')).toContainText('这份记录未提供 Prompt 或执行命令');
+  await page.unroute(runEndpoint);
+  await page.reload();
+  await (await panToNode(page, 'match')).click();
   await page
     .locator(".inspector")
     .getByRole("button", { name: "输入", exact: true })
@@ -524,7 +590,8 @@ test("upload, canvas, evidence reports, PDF, historical replay, missing files an
   await page.getByRole("button", { name: "关闭详情", exact: true }).click();
   // A missing immutable archive must remain visible as missing, not silently vanish.
   const archiveRoot = resolve(
-    ".local/studio-browser-tests/runs",
+    process.env['AGENTFLOW_BROWSER_DATA'] ?? '.local/studio-browser-tests',
+    'runs',
     id!,
     "tasks/archive",
   );

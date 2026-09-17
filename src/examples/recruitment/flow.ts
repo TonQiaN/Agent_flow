@@ -70,6 +70,11 @@ const component = (
   inputContract: "state",
   outcomes: Object.fromEntries(outcomes.map((o) => [o, "state"])),
 });
+export const recruitmentScripts = {
+  parse: { argv: ["python3", "/opt/agentflow/documents.py"], timeoutMs: 600000 },
+  render: { argv: ["python3", "/opt/agentflow/documents.py", "render"], timeoutMs: 120000 },
+};
+export const recruitmentScriptResources = { network: "none" as const, cpus: 1, memoryMiB: 1024 };
 export async function createRecruitmentFlow(
   root: string,
   documentsRoot: string,
@@ -96,9 +101,7 @@ export async function createRecruitmentFlow(
       new DockerBackend({
         workspaceRoot: join(root, "scripts"),
         image,
-        network: "none",
-        cpus: 1,
-        memoryMiB: 1024,
+        ...recruitmentScriptResources,
       }),
       systemClock,
       new FileScriptRecordReader(),
@@ -106,7 +109,7 @@ export async function createRecruitmentFlow(
   files.registerScript(
     component("parse", "transform"),
     script,
-    { argv: ["python3", "/opt/agentflow/documents.py"], timeoutMs: 600000 },
+    recruitmentScripts.parse,
     {
       revision: "documents-v1",
       input: (input) => {
@@ -178,10 +181,7 @@ export async function createRecruitmentFlow(
   files.registerScript(
     component("render", "transform"),
     script,
-    {
-      argv: ["python3", "/opt/agentflow/documents.py", "render"],
-      timeoutMs: 120000,
-    },
+    recruitmentScripts.render,
     {
       revision: "report-v2",
       input: (input) => {

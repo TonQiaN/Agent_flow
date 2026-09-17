@@ -261,8 +261,7 @@ export function WorkflowPage({
             </a>
           )}
           <WorkflowCanvas
-            definition={workflow.definition}
-            title={workflow.id}
+            workflow={workflow}
           />
         </>
       )}

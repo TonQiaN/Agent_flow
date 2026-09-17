@@ -725,7 +725,7 @@ summary {
   right: 12px;
   top: 12px;
   bottom: 12px;
-  width: 350px;
+  width: 400px;
   max-height: none;
   padding: 20px;
   background: white;
@@ -764,6 +764,23 @@ summary {
   color: #3869d5;
   border-color: #5c82db;
 }
+.task-source { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 12px 0 16px; color: #8491a4; font-size: 11px; }
+.task-source b { background: #edf2ff; padding: 4px 8px; border-radius: 5px; color: #3565df; font-weight: 500; }
+.node-task h4 { font-size: 13px; margin: 16px 0 10px; }
+.task-summary, .task-requirements p { font-size: 13px; line-height: 1.75; color: #46566c; }
+.task-instruction .row { align-items: center; gap: 8px; }
+.task-instruction .row h4 { margin: 12px 0; }
+.task-instruction button { font-size: 11px; white-space: nowrap; }
+.task-prompt, .task-command { margin: 0 0 12px; padding: 14px; border: 1px solid #e5eaf2; border-radius: 7px; background: #f8faff; color: #35465d; font-size: 13px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
+.task-prompt { font-family: inherit; }
+.task-timeout, .task-code-source { font-size: 11px; line-height: 1.6; color: #8090a4; overflow-wrap: anywhere; }
+.task-requirements { border-top: 1px solid #e9edf4; margin-top: 18px; padding-top: 2px; }
+.contract-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.contract-tags code { font-size: 11px; background: #f1f4f8; border-radius: 4px; padding: 3px 6px; color: #6b7b92; }
+.inspector .container-card dl { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 12px 8px; align-items: start; }
+.inspector .container-card dt, .inspector .container-card dd { margin: 0; }
+.inspector .container-card dt { padding-top: 2px; }
+.inspector .container-card dd { overflow-wrap: anywhere; }
 .run-workspace .workspace-header {
   min-height: 90px;
 }

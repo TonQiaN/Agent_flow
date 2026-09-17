@@ -2,6 +2,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { catalogue } from './catalog.js';
+import { gradingInstructions, persistentScriptResources } from './task-notes.js';
 import { runRecruitment } from '../recruitment/run.js';
 import { createGradingFixture } from '../tutor-grading/fixture.js';
 import {
@@ -89,7 +90,7 @@ if (operation === 'catalogue') {
           work = join(root, 'work');
         await mkdir(work, { mode: 0o700 });
         if (key === 'grading-real' || key === 'grading-persistent') {
-          const instructions = `Read source/paper.json, source/key.json and source/submission.json. Grade each question by ID. Copy source unchanged into outputs/source. Write outputs/candidate.json exactly as {paperId,studentId,revision,answers:[{questionId,score,evidence:{page,answer}}],total,maxTotal}. Use per-question maxScore for a correct answer, zero otherwise. Every question must occur once. Read gate-report.json when provided, fix all issues and increment revision. Do not write any other files. Do not invent a host gate decision.`;
+          const instructions = gradingInstructions;
           const agents = [
             {
               component: gradingComponent(
@@ -140,8 +141,7 @@ if (operation === 'catalogue') {
                   scripts: new ScriptExecutor(
                     new DockerBackend({
                       workspaceRoot: join(work, 'scripts'),
-                      image: 'node:22-bookworm-slim',
-                      network: 'none',
+                      ...persistentScriptResources,
                     }),
                     systemClock,
                     new FileScriptRecordReader(),
