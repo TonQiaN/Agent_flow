@@ -20,6 +20,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { statusNames, terminal, type RunView } from './api';
+import type { RunTimeline } from './api';
+import { attemptTiming, attemptDuration, timestamp } from './presentation';
+import type { AttemptTiming } from './api';
 import {
   graphLayout,
   nameOf,
@@ -97,6 +100,9 @@ function TaskNode({ data, selected }: NodeProps) {
               : status === 'rejected'
                 ? '校验未通过'
                 : status)}
+          {!!data.timing && <span className="node-duration" title={`${timestamp((data.timing as any).startedAt)} → ${timestamp((data.timing as any).finishedAt)}`}>
+            {attemptDuration(data.timing as AttemptTiming, data.recordedAt as number | null)}
+          </span>}
         </div>
       )}
     </div>
@@ -170,12 +176,14 @@ export function Graph({
   selection,
   onSelect,
   storageKey,
+  timeline,
 }: {
   definition: any;
   view?: RunView;
   selection: Selection;
   onSelect: (s: Selection) => void;
   storageKey: string;
+  timeline?: RunTimeline;
 }) {
   const initial = useMemo(() => graphLayout(definition), [definition]);
   const layoutKey = 'layout:v4:' + storageKey + ':' + Object.keys(definition.nodes).join(',');
@@ -266,6 +274,8 @@ export function Graph({
             kind,
             parallel,
             status,
+            timing: !end ? attemptTiming(timeline?.attempts, currentNode && view?.snapshot.currentIdentity ? view.snapshot.currentIdentity : latest?.result.identity) : undefined,
+            recordedAt: timeline?.updatedAt,
             count: completed.length,
             index,
           },
@@ -273,7 +283,7 @@ export function Graph({
       }),
     );
     initialized.current = layoutKey;
-  }, [initial, layoutKey, view?.snapshot, selection]);
+  }, [initial, layoutKey, view?.snapshot, selection, timeline]);
   const edges: Edge[] = useMemo(
     () =>
       definition.routes.map((r: any, i: number) => {

@@ -16,6 +16,8 @@ import {
 } from '@agentflow/integrations';
 import { configuration, environment, prerequisites } from './config.js';
 import { prepareUpload } from './upload.js';
+import { projectTimeline } from './timing.js';
+import type { RunRevision, RunEvent } from '@agentflow/integrations';
 import {
   identifier,
   summaries,
@@ -360,7 +362,9 @@ export async function startStudio(
             'Content-Disposition',
             `${inline ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(file.name.split('/').at(-1)!)}`,
           );
-          response.end(bytes);
+          const preview = url.searchParams.get('preview') === '1';
+          if (preview) response.setHeader('X-Preview-Truncated', bytes.length > 256 * 1024 ? '1' : '0');
+          response.end(preview ? bytes.subarray(0, 256 * 1024) : bytes);
           return;
         }
         const store = await openRecords(root);
@@ -371,6 +375,34 @@ export async function startStudio(
               all.find((r) => !r.view.runId.startsWith('parallel-')) ??
               all[0];
           if (!selected) return json(response, 200, { entries: [] });
+          if (action === 'timing') {
+            const at = url.searchParams.has('at') ? Number(url.searchParams.get('at')) : undefined;
+            const revision = url.searchParams.has('revision') ? Number(url.searchParams.get('revision')) : undefined;
+            if (at !== undefined && (!Number.isSafeInteger(at) || at < 0)) throw new Error('回放时间无效');
+            if (revision !== undefined && (!Number.isSafeInteger(revision) || revision < 1)) throw new Error('修订无效');
+            const rows: RunRevision[] = [], events: RunEvent[] = [];
+            let after = 0;
+            for (;;) {
+              const page = await store.history(selected.key, after, 100);
+              for (const row of page) {
+                if (revision !== undefined && row.revision > revision) continue;
+                const raw = row.content as any, value = raw?.checkpoint ?? raw, s = value?.snapshot;
+                if (s) rows.push({ ...row, content: { snapshot: { runId: s.runId, currentNode: s.currentNode, currentIdentity: s.currentIdentity, status: s.status,
+                  steps: s.steps.map((step: any) => ({ node: step.node, result: { identity: step.result.identity } })) },
+                  attempts: (value.attempts ?? []).map((a: any) => ({ node: a.node, identity: a.identity, resultStep: a.resultStep, retry: !!a.retry, interrupted: a.interrupted })) } });
+              }
+              if (page.length < 100) break;
+              after = page.at(-1)!.sequence;
+            }
+            after = 0;
+            for (;;) {
+              const page = await store.events(selected.view.runId, after, 500);
+              events.push(...page.filter(row => (row.content as any).kind === 'execution' && (revision === undefined || at !== undefined)));
+              if (page.length < 500) break;
+              after = page.at(-1)!.sequence;
+            }
+            return json(response, 200, projectTimeline(rows, events, at));
+          }
           const after = Number(url.searchParams.get('after') ?? 0);
           if (!Number.isSafeInteger(after) || after < 0)
             throw new Error('无效的记录位置');
