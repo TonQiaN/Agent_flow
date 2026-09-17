@@ -16,7 +16,7 @@ import { fixtureContext } from '../tutor-report/fixture-driver.js';
 import { createRepairExample } from './repair.mjs';
 import { compileWorkflow, inspectWorkflowExecution } from '@agentflow/engine';
 import type { AgentExecutionDriver, ArtifactStore, WorkflowDisplayDefinition } from '@agentflow/engine';
-import { SqliteRunRecordStore } from '@agentflow/integrations';
+import { SqliteRunRecordStore, projectExecution } from '@agentflow/integrations';
 import { taskNotes, gradingInstructions } from './task-notes.js';
 import type { TaskNote } from './task-notes.js';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
@@ -201,7 +201,7 @@ export async function catalogue(): Promise<CatalogueItem[]> {
     return base.map((item) => ({
       ...item,
       tasks: taskNotes(item.id),
-      ...(execution[item.id] ? { execution: displayPaths(execution[item.id], root) } : {}),
+      ...(execution[item.id] ? { execution: displayPaths(projectExecution(execution[item.id]), root) } : {}),
       category: [
         'repair-example',
         'parallel-map',

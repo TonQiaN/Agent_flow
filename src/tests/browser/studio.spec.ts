@@ -709,6 +709,13 @@ for (const scenario of ["rework", "retry", "failure", "cancel", "exhausted"])
         await expect(page.locator(".inspector")).not.toContainText(
           '"page": 99',
         );
+        const history = await (await page.request.get(`/api/runs/${id}/history?run=${main.runId}`)).json();
+        const early = history.entries.findIndex((r: any) => r.snapshot.steps.length === 2);
+        expect(early).toBeGreaterThanOrEqual(0);
+        await page.getByRole('slider', { name: '回放进度' }).fill(String(early));
+        await expect(page.locator('.inspector')).toContainText('"page": 99');
+        await page.getByRole('button', { name: '回到当前', exact: true }).click();
+        await expect(page.locator('.inspector')).not.toContainText('"page": 99');
       }
       if (scenario === "retry")
         expect(

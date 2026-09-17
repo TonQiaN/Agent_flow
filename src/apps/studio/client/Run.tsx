@@ -146,6 +146,11 @@ function Inspector({
         : -1,
     );
   }, [selection?.id, selection?.kind, selection?.nodeTaskId, view?.runId]);
+  useEffect(() => {
+    if (selection?.kind !== 'node') return;
+    const count = view?.snapshot.steps.filter(s => s.node === selection.id).length ?? 0;
+    setAttempt(value => value >= count ? -1 : value);
+  }, [view?.revision, view?.runId, selection?.id, selection?.kind]);
   if (!selection) return null;
   // A historical view must never fall back to today's catalogue metadata.
   const execution = view ? view.execution : workflow?.execution;
@@ -495,6 +500,7 @@ export function RunPage({
   }, [tab]);
   const [events, setEvents] = useState<any[]>([]),
     [nextEvents, setNextEvents] = useState<number | null>(null),
+    [loadingEvents, setLoadingEvents] = useState(false),
     [history, setHistory] = useState<any[]>([]),
     [replay, setReplay] = useState<RunView>(),
     [position, setPosition] = useState(-1),
@@ -504,6 +510,8 @@ export function RunPage({
   const [timeline, setTimeline] = useState<RunTimeline>(), [replayTimeline, setReplayTimeline] = useState<RunTimeline>();
   const [cutoff, setCutoff] = useState<number | null>(),
     [seeking, setSeeking] = useState(false);
+  const [cutoffSequence, setCutoffSequence] = useState<number>();
+  const eventPages = useRef({ key: '', entries: [] as any[], next: null as number | null, busy: false, refresh: false });
   const seekRequest = useRef(0),
     historyRun = useRef('');
   const [historicalRuns, setHistoricalRuns] = useState<RunDetail['runs']>();
@@ -528,12 +536,13 @@ export function RunPage({
         }
       }
     };
+    ++seekRequest.current;
     setDetail(undefined);
     setTimeline(undefined); setReplayTimeline(undefined);
     setSelectedRun('');
     setReplay(undefined);
     setPosition(-1);
-    setCutoff(undefined);
+    setCutoff(undefined); setCutoffSequence(undefined);
     setHistoricalRuns(undefined);
     refresh();
     return () => {
@@ -547,33 +556,57 @@ export function RunPage({
     detail?.runs.find((r) => !r.view.runId.startsWith('parallel-'))?.view;
   const view = replay ?? original,
     runId = original?.runId;
+  const eventKey = `${id}:${runId ?? ''}`;
+  if (eventPages.current.key !== eventKey)
+    eventPages.current = { key: eventKey, entries: [], next: null, busy: false, refresh: false };
+  // Every request belongs to one run cache. Late responses cannot mutate another run.
+  const fetchEvents = async (more = false): Promise<void> => {
+    const cache = eventPages.current;
+    if (!runId || !more && cache.next !== null) return;
+    if (cache.busy) { if (!more) cache.refresh = true; return; }
+    cache.busy = true; setLoadingEvents(true);
+    try {
+      const after = cache.entries.at(-1)?.sequence ?? 0;
+      const data = await api<any>(`runs/${id}/events?run=${encodeURIComponent(runId)}&after=${after}`);
+      if (eventPages.current !== cache) return;
+      cache.entries = [...new Map([...cache.entries, ...data.entries].map(e => [e.sequence, e])).values()].sort((a, b) => a.sequence - b.sequence);
+      cache.next = data.next;
+      setEvents(cache.entries); setNextEvents(cache.next);
+    } catch (e) {
+      if (eventPages.current === cache) setError((e as Error).message);
+    } finally {
+      cache.busy = false;
+      if (eventPages.current === cache) {
+        setLoadingEvents(false);
+        if (cache.refresh) { cache.refresh = false; void fetchEvents(); }
+      }
+    }
+  };
   useEffect(() => {
-    if (!runId || (cutoff !== undefined && historyRun.current === runId))
+    if (!runId || (cutoff !== undefined && historyRun.current === eventKey))
       return;
-    if (historyRun.current !== runId) {
+    if (historyRun.current !== eventKey) {
       setHistory([]);
       setEvents([]);
       setNextEvents(null);
       setPlaying(false);
     }
-    historyRun.current = runId;
+    historyRun.current = eventKey;
+    void fetchEvents();
     let alive = true;
     const base = `runs/${id}/`;
     Promise.all([
-      api<any>(base + 'events?run=' + encodeURIComponent(runId)),
       api<RunTimeline>(base + 'timing?run=' + encodeURIComponent(runId)),
-      cutoff != null ? api<RunTimeline>(base + 'timing?run=' + encodeURIComponent(runId) + '&at=' + cutoff) : Promise.resolve(undefined),
+      cutoff != null ? api<RunTimeline>(base + 'timing?run=' + encodeURIComponent(runId) + '&at=' + cutoff + (cutoffSequence === undefined ? '' : '&sequence=' + cutoffSequence)) : Promise.resolve(undefined),
     ])
-      .then(([logs, times, pastTimes]) => {
+      .then(([times, pastTimes]) => {
         if (!alive) return;
-        setEvents(logs.entries);
-        setNextEvents(logs.next);
         setTimeline(times); setReplayTimeline(pastTimes);
         setHistory(times.revisions);
         if (cutoff != null)
           setPosition(
             times.revisions.findLastIndex(
-              (r: any) => r.recordedAt !== null && r.recordedAt <= cutoff,
+              (r: any) => r.recordedAt !== null && r.recordedAt <= cutoff && (cutoffSequence === undefined || r.sequence <= cutoffSequence),
             ),
           );
       })
@@ -590,7 +623,7 @@ export function RunPage({
       setArtifacts([]);
       return;
     }
-    api<any>(`runs/${id}/files` + (cutoff === undefined ? '' : '?at=' + cutoff))
+    api<any>(`runs/${id}/files` + (cutoff === undefined ? '' : '?at=' + cutoff + (cutoffSequence === undefined ? '' : '&sequence=' + cutoffSequence)))
       .then((data) => {
         if (alive) setArtifacts(data.files);
       })
@@ -600,12 +633,12 @@ export function RunPage({
     return () => {
       alive = false;
     };
-  }, [id, original?.revision, cutoff]);
+  }, [id, original?.revision, cutoff, cutoffSequence]);
   const seek = async (index: number) => {
     const request = ++seekRequest.current;
     if (index < 0) {
       setPosition(-1);
-      setCutoff(undefined);
+      setCutoff(undefined); setCutoffSequence(undefined);
       setReplay(undefined); setReplayTimeline(undefined);
       setHistoricalRuns(undefined);
       setFile(undefined);
@@ -621,14 +654,14 @@ export function RunPage({
           `runs/${id}/revision?run=${encodeURIComponent(runId!)}&revision=${row.revision}`,
         ),
         row.recordedAt !== null
-          ? api<any>(`runs/${id}/at?time=${row.recordedAt}`)
+          ? api<any>(`runs/${id}/at?time=${row.recordedAt}&sequence=${row.sequence}`)
           : Promise.resolve({ runs: [] }),
-        api<RunTimeline>(`runs/${id}/timing?run=${encodeURIComponent(runId!)}&revision=${row.revision}` + (row.recordedAt !== null ? `&at=${row.recordedAt}` : '')),
+        api<RunTimeline>(`runs/${id}/timing?run=${encodeURIComponent(runId!)}&revision=${row.revision}` + (row.recordedAt !== null ? `&at=${row.recordedAt}&sequence=${row.sequence}` : '')),
       ]);
       if (request !== seekRequest.current) return;
       setPosition(index);
       setReplay(data.view); setReplayTimeline(times);
-      setCutoff(row.recordedAt);
+      setCutoff(row.recordedAt); setCutoffSequence(row.sequence);
       setHistoricalRuns(
         group.runs.map((r: RunDetail['runs'][number]) =>
           r.view.runId === data.view.runId ? { ...r, view: data.view } : r,
@@ -656,17 +689,6 @@ export function RunPage({
     }, 850);
     return () => clearTimeout(timer);
   }, [playing, seeking, position, history.length]);
-  const loadMore = async () => {
-    try {
-      const data = await api<any>(
-        `runs/${id}/events?run=${encodeURIComponent(runId!)}&after=${nextEvents}`,
-      );
-      setEvents((v) => [...v, ...data.entries]);
-      setNextEvents(data.next);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
   const activeTimeline = cutoff === undefined ? timeline : replayTimeline;
   const currentPosition = position < 0 ? Math.max(0, history.length - 1) : position;
   const selectedTime = cutoff === undefined ? timeline?.updatedAt : cutoff;
@@ -901,7 +923,7 @@ export function RunPage({
               events={events.filter(
                 (e) =>
                   cutoff === undefined ||
-                  (cutoff !== null && e.recordedAt <= cutoff),
+                  (cutoff !== null && (cutoffSequence === undefined ? e.recordedAt <= cutoff : e.recordedAt < cutoff)),
               )}
               onClose={() => setSelection(null)}
               runs={runs}
@@ -1217,7 +1239,7 @@ export function RunPage({
             .filter(
               (e) =>
                 cutoff === undefined ||
-                (cutoff !== null && e.recordedAt <= cutoff),
+                (cutoff !== null && (cutoffSequence === undefined ? e.recordedAt <= cutoff : e.recordedAt < cutoff)),
             )
             .map((e) => (
               <details className="log-entry" key={e.sequence}>
@@ -1231,7 +1253,7 @@ export function RunPage({
               </details>
             ))}
           {nextEvents && (
-            <button className="secondary" onClick={() => loadMore()}>
+            <button className="secondary" disabled={loadingEvents} onClick={() => void fetchEvents(true)}>
               加载更多日志
             </button>
           )}

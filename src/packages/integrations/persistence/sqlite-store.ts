@@ -133,12 +133,12 @@ export class SqliteRunRecordStore implements AtomicRunRecordStore {
     } catch (error) { throw mapped(error); }
   }
   /** Unknown legacy timestamps cannot participate in a wall-clock replay. */
-  async revisionAt(runId: string, recordedAt: number): Promise<RunRevision | null> {
+  async revisionAt(runId: string, recordedAt: number, throughSequence = Number.MAX_SAFE_INTEGER): Promise<RunRevision | null> {
     id(runId);
-    if (!Number.isSafeInteger(recordedAt) || recordedAt < 0) throw new RunStoreError('INVALID_RUN_RECORD');
+    if (!Number.isSafeInteger(recordedAt) || recordedAt < 0 || !Number.isSafeInteger(throughSequence) || throughSequence < 1) throw new RunStoreError('INVALID_RUN_RECORD');
     try {
       this.#ready();
-      return this.#revisionRow(runId, this.#database.prepare('SELECT sequence, revision, recorded_at, payload, digest FROM run_history WHERE run_id = ? AND recorded_at <= ? ORDER BY sequence DESC LIMIT 1').get(runId, recordedAt));
+      return this.#revisionRow(runId, this.#database.prepare('SELECT sequence, revision, recorded_at, payload, digest FROM run_history WHERE run_id = ? AND recorded_at <= ? AND sequence <= ? ORDER BY sequence DESC LIMIT 1').get(runId, recordedAt, throughSequence));
     } catch (error) { throw mapped(error); }
   }
   #revisionRow(runId: string, row: Record<string, unknown> | undefined): RunRevision | null {

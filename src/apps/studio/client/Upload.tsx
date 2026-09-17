@@ -10,12 +10,14 @@ function Drop({
   label,
   multiple = false,
   directory = false,
+  accept = '.pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.json',
   onFiles,
   files,
 }: {
   label: string;
   multiple?: boolean;
   directory?: boolean;
+  accept?: string;
   onFiles: (files: File[]) => void;
   files: File[];
 }) {
@@ -48,7 +50,7 @@ function Drop({
           e.target.value = '';
         }}
         accept={
-          directory ? undefined : '.pdf,.docx,.md,.txt,.png,.jpg,.jpeg,.json'
+          directory ? undefined : accept
         }
       />
       <button
@@ -111,6 +113,7 @@ export function Upload({
     file: File;
     value: unknown;
   }>();
+  const gradingRequests = useRef<Record<string, number>>({});
   const key = useRef(crypto.randomUUID()),
     dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -166,6 +169,9 @@ export function Upload({
     ) {
       setError('最多 64 份文件，合计不超过 128 MiB');
       return;
+    }
+    if (workflow.input === 'grading' && !['paper', 'key', 'submission'].every(name => materials.some(m => m.path === `source/${name}.json`))) {
+      setError('请一次备齐三份有效的 JSON 材料'); return;
     }
     const form = new FormData();
     form.set(
@@ -358,11 +364,21 @@ export function Upload({
               <Drop
                 key={name}
                 label={`上传 ${name}.json`}
+                accept=".json"
                 files={materials
                   .filter((m) => m.path === `source/${name}.json`)
                   .map((m) => m.file)}
-                onFiles={(files) => {
-                  if (files.length !== 1) return setError('请选择一份 JSON');
+                onFiles={async (files) => {
+                  const request = (gradingRequests.current[name] ?? 0) + 1;
+                  gradingRequests.current[name] = request;
+                  setMaterials(v => v.filter(m => m.path !== `source/${name}.json`));
+                  const file = files[0];
+                  if (files.length !== 1 || !file?.name.toLowerCase().endsWith('.json')) return setError('请选择一份 .json 文件');
+                  if (!file.size || file.size > 20 * 1024 ** 2) return setError('每个文件须为 1 字节至 20 MiB');
+                  try { JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await file.arrayBuffer())); }
+                  catch { if (gradingRequests.current[name] === request) setError('文件不是有效的 JSON'); return; }
+                  if (gradingRequests.current[name] !== request) return;
+                  setError('');
                   setMaterials((v) => [
                     ...v.filter((m) => m.path !== `source/${name}.json`),
                     {

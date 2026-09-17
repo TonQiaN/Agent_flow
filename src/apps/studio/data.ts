@@ -74,7 +74,7 @@ export async function views(root: string) {
   }
 }
 /** Select each Run independently at the same wall-clock point; never load recovery capabilities. */
-export async function viewsAt(root: string, recordedAt: number) {
+export async function viewsAt(root: string, recordedAt: number, throughSequence?: number) {
   if (!Number.isSafeInteger(recordedAt) || recordedAt < 0)
     throw new Error('回放时间无效');
   const current = await views(root),
@@ -82,7 +82,7 @@ export async function viewsAt(root: string, recordedAt: number) {
     result: typeof current = [];
   try {
     for (const entry of current) {
-      const row = await store.revisionAt(entry.key, recordedAt);
+      const row = await store.revisionAt(entry.key, recordedAt, throughSequence);
       const selected = row ? projectRun(row) : null;
       if (selected) result.push({ key: entry.key, view: selected });
     }
@@ -159,7 +159,7 @@ interface ListedFile {
   unavailable?: string;
   sources: FileSource[];
 }
-export async function files(root: string, at?: number): Promise<ListedFile[]> {
+export async function files(root: string, at?: number, throughSequence?: number): Promise<ListedFile[]> {
   const result: ListedFile[] = [],
     known = new Map<string, ListedFile[]>();
   const meta = await jsonFile(join(root, 'meta.json'));
@@ -186,7 +186,7 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
   try {
     for (const { view } of await (at === undefined
       ? views(root)
-      : viewsAt(root, at))) {
+      : viewsAt(root, at, throughSequence))) {
       const identities = [...view.snapshot.steps.map(step => ({ node: step.node, identity: step.result.identity })), ...view.attempts as any[]];
       const source = (identity: any, role: FileSource['role'], node?: string, recordedAt?: number): FileSource => ({
         runId: view.runId, role, ...(node ? { node } : {}),
@@ -210,7 +210,7 @@ export async function files(root: string, at?: number): Promise<ListedFile[]> {
           const event = row.content as any;
           if (
             event.kind === 'artifact' &&
-            (at === undefined || row.recordedAt <= at)
+            (at === undefined || (throughSequence === undefined ? row.recordedAt <= at : row.recordedAt < at))
           )
             candidates.push({
               saved: event.saved,
