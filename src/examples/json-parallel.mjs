@@ -43,10 +43,12 @@ try {
   if(!compiled)throw new Error('Unknown installed workflow');
   return {compiled,runtime:new WorkflowRuntime()};
  }};
- const worker=id=>new NodeWorker(queue,host,systemClock,id,['json'],300);
- await worker('coordinator').runOnce();
+ // Use the Worker default lease: this runnable example is not a lease-expiry test.
+ const worker=id=>new NodeWorker(queue,host,systemClock,id,['json']);
+ const check=result=>{if(result?.error)throw new Error(`Worker ${result.claim.worker} (${result.claim.node}) failed: ${result.error}`);};
+ check(await worker('coordinator').runOnce());
  const runs=await Promise.all([worker('first').runUntilIdle(),worker('second').runUntilIdle()]);
- if(runs.flat().some(result=>result.error))throw new Error('Worker failed');
+ for(const result of runs.flat())check(result);
  const loaded=await loadWorkflowCheckpoint(flow,runId,queue.records());
  try {
   if(loaded.checkpoint.snapshot.status!=='succeeded')throw new Error('Example did not finish');
