@@ -21,7 +21,7 @@ export default defineConfig({
     env: {
       PORT: '3597',
       AGENTFLOW_STUDIO_FIXTURE: '1',
-      AGENTFLOW_STUDIO_DATA: '.local/studio-browser-tests',
+      AGENTFLOW_STUDIO_DATA: process.env['AGENTFLOW_BROWSER_DATA'] ?? '.local/studio-browser-tests',
     },
   },
 });

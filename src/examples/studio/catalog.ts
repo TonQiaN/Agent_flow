@@ -1,21 +1,35 @@
 // @ts-expect-error Shared plain-JavaScript original CLI definition.
 import { parallelDefinition } from './parallel.mjs';
-import { recruitmentDefinition } from '../recruitment/flow.js';
+import { recruitmentDefinition, createRecruitmentFlow } from '../recruitment/flow.js';
+import { RecruitmentFixtureDriver } from '../recruitment/fixture-driver.js';
 import {
   gradingDefinition,
   createGradingFixture,
 } from '../tutor-grading/fixture.js';
-import { gradingWorkflow } from '../tutor-grading/flow.js';
+import { gradingWorkflow, gradingComponent, createGradingApplication } from '../tutor-grading/flow.js';
+import { selectGradingHarness, gradingHarness } from '../tutor-grading/selected-harness.js';
+import { tutorMarkingPrompts } from '../tutor-marking/prompts.js';
 import { createTutorMarkingApplication } from '../tutor-marking/application.js';
 import { createTutorReportApplication } from '../tutor-report/application.js';
-import { GradingFixtureDriver } from '../tutor-grading/fixture-driver.js';
 import { fixtureContext } from '../tutor-report/fixture-driver.js';
 // @ts-expect-error Shared plain-JavaScript original CLI factory.
 import { createRepairExample } from './repair.mjs';
-import { inspectWorkflowExecution } from '@agentflow/engine';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { compileWorkflow, inspectWorkflowExecution } from '@agentflow/engine';
+import type { AgentExecutionDriver, ArtifactStore, WorkflowDisplayDefinition } from '@agentflow/engine';
+import { SqliteRunRecordStore } from '@agentflow/integrations';
+import { taskNotes, gradingInstructions } from './task-notes.js';
+import type { TaskNote } from './task-notes.js';
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+function displayPaths(value: unknown, root: string): any {
+  if (Array.isArray(value)) return value.map(item => displayPaths(item, root));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
+    key === 'workspaceRoot' && typeof item === 'string' && item.startsWith(root)
+      ? '<启动运行后分配>' : displayPaths(item, root)]));
+  return value;
+}
 export interface CatalogueItem {
   id: string;
   title: string;
@@ -26,6 +40,8 @@ export interface CatalogueItem {
   definition: unknown;
   category: 'business' | 'example';
   family: string;
+  tasks: Record<string, TaskNote>;
+  execution?: Partial<WorkflowDisplayDefinition>;
 }
 export async function catalogue(): Promise<CatalogueItem[]> {
   const base = [
@@ -101,29 +117,66 @@ export async function catalogue(): Promise<CatalogueItem[]> {
     before = process.env['AGENTFLOW_HISTORY_DISABLED'];
   process.env['AGENTFLOW_HISTORY_DISABLED'] = '1';
   try {
-    const dummy = {
-        id: 'model',
-        prompt: 'Descriptor only; never executed.',
-        config: { mode: 'correct' },
-      },
+    let selected: ReturnType<typeof selectGradingHarness> | undefined;
+    try {
+      selected = selectGradingHarness(gradingHarness(process.env['AGENTFLOW_STUDIO_HARNESS'] ?? 'deepseek'),
+        { ...process.env, AGENTFLOW_ACCEPTANCE_ROOT: root }, { timeoutMs: 600000, maxInputBytes: 144 * 1024 ** 2, persistSession: true });
+    } catch { /* Tasks remain readable before local model configuration is ready. */ }
+    const missingDriver: AgentExecutionDriver = {
+      harness: 'unconfigured', validate() {},
+      async run() { throw new Error('CATALOGUE_CANNOT_EXECUTE'); },
+    };
+    const driver = (store: ArtifactStore) => selected?.driver(store, root) ?? missingDriver;
+    const prompts = tutorMarkingPrompts({ syntheticMaterial: false });
+    const agent = (id: string, prompt: string) => ({ id, prompt, config: selected?.config ?? {} });
+    const execution: Record<string, Partial<WorkflowDisplayDefinition>> = {},
       setup = {
         source: join(root, 'source'),
         tutorWorkspace: process.env['TUTOR_WORKSPACE'] ?? '/unconfigured/tutor',
         python: process.env['TUTOR_PYTHON'] ?? '/usr/bin/python3',
-        driver: (store: any) =>
-          new GradingFixtureDriver(store, join(root, 'unused')),
+        driver,
       };
     const marking = await createTutorMarkingApplication(join(root, 'marking'), {
       ...setup,
-      marker: { ...dummy, id: 'marker' },
-      reviewer: { ...dummy, id: 'reviewer' },
-      repair: { agent: { ...dummy, id: 'reviewer-repair' }, maxRounds: 2 },
+      marker: agent('marker', prompts.markerPrompt),
+      reviewer: agent('reviewer', prompts.reviewerPrompt),
+      repair: { agent: agent('reviewer-repair', prompts.reviewerPrompt), maxRounds: 2 },
     });
     const report = await createTutorReportApplication(join(root, 'report'), {
       ...setup,
       context: fixtureContext,
-      reporter: dummy,
+      reporter: agent('model', prompts.reporterPrompt),
     });
+    execution['tutor-marking'] = await inspectWorkflowExecution(marking.compiled);
+    execution['tutor-report'] = await inspectWorkflowExecution(report.compiled);
+    execution['repair-example'] = await inspectWorkflowExecution(createRepairExample());
+    const fixtureApp = await createGradingFixture(join(root, 'grading-fixture'));
+    execution['grading-fixture'] = await inspectWorkflowExecution(compileWorkflow(gradingDefinition(), fixtureApp.catalog));
+    await mkdir(setup.source, { recursive: true });
+    const gradingAgents = ['matrix-marker', 'matrix-fixer'].map((id, index) => ({
+      component: gradingComponent(id, 'agent', index ? 'reviewed-files' : 'source-files', { completed: 'candidate-files' }),
+      prompt: gradingInstructions, config: selected?.config ?? {},
+    }));
+    const realDefinition = gradingWorkflow({ id: 'real-grading', marker: 'matrix-marker', fixer: 'matrix-fixer', repairs: 1 });
+    const gradingApp = await createGradingApplication(join(root, 'grading-real'), { source: setup.source, driver, agents: gradingAgents, definition: realDefinition });
+    execution['grading-real'] = await inspectWorkflowExecution(compileWorkflow(realDefinition, gradingApp.catalog));
+    // Persistent scripts include uploaded source hashes: do not manufacture a sample Run to describe them.
+    const pickAgents = <T>(values: Readonly<Record<string, T>> | undefined) => Object.fromEntries(Object.entries(values ?? {}).filter(([id]) => ['marker', 'fixer'].includes(id)));
+    execution['grading-persistent'] = {
+      bindings: pickAgents(execution['grading-real'].bindings),
+      resourcePlans: pickAgents(execution['grading-real'].resourcePlans),
+      unavailable: { ...pickAgents(execution['grading-real'].unavailable), intake: 'GENERATED_AFTER_UPLOAD', gate: 'GENERATED_AFTER_UPLOAD' },
+    };
+    const records = await SqliteRunRecordStore.open(join(root, 'inspection-records'));
+    try {
+      const fixture = process.env['AGENTFLOW_STUDIO_FIXTURE'] === '1';
+      const recruitmentSelected = selected && selectGradingHarness(gradingHarness(process.env['AGENTFLOW_STUDIO_HARNESS'] ?? 'deepseek'),
+        { ...process.env, AGENTFLOW_ACCEPTANCE_ROOT: root }, { timeoutMs: 600000, maxInputBytes: 16 * 1024 ** 2, persistSession: true });
+      const app = await createRecruitmentFlow(join(root, 'recruitment'), setup.source, records,
+        store => fixture ? new RecruitmentFixtureDriver(store, join(root, 'fixture')) : recruitmentSelected?.driver(store, root) ?? missingDriver,
+        fixture ? { fixture: true } : selected?.config ?? {}, process.env['AGENTFLOW_DOCUMENTS_IMAGE'] ?? 'agentflow/studio-documents:issue39', fixture);
+      execution.recruitment = await inspectWorkflowExecution(app.compiled);
+    } finally { records.close(); }
     base.push(
       {
         id: 'tutor-marking',
@@ -147,6 +200,8 @@ export async function catalogue(): Promise<CatalogueItem[]> {
     );
     return base.map((item) => ({
       ...item,
+      tasks: taskNotes(item.id),
+      ...(execution[item.id] ? { execution: displayPaths(execution[item.id], root) } : {}),
       category: [
         'repair-example',
         'parallel-map',

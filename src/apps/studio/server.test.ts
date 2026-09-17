@@ -11,6 +11,20 @@ test('local service validates origin and uploads, starts original workflow once 
   let origin = `http://127.0.0.1:${app.port}`;
   assert.equal((await fetch(origin + '/api/runs', { method: 'POST', headers: { origin: 'https://example.com' } })).status, 403);
   const catalog = await (await fetch(origin + '/api/workflows')).json() as any; assert.equal(catalog.workflows.length, 9); assert.ok(catalog.workflows.find((w: any) => w.id === 'tutor-report'));
+  for (const workflow of catalog.workflows) for (const id of Object.keys(workflow.definition.nodes)) {
+    assert.ok(workflow.tasks[id]?.summary, `${workflow.id}/${id} task summary`);
+    assert.ok(workflow.tasks[id]?.input && workflow.tasks[id]?.output, `${workflow.id}/${id} IO requirements`);
+  }
+  const recruitment = catalog.workflows.find((w: any) => w.id === 'recruitment');
+  assert.match(recruitment.tasks.match.prompt, /不返回岗位、原文或候选人的修改版/);
+  assert.match(recruitment.tasks.audit.prompt, /最终是否放行由宿主程序校验/);
+  assert.deepEqual(recruitment.tasks.parse.command, ['python3', '/opt/agentflow/documents.py']);
+  assert.deepEqual(recruitment.tasks.render.command, ['python3', '/opt/agentflow/documents.py', 'render']);
+  assert.equal(recruitment.execution.structure.components.parse.kind, 'transform');
+  assert.equal(recruitment.execution.structure.components.match.kind, 'agent');
+  assert.equal(JSON.stringify(catalog).includes('Descriptor only; never executed.'), false);
+  assert.equal(JSON.stringify(catalog).includes('af-catalogue-'), false, 'temporary inspection paths are not runtime settings');
+  assert.deepEqual((await (await fetch(origin + '/api/runs')).json() as any).runs, [], 'describing tasks must not start a Run');
   const form = new FormData(); form.set('manifest', JSON.stringify({ workflowId: 'repair-example', title: '原 CLI 的返工', documents: [] }));
   // Retries share a semantic fingerprint independent of the multipart boundary.
   const request = new Request(origin + '/api/runs', { method: 'POST', body: form }); const bytes = await request.arrayBuffer(); const headers = { origin, 'content-type': request.headers.get('content-type')!, 'idempotency-key': 'test-submit-1' };

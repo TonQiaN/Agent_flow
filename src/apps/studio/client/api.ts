@@ -1,5 +1,17 @@
 import type { RunView } from '@agentflow/integrations';
+import type { WorkflowDisplayDefinition } from '@agentflow/engine';
 export type { RunView };
+export interface TaskNote {
+  summary: string;
+  input: string;
+  output: string;
+  mode: 'agent' | 'script' | 'host' | 'parallel' | 'fixture';
+  prompt?: string;
+  command?: string[];
+  container?: { image: string; network: string; cpus?: number; memoryMiB?: number };
+  source?: string;
+  deferred?: string;
+}
 export interface Workflow {
   id: string;
   title: string;
@@ -11,6 +23,8 @@ export interface Workflow {
   definition: any;
   category: 'business' | 'example';
   family: string;
+  tasks?: Record<string, TaskNote>;
+  execution?: Partial<WorkflowDisplayDefinition>;
 }
 export interface Catalogue {
   workflows: Workflow[];

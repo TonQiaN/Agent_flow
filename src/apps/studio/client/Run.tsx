@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, lazy, Suspense } from 'react';
 import {
   api,
   date,
@@ -12,6 +12,8 @@ import {
 } from './api';
 import { Graph, labels, type Selection } from './Graph';
 import { outcomeNames } from './graph-model';
+import { NodeTask, TaskRequirements, taskFacts } from './NodeTask';
+import type { TaskNote } from './api';
 const PdfPreview = lazy(() => import('./PdfPreview'));
 export function Json({ value }: { value: unknown }) {
   return <pre className="json">{pretty(value)}</pre>;
@@ -24,49 +26,51 @@ export function Badge({ status }: { status: string }) {
     </span>
   );
 }
-export function Configuration({ value }: { value: any }) {
-  const containers: any[] = [],
+export function Configuration({ value, historical = true, note }: { value: any; historical?: boolean; note?: TaskNote }) {
+  const containers: { definition: any; role: string }[] = [],
     seen = new Set<string>();
-  const visit = (v: any) => {
+  const visit = (v: any, role = '任务执行') => {
     if (!v || typeof v !== 'object') return;
     if (v.options?.image) {
-      const key = pretty(v.options);
+      const key = role + pretty(v.options);
       if (!seen.has(key)) {
-        containers.push(v);
+        containers.push({ definition: v, role });
         seen.add(key);
       }
     }
-    Object.values(v).forEach((child) => {
-      if (Array.isArray(child)) child.forEach(visit);
-      else if (child && typeof child === 'object') visit(child);
+    Object.entries(v).forEach(([key, child]) => {
+      const nextRole = key === 'versionProbe' || v.id === 'version' ? '版本检查' : role;
+      if (Array.isArray(child)) child.forEach(item => visit(item, nextRole));
+      else if (child && typeof child === 'object') visit(child, nextRole);
     });
   };
   visit(value);
+  if (!containers.length && note?.container) containers.push({ definition: { options: note.container }, role: '已声明的任务容器（镜像未解析）' });
   return (
     <>
-      <div className="section-label">CONTAINER</div>
+      <div className="task-source"><span>{historical ? '本次运行已保存' : '当前流程定义'}</span><b>容器配置</b></div>
       {containers.length ? (
-        containers.map((v, i) => (
+        containers.sort((a, b) => a.role === b.role ? 0 : a.role === '任务执行' ? -1 : 1).map(({ definition: v, role }, i) => (
           <section className="container-card" key={i}>
-            <h4>容器 {i + 1}</h4>
+            <h4>{role}</h4>
             <dl>
               <dt>镜像</dt>
               <dd>{v.options.image}</dd>
               <dt>CPU</dt>
-              <dd>{v.options.cpus ?? '未记录'}</dd>
+              <dd>{v.options.cpus ?? (historical ? '未记录' : '使用默认值')}</dd>
               <dt>内存</dt>
               <dd>
-                {v.options.memoryMiB ? v.options.memoryMiB + ' MiB' : '未记录'}
+                {v.options.memoryMiB ? v.options.memoryMiB + ' MiB' : historical ? '未记录' : '使用默认值'}
               </dd>
               <dt>网络</dt>
               <dd>
-                {typeof v.options.network === 'string'
-                  ? v.options.network
-                  : pretty(v.options.network)}
+                {v.options.network === 'none' ? '不联网（none）'
+                  : v.options.network?.kind === 'connect-proxy' ? `受控代理 · ${v.options.network.allowedHosts?.join('、') ?? '未提供目标'}`
+                    : pretty(v.options.network)}
               </dd>
               <dt>目录与挂载</dt>
               <dd>
-                <Json
+                <details><summary>查看任务目录</summary><Json
                   value={
                     v.paths ??
                     v.mounts ??
@@ -79,19 +83,21 @@ export function Configuration({ value }: { value: any }) {
                       note: '容器执行的固定任务目录；宿主绑定见完整设置',
                     }
                   }
-                />
+                /></details>
               </dd>
             </dl>
           </section>
         ))
       ) : (
         <p className="notice">
-          这个节点未记录容器配置。宿主函数、并行调度节点或合成 Agent
-          不使用任务容器；旧记录也可能缺少设置。
+          {taskFacts(value?.binding, note).fixture ? '此节点使用合成执行器，不启动任务容器。'
+            : note?.mode === 'host' || note?.mode === 'parallel' ? '此节点由宿主程序执行，不使用任务容器。'
+              : note?.deferred ? note.deferred
+                : historical ? '这份运行记录未保存可展示的容器配置。' : '暂时无法读取容器配置，请检查本机环境与镜像。'}
         </p>
       )}
       <details>
-        <summary>完整的已保存设置</summary>
+        <summary>{historical ? '完整的已保存设置' : '完整的当前设置'}</summary>
         <Json value={value} />
       </details>
     </>
@@ -99,6 +105,7 @@ export function Configuration({ value }: { value: any }) {
 }
 function Inspector({
   view,
+  workflow,
   definition,
   selection,
   events,
@@ -108,6 +115,7 @@ function Inspector({
   onOpenRun,
 }: {
   view?: RunView;
+  workflow?: Workflow;
   definition: any;
   selection: Selection;
   events: any[];
@@ -116,10 +124,12 @@ function Inspector({
   childName?: (view: RunView) => string;
   onOpenRun?: (runId: string) => void;
 }) {
-  const [tab, setTab] = useState('detail'),
+  const panel = useRef<HTMLElement>(null);
+  const [tab, setTab] = useState('task'),
     [attempt, setAttempt] = useState(-1);
+  useLayoutEffect(() => { panel.current?.scrollTo(0, 0); }, [tab, selection?.id, selection?.kind, view?.runId]);
   useEffect(() => {
-    setTab('detail');
+    setTab('task');
     setAttempt(
       selection?.kind === 'node' && selection.nodeTaskId
         ? (view?.snapshot.steps
@@ -131,6 +141,8 @@ function Inspector({
     );
   }, [selection?.id, selection?.kind, selection?.nodeTaskId, view?.runId]);
   if (!selection) return null;
+  // A historical view must never fall back to today's catalogue metadata.
+  const execution = view ? view.execution : workflow?.execution;
   if (selection.kind === 'edge') {
     const route = definition.routes?.[Number(selection.id)];
     return (
@@ -165,11 +177,11 @@ function Inspector({
         <Json
           value={{
             outputContract:
-              view?.execution?.structure.components[route.from]?.outcomes[
+              execution?.structure?.components[route.from]?.outcomes[
                 route.outcome
-              ] ?? '运行前未记录',
+              ] ?? '未提供',
             targetContract:
-              view?.execution?.structure.components[route.to.node]
+              execution?.structure?.components[route.to.node]
                 ?.inputContract ??
               definition.outcomes?.[route.to.end] ??
               null,
@@ -195,8 +207,9 @@ function Inspector({
         : attempt < 0
           ? all.at(-1)
           : all[attempt];
-  const component = view?.execution?.structure.components[node],
-    binding = view?.execution?.bindings[node],
+  const component = execution?.structure?.components[node],
+    binding = execution?.bindings?.[node],
+    note = view ? undefined : workflow?.tasks?.[node],
     values = (view?.values ?? []) as any[];
   const current = view?.snapshot.currentNode === node && attempt < 0;
   const pendingInvocation = current
@@ -239,7 +252,7 @@ function Inspector({
       ? Object.fromEntries(generatedKeys.map((key) => [key, output[key]]))
       : null;
   return (
-    <aside className="inspector">
+    <aside className="inspector" ref={panel}>
       <div className="row">
         <div>
           <p className="eyebrow">NODE DETAILS</p>
@@ -273,6 +286,7 @@ function Inspector({
       )}
       <div className="small-tabs">
         {[
+          ['task', '任务'],
           ['detail', '详情'],
           ['input', '输入'],
           ['output', '输出'],
@@ -288,7 +302,10 @@ function Inspector({
           </button>
         ))}
       </div>
-      {tab === 'detail' && (
+      {tab === 'task' && <NodeTask key={node} binding={binding} note={note} component={component}
+        execution={execution ?? undefined} historical={!!view} unavailable={execution?.unavailable?.[node]}
+        end={!definition.nodes?.[node] ? node.replace(/^end-/, '') : undefined} />}
+      {(tab === 'detail' || tab === 'task' && !!children) && (
         <>
           <Badge
             status={
@@ -358,7 +375,8 @@ function Inspector({
           </p>
         </>
       )}
-      {tab === 'input' && (
+      {tab === 'input' && !view && <TaskRequirements direction="input" note={note} component={component} execution={execution ?? undefined} />}
+      {tab === 'input' && !!view && (
         <Json
           value={
             chosen
@@ -374,7 +392,8 @@ function Inspector({
           }
         />
       )}
-      {tab === 'output' && (
+      {tab === 'output' && !view && <TaskRequirements direction="output" note={note} component={component} execution={execution ?? undefined} />}
+      {tab === 'output' && !!view && (
         <>
           <p className="muted">
             {view?.snapshot.workflowId === 'recruitment'
@@ -392,10 +411,12 @@ function Inspector({
       )}
       {tab === 'settings' && (
         <Configuration
+          historical={!!view}
+          note={note}
           value={{
             binding: binding ?? null,
-            resources: view?.execution?.resourcePlans[node] ?? null,
-            unavailable: view?.execution?.unavailable?.[node] ?? null,
+            resources: execution?.resourcePlans?.[node] ?? null,
+            unavailable: execution?.unavailable?.[node] ?? null,
           }}
         />
       )}
@@ -421,12 +442,11 @@ function Inspector({
   );
 }
 export function WorkflowCanvas({
-  definition,
-  title,
+  workflow,
 }: {
-  definition: any;
-  title: string;
+  workflow: Workflow;
 }) {
+  const { definition, id: title } = workflow;
   const [selection, setSelection] = useState<Selection>(null);
   return (
     <div className="canvas-layout">
@@ -438,6 +458,7 @@ export function WorkflowCanvas({
         storageKey={'workflow-' + title}
       />
       <Inspector
+        workflow={workflow}
         definition={definition}
         selection={selection}
         events={[]}
