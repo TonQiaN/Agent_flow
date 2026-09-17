@@ -1,6 +1,6 @@
 # DeepSeek Adapter
 
-`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储、不可变绑定、DeepSeekApiKeyRunner 与 DeepSeekAgentDriver 已接通；真实 DeepSeek 模型调用仍未验收。
+`DeepSeekAdapter` 是纯调用计划与原生会话解释器，固定对应 dsh 0.1.1-rc.2。宿主 API key Profile、存储、不可变绑定、DeepSeekApiKeyRunner 与 DeepSeekAgentDriver 已接通；已通过[官方正常/返修及图片多出口验收](../validation/2026-09-15-official-harness-acceptance.md)。
 
 ## 调用计划
 
@@ -42,6 +42,10 @@ finish 核对 Runner 身份、资源、停止和清理，确认容器移除后�
 
 调用者保存需要的输出或私有证据后执行 retryCleanup/release；未知停止或凭据收尾未完成时不能跳过清理门槛。清理重试不升级原 Harness 结果。DeepSeekAgentDriver 接收 runtime、ArtifactStore、Profile 和 timeoutMs，交由 AgentExecutor 执行输出契约接纳。单出口由引擎分配，多出口取结构化结果；都不能只凭退出码或“完成”文字通过。
 
-本地协议替身验证了组合的成功/失败/取消/版本漂移路径，原生 CLI 另有工具与交接回归；真实官方模型调用尚未验收。见 [宿主执行组合验证](../validation/2026-09-09-deepseek-execution.md)。
+本地协议替身验证了组合的成功/失败/取消/版本漂移路径，原生 CLI 另有工具与交接回归；官方模型正常/返修和图片多出口已于 2026-09-15 另行通过。见 [宿主执行组合验证](../validation/2026-09-09-deepseek-execution.md)。
 
 Driver 输入在已登记的 Runner 工作目录内物化，见[输入物化](runner-owned-input.md)。
+
+## 图片模型配置
+
+本轮 dsh 0.1.1-rc.2 使用 deepseek-v4-flash 完成文本批卷；图片任务使用 deepseek-v4-flash-vision-exp，经原生 read_image 实际读取后完成文件与多出口交接。前一个标识在该 CLI 模型表中未声明图片能力，read_image 会明确拒绝，即使远端服务改变同名别名的能力，也不能视为 CLI 已支持。宿主只更改现有 model 配置，不更新或绕过模型能力表；实际组合、保留失败和服务端别名限制见[本轮验收](../validation/2026-09-15-official-harness-acceptance.md)。

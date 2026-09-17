@@ -133,7 +133,7 @@ test('host startup failure releases capacity without creating an Attempt or auto
     const { queue } = await setup(t);
     await submit(queue, 'a');
     await submit(queue, 'b');
-    const worker = new NodeWorker(queue, { open: async () => { throw new Error('fixture failure'); } }, systemClock, 'worker', ['json'], 300);
+    const worker = new NodeWorker(queue, { open: async () => { throw new Error('fixture failure'); } }, systemClock, 'worker', ['json']);
     assert.equal((await worker.runOnce())!.error, 'WORKER_EXECUTION_FAILED');
     const tasks = await queue.query();
     assert.equal(tasks[0]!.state, 'blocked');
@@ -146,7 +146,7 @@ test('an unconfirmed later node never releases capacity using the previous accep
     // Ownership retention is independent of wall-clock speed; expiry has its own tests.
     const clock = { ...systemClock, now: () => 1000 }, queue = new PersistentNodeQueue(store, configuration, clock);
     await submit(queue, 'a');
-    const worker = () => new NodeWorker(queue, { open: async () => application('shared') }, clock, 'worker', ['json'], 300);
+    const worker = () => new NodeWorker(queue, { open: async () => application('shared') }, clock, 'worker', ['json']);
     await worker().runOnce();
     const claim = (await queue.claim('next', ['json'], 300))!, row = (await queue.records().read('a'))!, c = structuredClone(row.content) as any;
     c.snapshot.status = 'failed';
@@ -164,7 +164,7 @@ test('worker drain finishes its one claimed node and stops before claiming the s
     await submit(queue, 'a');
     let entered!: () => void, finish!: () => void;
     const ready = new Promise<void>(r => entered = r), release = new Promise<void>(r => finish = r);
-    const worker = new NodeWorker(queue, { open: async () => application('shared', async () => { entered(); await release; }) }, systemClock, 'worker', ['json'], 300);
+    const worker = new NodeWorker(queue, { open: async () => application('shared', async () => { entered(); await release; }) }, systemClock, 'worker', ['json']);
     const pending = worker.runOnce();
     await ready;
     await worker.stop();
@@ -202,12 +202,17 @@ test('worker cancellation uses the engine termination intent and releases its cu
     await submit(queue, 'a');
     let entered!: () => void, finish!: () => void;
     const ready = new Promise<void>(r => entered = r), release = new Promise<void>(r => finish = r);
-    const worker = new NodeWorker(queue, { open: async () => application('shared', async () => { entered(); await release; }) }, systemClock, 'worker', ['json'], 300);
+    const worker = new NodeWorker(queue, { open: async () => application('shared', async () => { entered(); await release; }) }, systemClock, 'worker', ['json']);
     const pending = worker.runOnce();
     await ready;
-    await worker.stop('cancel');
-    finish();
+    let stopError: unknown;
+    try {
+        // Ordinary cancellation keeps a valid lease despite a brief host pause.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 350);
+        await worker.stop('cancel');
+    } catch (error) { stopError = error; } finally { finish(); }
     const result = await pending;
+    if (stopError) throw stopError;
     assert.equal(result!.error, null);
     assert.equal(result!.snapshot!.status, 'cancelled');
     assert.equal((await queue.query()).length, 1);
@@ -260,7 +265,7 @@ test('a real delayed process cannot commit after another worker takes over and a
 test('duplicate adoption cannot advance the same node twice or alter the stored successor', async (t) => {
     const { queue } = await setup(t);
     await submit(queue, 'a');
-    const worker = new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'worker', ['json'], 300);
+    const worker = new NodeWorker(queue, { open: async () => application('shared') }, systemClock, 'worker', ['json']);
     const result = (await worker.runOnce())!, row = (await queue.records().read('a'))!;
     await assert.rejects(queue.bind(result.claim).compareAndSwap('a', row.revision, row.content), /QUEUE_CLAIM_LOST/);
     assert.deepEqual(await queue.records().read('a'), row);
@@ -274,7 +279,7 @@ for(const mismatch of ['harness','identity','capacity'])test(`actual dispatch ${
  const queue=new PersistentNodeQueue(store,config);await submit(queue,'a');
  const binding={harness:'fixture-agent',credential:{credentialRef:'shared',service:'fixture',method:'api-key'},capacity:1};
  if(mismatch==='identity')binding.credential.credentialRef='foreign';
- const worker=new NodeWorker(queue,{open:async()=>application('shared',async()=>{},binding)},systemClock,'worker',['json'],300);
+ const worker=new NodeWorker(queue,{open:async()=>application('shared',async()=>{},binding)},systemClock,'worker',['json']);
  assert.equal((await worker.runOnce())!.error,'QUEUE_NODE_BINDING_MISMATCH');
  const row=(await queue.records().read('a'))!;assert.equal((row.content as any).attempts.length,0);assert.equal((await queue.query())[0]!.owner,null);
 });
@@ -286,10 +291,12 @@ test('source-busy dispatch skips to another credential without a failed Attempt'
  for(const identity of [shared,other])await source.configure(identity,{content:'fixture-secret'});
  const management=await source.acquireManagement(shared);
  const worker=new NodeWorker(queue,{open:async(runId,_records,claim)=>{
+  // Credential selection must survive a host pause; lease expiry is tested separately.
+  if(runId==='b')Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,350);
   const reservation=createQueueCredentialAdmission(source,claim);
   const app=application(runId==='a'?'shared':'other',async()=>{const lease=await reservation.credentials.acquire(claim.requirements.credential!);assert.equal(await lease.readSecret(),'fixture-secret');await lease.release();});
   return{...app,admission:reservation.admission};
- }},systemClock,'worker',['json'],300);
+ }},systemClock,'worker',['json']);
  try{
   const waiting=await worker.runOnce();assert.equal(waiting!.waiting,'CREDENTIAL_SOURCE_BUSY');assert.equal(waiting!.error,null);
   assert.equal(((await queue.records().read('a'))!.content as any).checkpoint.attempts.length,0);
@@ -300,7 +307,7 @@ test('source-busy dispatch skips to another credential without a failed Attempt'
 test('a correct Profile with an unadmitted source cannot start an Attempt',async t=>{
  const{store}=await setup(t),config=structuredClone(configuration);config.workflows.shared.a.harness='fixture-agent';const queue=new PersistentNodeQueue(store,config);await submit(queue,'a');
  const binding={harness:'fixture-agent',credential:{credentialRef:'shared',service:'fixture',method:'api-key'},capacity:1};
- const worker=new NodeWorker(queue,{open:async()=>({...application('shared',async()=>{},binding),admission:{acquire:async()=>{throw new Error('MUST_NOT_ACQUIRE');},release:async()=>{}}})},systemClock,'worker',['json'],300);
+ const worker=new NodeWorker(queue,{open:async()=>({...application('shared',async()=>{},binding),admission:{acquire:async()=>{throw new Error('MUST_NOT_ACQUIRE');},release:async()=>{}}})},systemClock,'worker',['json']);
  assert.equal((await worker.runOnce())!.error,'QUEUE_CREDENTIAL_ADMISSION_REQUIRED');assert.equal(((await queue.records().read('a'))!.content as any).attempts.length,0);
 });
 
