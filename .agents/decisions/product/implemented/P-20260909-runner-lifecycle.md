@@ -1,6 +1,6 @@
 # Runner 协调一次执行，Docker 后端管理具体资源
 
-创建于 2026-09-09。
+创建于 2026-09-09。2026-09-15 已按 Issue #12 的完整首版范围落实并验证，移入 implemented；不包含重开条件及明确排除的扩展。下文保留切片演进的取舍与有日期的历史，当前验收以[联合记录](../../../../docs/validation/2026-09-15-official-harness-acceptance.md)为准。
 
 ## 结论与边界
 
@@ -20,7 +20,7 @@ Docker 后端允许宿主单独注入私有 state 初始化能力，与可序列
 
 真实 Codex 0.153.4 的 bwrap 需要嵌套 user namespace。Docker 环境增加宿主显式选择的 nested-userns-v1 策略，普通脚本仍使用原默认策略；Adapter 仅声明需要，不能直接切换安全选项。内置策略基于固定提交的 Moby allowlist，增加嵌套 namespace/mount 所需调用并取消与 clone3 冲突的 errno 规则；仍默认拒绝其他调用，不允许 seccomp=unconfined、额外 capabilities 或 privileged。允许 systempaths=unconfined 供 bwrap 建立内部 /proc 挂载，但保持外层私有 PID/IPC、非 root、cap-drop ALL、no-new-privileges、只读根文件系统与资源限制。此能力增加内核可调用面，必须绑定实际环境验证；不推断任意 Linux 主机的 AppArmor/userns 设置均兼容。
 
-Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；input/work/outputs/state 可写。默认 network=none；第三层增量增加上述受控代理，仍拒绝无约束 bridge。认证注入及真实 Harness 联合执行尚未完成，不能把独立联网验证当成联合验收。
+Docker 镜像由宿主配置选择，创建前解析实际镜像 ID，随后按该 ID 创建。默认 CPU 1、内存 512 MiB、PIDs 128、非 root 的宿主 UID/GID（首期要求相同身份，不支持 root 宿主或任意映射）、cap-drop ALL、no-new-privileges、只读根文件系统及有界 /tmp tmpfs；input/work/outputs/state 可写。默认 network=none；第三层增量增加上述受控代理，仍拒绝无约束 bridge。认证注入与三家真实 Harness 联合执行已验证，独立联网测试与官方任务证据分别记录。
 
 Runner 接收宿主选定的非秘密 argv；首期普通环境变量只允许 LANG、LC_ALL、TZ，固定目录环境由后端设置。调用参数不进入普通结果。原始 stdout/stderr 与 state 下声明的记录文件是私有原始证据，独立于 outputs。stdout/stderr 在 Docker attach 启动时流式采集，每流默认最多 1 MiB，超限继续排空并标记截断；Docker 自身关闭日志存储，避免重复无限增长。记录文件最多 16 项，共享 16 MiB 声明预算；单项可以使用全部预算，组合超过总量在启动前拒绝。该预算保持原先 16 项各 1 MiB 的总量，允许原生会话集中使用空间，不按 Harness 名称增加特例。记录文件逐个有界读取，缺失、链接、截断和传输错误均可见，未知编码保留为字节。
 
@@ -40,7 +40,7 @@ Runner 接收宿主选定的非秘密 argv；首期普通环境变量只允许 L
 
 ## 影响与验证
 
-PR2 部分覆盖 #12，使用 Refs。后端替身覆盖创建期间取消、观察失败、停止未知、采集/清理失败及退出竞争；真实 Docker 脚本验证并发副本、输出保留、正常/非零/启动失败、长输出与原始文件、权限/资源/网络约束，以及超时与取消确实停止且不误伤另一 Attempt。实际环境、镜像和结果写入验证记录。此决定继续 proposed，认证与三 Harness 联合验收未完成。
+PR2 部分覆盖 #12，使用 Refs。后端替身覆盖创建期间取消、观察失败、停止未知、采集/清理失败及退出竞争；真实 Docker 脚本验证并发副本、输出保留、正常/非零/启动失败、长输出与原始文件、权限/资源/网络约束，以及超时与取消确实停止且不误伤另一 Attempt。实际环境、镜像和结果写入验证记录。认证与三 Harness 联合验收已于2026-09-15完成；基础脚本、故障注入和官方任务证据分别记录。
 
 ## 重开条件
 

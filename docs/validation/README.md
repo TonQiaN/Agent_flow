@@ -12,6 +12,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
+| 2026-09-15 | [三种官方 Harness 联合验收](2026-09-15-official-harness-acceptance.md)：正常/返修、图片、多出口与真实续期；Codex 重新登录复验已通过 |
 | 2026-09-11、15 | [已合入变化的版本归类与文档交接](2026-09-11-documentation-handoff.md)（含最新 main 合并前复查） |
 | 2026-09-14 | [项目代理指令与技能相关内容审查](2026-09-14-agent-instructions-audit.md)（含 PR #35 合并后复查、R1–R4 修复验收及待讨论取舍） |
 | 2026-09-11 | [materials 管理、原件保留与飞书 CLI 核对](2026-09-11-materials-management.md) |
