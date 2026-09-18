@@ -12,6 +12,7 @@
 - 仅本目录根级的 `AGENTS.md`、`CLAUDE.md`、`README.md`、`.gitignore`、`.ignore` 入库；其他内容默认忽略，原始子目录中的同名文件也不例外。不用强制添加绕过该边界。
 - `CLAUDE.md` 保持为指向同目录 `AGENTS.md` 的相对符号链接。执行规则写在本文件，操作说明放入 docs，README 只作说明与导航；改变规则时先更新唯一负责决定。
 - 取消原始文件跟踪时保留本地原件；已有 checkout 接收此类提交前按 [资料指南](../docs/development/materials.md) 另存原件并核对，不把 Git 忽略视作备份。
+- 历史清理后的旧 checkout 按同一指南迁移，不把旧提交历史 merge 或 push 回来；仓库外私有备份不上传 GitHub。旧 PR 引用和缓存未清理前，不能仅凭当前文件树无原件判断可公开。
 
 ## 团队共享
 

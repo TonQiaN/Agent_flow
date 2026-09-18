@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### 开发协作
+
+- 原始资料从可写 Git 历史移除，清理已合并旧分支及过期依赖缓存；补充旧 checkout 迁移和防止重新引入资料的说明。本地原件和发布 tag 保留，GitHub 只读旧 PR 引用及缓存仍待平台清理，仓库继续 private，见 [Issue #50 验证记录](docs/validation/2026-09-18-public-preparation.md)。
+
 ## 0.1.4 — 2026-09-18
 
 源码 [v0.1.4](https://github.com/TonQiaN/Agent_flow/tree/v0.1.4) 固定提交 [2e44cf2](https://github.com/TonQiaN/Agent_flow/commit/2e44cf2d27f39475e27fe7c44cdcd098ebadbe22)，包含核心、前端与同期修复的完整项目。Studio 为 0.1.4，核心包保持 0.1.3；范围与验证见 [发布交接记录](docs/validation/2026-09-18-source-release.md)。
