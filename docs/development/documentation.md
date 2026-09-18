@@ -1,23 +1,23 @@
 # 文档维护指南
 
-适用范围：正式项目文档与决策。本文记录当前操作；规则的理由分别维护在 [生命周期决定](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)、[内容决定](../../.agents/decisions/development/README.md#d-20260907-decision-record-content)及 [分层决定](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)。
+适用范围：正式项目文档与 agent_notes。本文记录当前操作；规则的理由分别维护在 [生命周期决定](../../.agents/agent_notes/development/README.md#d-20260907-decision-lifecycle)、[内容决定](../../.agents/agent_notes/development/README.md#d-20260907-decision-record-content)及 [分层决定](../../.agents/agent_notes/development/README.md#d-20260907-documentation-layers)。
 
-根目录的执行入口是 [AGENTS.md](../../AGENTS.md)，由 [根入口书写决定](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing) 独立负责。决策目录的执行入口是 [.agents/decisions/AGENTS.md](../../.agents/decisions/AGENTS.md)，其书写分工继续由 [原负责决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing) 管理。README 负责说明和导航。
+根目录的执行入口是 [AGENTS.md](../../AGENTS.md)，由 [根入口书写决定](../../.agents/agent_notes/development/README.md#d-20260910-root-agents-writing) 独立负责。agent_notes 目录的执行入口是 [.agents/agent_notes/AGENTS.md](../../.agents/agent_notes/AGENTS.md)，其书写分工继续由 [原负责决定](../../.agents/agent_notes/development/README.md#d-20260907-agents-writing) 管理。README 负责说明和导航。
 
-原始资料区的局部入口是 [materials/AGENTS.md](../../materials/AGENTS.md)，由 [资料管理决定](../../.agents/decisions/development/README.md#d-20260911-materials-management) 唯一负责；其 Git、检索与飞书共享的当前操作见 [资料指南](materials.md)。
+原始资料区的局部入口是 [materials/AGENTS.md](../../materials/AGENTS.md)，由 [资料管理决定](../../.agents/agent_notes/development/README.md#d-20260911-materials-management) 唯一负责；其 Git、检索与飞书共享的当前操作见 [资料指南](materials.md)。
 
 ## 开始一项改动
 
 1. 正式开发先按 [开发工作指南](workflow.md) 建立 Issue、明确主责与验收，经人参与整理与关键确认后预检；AI 和工具可协助提炼和补齐信息。确认改动影响哪些决策问题，查看相关分类索引、现行决定、alternatives 与独立拒绝项。
 2. 预检后由负责开发者按内容决定判断。已有记录覆盖就复用该 ID，新取舍更新同一正文，独立问题才新建；同时按开发流程核对每个 PR 的实质决策文件改动，不把仅引用 ID 当作满足该门槛。
-3. 用 [共同模板](../../.agents/decisions/TEMPLATE.md) 提炼结论、范围、已有理由与验证方式。alternatives 只记录真实用户确实考虑过、且给出取舍理由的方案，并定位对应 Issue 中的讨论或确认摘要。用户未讨论替代方案、未给理由或只有 AI 自行比较时，不补写条目；无符合条件内容就写“暂无符合记录条件的替代方案。”，无需为填表另行追问。当前选择及已有理由可保留在结论中，不补造比较或批准。
+3. 用 [共同模板](../../.agents/agent_notes/TEMPLATE.md) 提炼结论、范围、已有理由与验证方式。alternatives 只记录真实用户确实考虑过、且给出取舍理由的方案，并定位对应 Issue 中的讨论或确认摘要。用户未讨论替代方案、未给理由或只有 AI 自行比较时，不补写条目；无符合条件内容就写“暂无符合记录条件的替代方案。”，无需为填表另行追问。当前选择及已有理由可保留在结论中，不补造比较或批准。
 4. 尚未全部落实的决定放在 proposed；在对应 Issue 登记针对具体方案与范围的确认，在决定中浓缩必要摘要。已有明确用户指令可作为依据，不重复请求批准，也不因已敲定而移动目录。先写相应决定与开发约定，再开发和测试；不要求决策先独立提交或合并，可与实现、测试及相关说明放在同一 PR。
 
 ## 修改 AGENTS.md
 
 先从文件中的唯一书写决策回链定位负责记录，了解它为何包含当前指令。实质改变职责或规则时，在同一负责决定中补充取舍，再同步 AGENTS.md；新增文件则先确定唯一归属，并在负责决定的完整文件清单中登记。
 
-根 AGENTS.md 使用独立书写决定，决策目录 AGENTS.md 沿用其原负责决定。归属迁移时同步移除旧清单中的受管文件、登记新归属并修改文件回链，确保一份 AGENTS.md 只有一个负责决定。其他领域决定提供事实依据，不成为该指令文件的另一项书写决定；对应关系的主清单仅在负责决定中维护。
+根 AGENTS.md 使用独立书写决定，agent_notes 目录 AGENTS.md 沿用其原负责决定。归属迁移时同步移除旧清单中的受管文件、登记新归属并修改文件回链，确保一份 AGENTS.md 只有一个负责决定。其他领域决定提供事实依据，不成为该指令文件的另一项书写决定；对应关系的主清单仅在负责决定中维护。
 
 项目内每份 AGENTS.md 的同目录都有 `CLAUDE.md -> AGENTS.md` 相对符号链接，共用正文。新增时在对应目录创建该链接；移动或删除时同步处理。完成后检查它确实是符号链接、目标为同目录 AGENTS.md，且能够读取相同内容。符号链接保证仓库指令正文一致，工具各自的全局配置和加载效果需另外核对。
 
@@ -27,8 +27,10 @@
 
 ## 移动与修订
 
+正式笔记统一位于 `.agents/agent_notes/`。目录更名后，导航、Markdown 链接、结构图及命令示例使用当前路径；既有 D-/P- ID 和分类索引锚点保留。目录名称与生命周期、确认规则分别维护，不能从“notes”名称推导出放宽正式记录要求。
+
 - 事件与目标目录按生命周期决定执行。移动时保留文件名 ID，更新分类 README 中唯一正文路径。
-- 正式引用使用分类索引锚点，例如 [D-20260907-decision-lifecycle](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)。正文位置改变后，该入口不变。
+- 正式引用使用分类索引锚点，例如 [D-20260907-decision-lifecycle](../../.agents/agent_notes/development/README.md#d-20260907-decision-lifecycle)。正文位置改变后，该入口不变。
 - 同问题的已确认改选在原正文内更新，旧方案满足上述用户考量与理由条件时进入 alternatives；缺少理由时在变更留痕中注明，不推测补齐。未确认的修订写在原文末尾，现行结论继续有效。
 - Issue 讨论与审查的完整过程不搬进决定；proposed 中已经敲定的方案按其确认范围实施，全部落实并验证后才移入 implemented。
 - 独立拒绝使用同一模板，写清拒绝范围、原因和重开条件；已有理由用 ID 引用，不复制。
@@ -51,7 +53,7 @@ materials 内仅五份根级管理文件受 Git 跟踪：AGENTS.md、CLAUDE.md�
 日常搜索明确限于正式区域：
 
 ```sh
-rg -n --hidden '关键词' .agents/decisions docs AGENTS.md
+rg -n --hidden '关键词' .agents/agent_notes docs AGENTS.md
 ```
 
 任务明确要求研究原始材料时，直接限定到当时可见的目录或文件。原始资料被移动或删除，不需要同步修改正式决定。
@@ -60,7 +62,7 @@ rg -n --hidden '关键词' .agents/decisions docs AGENTS.md
 
 - 同一 ID 只对应一份正文，目录与实际生效/落实情况一致，没有正文 status 字段。
 - 新增或实质修订的 alternatives 条目有真实用户考量、用户给出的取舍理由及可定位的讨论依据，不为填表补写优点、代价或否决原因；替代、拒绝理由有唯一归属，不因文案不同而重复研究同一方案。
-- 决策索引、正式链接与模板完整；正式决定不依赖原始资料路径。
+- agent_notes 索引、正式链接与模板完整；正式决定不依赖原始资料路径。
 - 每份正式 AGENTS.md 具有唯一负责决定，回链与负责决定的文件清单相符；同目录 CLAUDE.md 为有效的相对符号链接，指向该份 AGENTS.md；README 未复制一套执行规则。
 - 根入口布局与实际目录一致，未建立部分明确占位；根入口所需工作说明在 docs 中可定位，相关路径与锚点有效。
 - 当前说明反映实际行为，未完成事项如实标明；相关验证与重大事故复盘可独立阅读。

@@ -31,4 +31,4 @@ LoopX 在 20 次持久进度记录后要求周期规划核对。本次基线为 
 
 停止条件保持原范围：需要真实私有材料、未授权凭据或远端发布时沿用已有待办；其余本地实现继续。#13、#14–#16 和真实批卷/报告/PDF 都保持未完成。作者核对，不代表独立审阅或整体验收。
 
-[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [0.1.2 规划](../roadmap/0.1.2.md)
+[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence) · [0.1.2 规划](../roadmap/0.1.2.md)

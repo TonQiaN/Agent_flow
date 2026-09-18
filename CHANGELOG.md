@@ -6,6 +6,8 @@
 
 ### 开发协作
 
+- 正式笔记目录统一为 `.agents/agent_notes/`，同步 Markdown 入口、结构图、链接与模板名称，保留既有稳定 ID 和生命周期规则。新增[两人团队的 CI 与 AI 审查分工](.agents/agent_notes/development/README.md#d-20260918-ci-ai-review)，记录公开仓库、标准 Actions、订阅内原生 Codex 审查，以及验收责任和暂停的自动化范围。
+
 - 原始资料从可写 Git 历史移除，清理已合并旧分支及过期依赖缓存；补充旧 checkout 迁移和防止重新引入资料的说明。本地原件和发布 tag 保留，GitHub 只读旧 PR 引用及缓存仍待平台清理，仓库继续 private，见 [Issue #50 验证记录](docs/validation/2026-09-18-public-preparation.md)。
 
 ## 0.1.4 — 2026-09-18

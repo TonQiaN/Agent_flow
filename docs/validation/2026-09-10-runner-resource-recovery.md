@@ -32,4 +32,4 @@ Runner.run 可接受资源保存端口，实际描述/分配后、准备和创�
 
 下一步将资源保存端口连入正常 Workflow 活动 Attempt 的 CAS 检查点，建立跨进程恢复所有权与迟到操作隔离，保留完整 Attempt 历史；然后验证 A 已接纳不重跑、旧 B 停止后用新 Attempt 完成。认证占用、Effect unknown、队列、重试、并行及真实批卷/报告/PDF 范围均继续保留。Runner 单独的资源收尾不等于 #13 整项完成。
 
-[使用指南](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

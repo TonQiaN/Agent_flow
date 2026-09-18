@@ -15,7 +15,7 @@
 
 archived 使用该英文拼写。superseded 不作为并列状态：被替代的是同一问题下的旧方案，合并进正文的 alternatives，保留选用与放弃原因。一般未选方案也只在该处维护；独立问题的明确拒绝才建 rejected 记录，不复制完整理由。
 
-## Issue 与决策目录的分工
+## Issue 与 agent_notes 目录的分工
 
 Issue 承载讨论、分工、审查与实施范围的确认；目录表达决定的落实、退出或拒绝情况。取消 accepted，未全部落实的决定统一放在 proposed；不在正文增设等价状态字段或另建子目录。共同审查的目标、启动期取舍和具体确认方式归 [开发流程决定](../README.md#d-20260907-development-workflow) 管理。
 

@@ -34,7 +34,7 @@ Sub-issue 与主 Issue 建立关联，由对应负责人自主组织其承担的
 
 沿用 `.github/ISSUE_TEMPLATE/` 的五份 YAML 和 config.yml；入口标明主 Issue，开放 Blank issue，使子项可以直接自由创建。该开关向有权访问仓库的用户提供空白入口，不能区分主／子项；主 Issue 使用五类模板的约定由人参与整理落实，不能宣称平台自动强制。子项也可使用 GitHub 原生创建／关联入口。
 
-`.agents/decisions/development/` 保留分类、共通和五类差异的七个唯一 ID；`docs/development/issue-templates.md` 说明主表用法与子项自主表达边界，`docs/validation/` 记录真实核对。共同规范不是第六种提交类型，不新增 common.yml、子项表单、第二套正式 Markdown 模板、YAML 继承或生成器。
+`.agents/agent_notes/development/` 保留分类、共通和五类差异的七个唯一 ID；`docs/development/issue-templates.md` 说明主表用法与子项自主表达边界，`docs/validation/` 记录真实核对。共同规范不是第六种提交类型，不新增 common.yml、子项表单、第二套正式 Markdown 模板、YAML 继承或生成器。
 
 共同修改同步五表、指南与相应决定；类内差异回到原决定。不为凑数新增正文。同义字段保持 ID；删去的方法块，其职责去向由各类决定说明。既有 Issue 不批量迁移，本轮仅按 #21 范围核对 #20。过去的 Bug behavior→problem 迁移保持不变，若有消费旧字段的工具再显式兼容。
 

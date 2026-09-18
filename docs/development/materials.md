@@ -1,6 +1,6 @@
 # 原始资料与团队共享
 
-`materials/` 保存自由整理的本地原始资料；值得团队成员复用或讨论的选定内容通过飞书 CLI 管理。规则入口是 [materials/AGENTS.md](../../materials/AGENTS.md)，取舍及其唯一书写归属见 [资料管理决定](../../.agents/decisions/development/README.md#d-20260911-materials-management)。
+`materials/` 保存自由整理的本地原始资料；值得团队成员复用或讨论的选定内容通过飞书 CLI 管理。规则入口是 [materials/AGENTS.md](../../materials/AGENTS.md)，取舍及其唯一书写归属见 [资料管理决定](../../.agents/agent_notes/development/README.md#d-20260911-materials-management)。
 
 ## 本地与 Git 的边界
 
@@ -8,7 +8,7 @@ materials 内仅五份根级管理文件进入 Git：`AGENTS.md`、`CLAUDE.md`�
 
 原始内容可以包含 artifact、会议、聊天、录音和调研文件，没有统一格式、命名、目录或材料索引。管理文件可正常检索；原始正文仅在任务需要时限定范围读取。`rg --files --hidden materials` 可列出可检索管理文件，默认不跟随 CLAUDE.md 符号链接。
 
-新增资料不会自动上传到飞书，也不会自动成为正式项目规则。采纳的取舍进入 `.agents/decisions/`，当前说明与验证结论进入 `docs/`；正式知识保留必要事实并可独立理解，不要求原始路径或飞书链接稳定存在。
+新增资料不会自动上传到飞书，也不会自动成为正式项目规则。采纳的取舍进入 `.agents/agent_notes/`，当前说明与验证结论进入 `docs/`；正式知识保留必要事实并可独立理解，不要求原始路径或飞书链接稳定存在。
 
 ## 已有 checkout 如何保留原件
 

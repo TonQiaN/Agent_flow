@@ -1,6 +1,6 @@
 # DeepSeek API key、快照绑定与原生交接
 
-关联 #11 和 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。本切片实现 DeepSeek 静态凭据 Codec/Profile/脱敏与不可变执行绑定，宿主完整 Runner/AgentDriver 和受控联网组合尚未完成。
+关联 #11 和 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。本切片实现 DeepSeek 静态凭据 Codec/Profile/脱敏与不可变执行绑定，宿主完整 Runner/AgentDriver 和受控联网组合尚未完成。
 
 ## 参考与边界
 

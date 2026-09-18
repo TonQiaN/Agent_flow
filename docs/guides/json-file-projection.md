@@ -28,4 +28,4 @@ bridge.registerJsonFile({
 
 受信宿主与 Run 存储的边界沿用文件收据：不接受模型提供的历史记录作为受信存储，也不宣称可以防止控制数据库者同时伪造所有一致事实。批卷示例已接入 publication.json 的实际生成与当前审批策略，见[持久组合](persistent-tutor-grading.md)；该合成验证不代表官方模型或真实学生整体验收完成。
 
-[验证记录](../validation/2026-09-10-json-file-projection.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[验证记录](../validation/2026-09-10-json-file-projection.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

@@ -69,7 +69,7 @@ node --import tsx src/examples/tutor-report/demo.ts /new/output/directory
 
 Python 工具作为受信任宿主文件函数执行；解释器及程序位置来自显式安装配置，Agent 不能选择可执行代码。超时或取消向本次子进程组发送终止信号，等待进程关闭后返回，失败输出不会被接纳。输出日志有界，公开失败仅保留稳定错误码。此桥接没有新增持久执行定义或失联恢复端口，当前不能通过 `startPersisted` 将整条报告流程当作可恢复流程；需要该能力时须接入真实 Runner/Script 或独立可恢复宿主工具，而非伪造执行快照。
 
-实际结果及未覆盖项见 [消费端验收](../validation/2026-09-10-tutor-report-consumer.md)，取舍见 [Component 决策](../../.agents/decisions/product/README.md#p-20260909-component-execution)。
+实际结果及未覆盖项见 [消费端验收](../validation/2026-09-10-tutor-report-consumer.md)，取舍见 [Component 决策](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)。
 
 ## 已确认完整提交中的缺失作答
 

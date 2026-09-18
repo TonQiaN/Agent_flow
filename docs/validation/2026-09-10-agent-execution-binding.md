@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-Issue #13，本地基线 3623e22，沿用[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。用户已确认保存必要定义、认证只保存非秘密身份，并授权常规细节先参考 Blackbox。主负责开发者 @xiaoxuanli-a；Codex 实施及作者检查，未进行独立审阅。
+Issue #13，本地基线 3623e22，沿用[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。用户已确认保存必要定义、认证只保存非秘密身份，并授权常规细节先参考 Blackbox。主负责开发者 @xiaoxuanli-a；Codex 实施及作者检查，未进行独立审阅。
 
 先读 Blackbox v0.1.22 / 5610d1b 的 execution_plans.py、runtime.py 定义检查，以及提交 78d53c5：Profile 在 Run 开始前解析固定，恢复重新核对 Profile 内容，防止中途换配置。当前项目不引入旧角色选择器或整 Run 锁，沿已注册的实际 Driver/运行组合导出定义。
 

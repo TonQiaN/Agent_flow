@@ -4,7 +4,9 @@
 
 ## 结论与边界
 
-项目决策是第一公民。产品与开发流程的取舍分别放在 .agents/decisions/product 和 development；当前架构、用法、结构、验证结果及重大事故正式复盘放在 docs；本地原始资料统一收容在 materials，其中可以有 artifacts、会议纪要、录音及任意其他文件。
+项目决策是第一公民。产品与开发流程的取舍分别放在 .agents/agent_notes/product 和 development；当前架构、用法、结构、验证结果及重大事故正式复盘放在 docs；本地原始资料统一收容在 materials，其中可以有 artifacts、会议纪要、录音及任意其他文件。
+
+正式记录目录统一命名为 `agent_notes`，用于保存经提炼的产品与开发流程 notes；目录名称不改变记录的效力。保留产品与开发流程分类、既有稳定 ID、生命周期和同问题唯一正文。历史记录可以继续表达决策，新的 notes 也按共同模板区分已确认取舍、当前事实和待讨论内容；会话原文不会因目录更名自动成为项目规则。
 
 决定描述期望，使用指南描述现实。即使经过完整 CI/CD、Issue/PR 和测试仍发生重大事故，也要在 docs/postmortems 永久记录影响、根因、为何既有检查遗漏及修正；结论不能只留在研究材料里。验证记录在 docs/validation，未完成的检查不能写成通过。
 
@@ -39,3 +41,4 @@ docs/roadmap 保存当前交付规划，是 docs 中明确标识的规划区域�
 - 目录命名及阅读入口是启动时的实现细化，当时未约定多人批准权或资料 Git 共享策略。
 - 2026-09-08：[Issue #4](https://github.com/TonQiaN/Agent_flow/issues/4) 授权版本管理骨架；增加 docs/roadmap 与根 CHANGELOG 的职责，保持规划、取舍和现实分离。
 - 2026-09-11：[Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34) 按用户确认新增资料保存与团队共享的独立决定；本分层决定补充其职责入口，保留原始区宽松和正式知识自足的边界。
+- 2026-09-18：[Issue #54](https://github.com/TonQiaN/Agent_flow/issues/54) 记录用户明确要求将目录改名为 `agent_notes`，并检查相关 Markdown 的目录说明与引用。本次统一目录名称及现行入口，保留稳定 ID、生命周期和三层职责。用户未另述命名比较理由，不新增 alternatives；TonQiaN 主责，Codex 实施与自查，未进行其他开发者审阅。

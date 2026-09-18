@@ -29,6 +29,6 @@ macOS arm64 / Node 26；全部凭据为合成值。
 
 接入 Codex/Claude 的受信原生登录执行驱动，覆盖版本、网络、交互、私有文件、取消和资源证据；真实登录须遵守已有授权边界。安全备份恢复、实际矩阵验收和最终真实批卷、报告、PDF 均保持未完成。
 
-使用接口见 [订阅登录协调](../guides/subscription-login.md)，取舍见 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
+使用接口见 [订阅登录协调](../guides/subscription-login.md)，取舍见 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。
 
 最终检查：234 项通过、0 失败、0 跳过，约 105 秒；构建、测试类型和依赖边界检查通过。118 个本地文档链接存在，git diff 空白检查通过。

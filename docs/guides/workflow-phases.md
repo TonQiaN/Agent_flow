@@ -12,7 +12,7 @@
 
 恢复仍经原 claim/cleanup/resumePersisted 接口。活动宿主 operation 或 pending launch 缺少安全接管证据，拒绝认领且不修改记录。其他可恢复状态按反向顺序清理所有已保存的阶段资源，包括已经标记完成的阶段；只有全部确认后才允许同一 NodeTask 的新 Attempt。已接纳前序节点保留，阶段数量不消耗业务步骤预算。清理部分失败可重试，迟到 worker 不能覆盖新的 CAS revision。
 
-实际 Agent 的阶段接线和文件收据已接入；探针与 Driver 输入已归入 Runner 目录；内置 Catalog 的交接目录已消除；订阅已通过[资源归属恢复](subscription-resource-recovery.md)，凭据在 execution 的 prepare 内取得，无单独 credential 操作阶段。未发布暂存的通用清理和真实官方模型恢复未验收。此接口不授予凭据读取、强制解锁或 Effect 重放能力。验证见[阶段记录](../validation/2026-09-10-workflow-phases.md)，取舍见[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+实际 Agent 的阶段接线和文件收据已接入；探针与 Driver 输入已归入 Runner 目录；内置 Catalog 的交接目录已消除；订阅已通过[资源归属恢复](subscription-resource-recovery.md)，凭据在 execution 的 prepare 内取得，无单独 credential 操作阶段。未发布暂存的通用清理和真实官方模型恢复未验收。此接口不授予凭据读取、强制解锁或 Effect 重放能力。验证见[阶段记录](../validation/2026-09-10-workflow-phases.md)，取舍见[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。
 
 ## 实际 Agent 组合
 

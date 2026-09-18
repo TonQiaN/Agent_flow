@@ -1,6 +1,6 @@
 # DeepSeek 宿主执行组合
 
-关联 #10/#11 和 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)、[认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。本次接通 DeepSeekApiKeyRunner、DeepSeekAgentDriver、受信运行资产交接与统一执行收尾。真实 DeepSeek/Claude 模型调用及真实学生批卷仍未验收。
+关联 #10/#11 和 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)、[认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。本次接通 DeepSeekApiKeyRunner、DeepSeekAgentDriver、受信运行资产交接与统一执行收尾。真实 DeepSeek/Claude 模型调用及真实学生批卷仍未验收。
 
 ## 参考与实现
 

@@ -33,6 +33,6 @@ CLI 明确清除无效登录时的空 accessToken、空 refreshToken、expiresAt
 
 Claude Read/Edit 文件规则用双斜线标识绝对路径：Read(//task/state/**)、Edit(//task/state/**)、Edit(//task/config/**)。sandbox.filesystem 的路径仍用单斜线。旧 Blackbox 单斜线权限规则未直接复用，依据 [Claude 文件权限规范](https://code.claude.com/docs/en/permissions)。配置存在或真实 CLI 启动不单独证明工具隔离。现有 [实际工具回归](../validation/2026-09-09-claude-tool-isolation.md) 通过本地协议替身驱动真实工具，覆盖文件拒绝、链接/proc 路径、正常副本写入和 Bash 网络阻断；它仍不证明真实模型请求和远端刷新。
 
-[验证记录](../validation/2026-09-09-claude-execution.md) · [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)
+[验证记录](../validation/2026-09-09-claude-execution.md) · [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)
 
 Driver 输入在已登记的 Runner 工作目录内物化，见[输入物化](runner-owned-input.md)。

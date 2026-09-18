@@ -24,4 +24,4 @@ Engine 在正常 Workflow writer 中保存有序 resource/operation 阶段；执
 
 实际 Agent Executor/Driver/FileWorkflowCatalog 的阶段接线和严格文件收据尚未实现；宿主凭据获取中断没有可恢复证据，不能自行解锁。订阅刷新与占用、探针和物化临时目录的崩溃收尾、其他绑定与完整 #13 验收仍需继续。测试的 operation 只是无副作用模拟步骤。
 
-[使用指南](../guides/workflow-phases.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/workflow-phases.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

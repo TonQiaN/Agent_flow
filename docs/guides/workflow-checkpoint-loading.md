@@ -23,7 +23,7 @@ Catalog 的 restoreValue 只消费加载器签发的一次性进程内请求。�
 
 加载可以检查 running、cancelled 或 failed 记录，但不会改变它们的状态。宿主被终止不代表其容器已停止；后续恢复协调仍须取得 CAS 所有权、核对并停止旧 Runner 资源，再以同一 NodeTask 的新 Attempt 进入正常执行。[恢复认领与旧资源清理](workflow-recovery.md)已接入，同一 NodeTask 的新 Attempt 已接入共享执行循环。
 
-[检查点写入](workflow-checkpoints.md) · [本轮验证](../validation/2026-09-10-workflow-checkpoint-loading.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[检查点写入](workflow-checkpoints.md) · [本轮验证](../validation/2026-09-10-workflow-checkpoint-loading.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)
 
 加载恢复封套时额外核对 claimRevision、资源移除标记与活动状态的关系，`loaded.recovery` 返回 `{ claimRevision, resourceRemoved }` 的独立副本；普通记录为 null。该检查保持存储 revision 不变，不取得新 claim，也不触碰旧容器。
 

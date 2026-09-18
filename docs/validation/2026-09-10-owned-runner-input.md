@@ -32,4 +32,4 @@ CredentialHarnessRunner 的探针不再创建 version-input 目录；Driver 直�
 
 Catalog 的 node/checkpoint/restore 目录、独立临时 ArtifactStore 快照、资源分配但尚未登记的窗口仍待处理；旧外部目录不会按前缀扫描删除。测试最终删除自有测试根不作为这些缺口已解决的证据。订阅占用接管、完整 #13、真实模型恢复与真实批卷报告/PDF 仍未验收。上述为作者检查，不代表独立审阅或 Node 24 CI。
 
-[输入指南](../guides/runner-owned-input.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[输入指南](../guides/runner-owned-input.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

@@ -35,4 +35,4 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_CODEX_IMAGE=agentflo
 
 脚本、模拟 Effect、Tutor 合成闭环与真实消费端验收仍在原计划内继续。CLI 尚未提供 Workflow 文件加载命令，持久化、队列、自动重试和并行仍属后续 Issue。若驱动只抛异常、没有返回停止/恢复能力，适配保留资源并拒绝猜测停止；安装的驱动仍须兑现清理句柄契约。
 
-[文件 Workflow 指南](../guides/workflow-files.md) · [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [串行控制验证](2026-09-09-workflow-serial.md)
+[文件 Workflow 指南](../guides/workflow-files.md) · [组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution) · [串行控制验证](2026-09-09-workflow-serial.md)

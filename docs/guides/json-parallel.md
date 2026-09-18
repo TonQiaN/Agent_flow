@@ -71,4 +71,4 @@ wait-all 会继续处理其他未取消项目。所有项最终结束后，若�
 
 并行结构只接受可信执行器交付的逻辑 JSON。Agent 如果通过 outputs 文件交付 JSON，仍由既有 Agent 接纳/产物适配接口转成对应逻辑结果；Map/Fork 不直接解析 Harness 日志，也不恢复旧 result.json 文件清单协议。当前示例使用确定性 JSON 函数，真实 Runner 的 JSON Script 组合用于隔离验收；这不表示新增了开箱即用的 JSON Agent 转换适配器。
 
-验证见 [#16 作者验收](../validation/2026-09-10-json-parallel.md)，取舍见 [P-20260910-json-parallel](../../.agents/decisions/product/README.md#p-20260910-json-parallel)。
+验证见 [#16 作者验收](../validation/2026-09-10-json-parallel.md)，取舍见 [P-20260910-json-parallel](../../.agents/agent_notes/product/README.md#p-20260910-json-parallel)。

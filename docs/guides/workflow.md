@@ -62,4 +62,4 @@ node src/examples/workflow.mjs 0
 
 这是确定性 revision 返修示例，不是真实批卷或模型替身。2 次返修得到 accepted；1/0 次在保留最后结果的同时得到 exhausted/rejected。CLI 的 demo 子命令仍独立，尚未提供工作流文件加载命令。Run 状态和编译计划只驻留内存，无持久恢复、共享队列或并行。
 
-[组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-workflow-serial.md)
+[组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-workflow-serial.md)

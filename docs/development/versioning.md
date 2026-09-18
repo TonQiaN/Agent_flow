@@ -1,6 +1,6 @@
 # 版本维护指南
 
-当前具备 Roadmap、CHANGELOG 和手工发布流程；核心 [v0.1.3](https://github.com/TonQiaN/Agent_flow/tree/v0.1.3) 与包含前端/本机工作台的 [v0.1.4](https://github.com/TonQiaN/Agent_flow/tree/v0.1.4) 已固定为两个源码快照，实际日期与提交见 [发布交接验证](../validation/2026-09-18-source-release.md)。没有 npm 分发实现或发布自动化。取舍见 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)。
+当前具备 Roadmap、CHANGELOG 和手工发布流程；核心 [v0.1.3](https://github.com/TonQiaN/Agent_flow/tree/v0.1.3) 与包含前端/本机工作台的 [v0.1.4](https://github.com/TonQiaN/Agent_flow/tree/v0.1.4) 已固定为两个源码快照，实际日期与提交见 [发布交接验证](../validation/2026-09-18-source-release.md)。没有 npm 分发实现或发布自动化。取舍见 [版本管理决定](../../.agents/agent_notes/development/README.md#d-20260908-version-management)。
 
 ## 内容放在哪里
 
@@ -9,7 +9,7 @@
 | [Roadmap 总览](../roadmap/README.md) | 阶段边界、版本目标摘要、版本状态和计划 / 发布入口 |
 | `docs/roadmap/<version>.md`（按需创建） | 单版目标、范围与非目标、版本整体验收、关联工作 |
 | Issue | 主负责人、详细任务验收、执行进展、讨论与确认 |
-| [.agents/decisions](../../.agents/decisions/README.md) | 方案取舍和必要确认摘要 |
+| [.agents/agent_notes](../../.agents/agent_notes/README.md) | 方案取舍和必要确认摘要 |
 | [CHANGELOG.md](../../CHANGELOG.md) | 已实现的变化、待发布条目及历次发布结果 |
 | 根 `package.json.version` | 核心版本输入；CLI、DeepSeek 工具及三个核心库跟随该值 |
 | `src/apps/studio/package.json.version` | 用户明确分配的前端版本；内部依赖指向核心包的实际版本 |

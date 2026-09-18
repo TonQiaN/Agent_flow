@@ -1,6 +1,6 @@
 # materials 管理与飞书 CLI 核对
 
-日期：2026-09-11。关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34) 与 [资料管理决定](../../.agents/decisions/development/README.md#d-20260911-materials-management)。
+日期：2026-09-11。关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34) 与 [资料管理决定](../../.agents/agent_notes/development/README.md#d-20260911-materials-management)。
 
 ## 对象与范围
 
@@ -20,7 +20,7 @@
 | 正式 Markdown 与相对引用 | 89 份 Markdown 的 399 处相对链接与锚点通过，目标在交付文件集合中，未因本地仍有原件而掩盖对已移出 Git 文件的链接 |
 | 决策与指令 | 22 个决定 ID 各有唯一正文与索引；三份 AGENTS.md 各有唯一负责决定；三处 CLAUDE.md 均为 Git 模式 120000、相对目标 AGENTS.md，正文一致 |
 | 根入口粒度 | 54 行，17 个真实布局路径；src 布局逐字保留，其他目录只列根级入口与职责；materials 局部指令为 18 行 |
-| 改动边界 | src、包与编译配置、.github 和决策目录 AGENTS.md 正文相对基线无变化；恰好 78 个原始路径退出跟踪，无其他删除 |
+| 改动边界 | src、包与编译配置、.github 和 agent_notes 目录 AGENTS.md 正文相对基线无变化；恰好 78 个原始路径退出跟踪，无其他删除 |
 | 差异格式 | 已暂存与未暂存的 `git diff --check` 均通过，无冲突标记 |
 
 以上为当前工作分支的静态自查结果；检查脚本及逐文件摘要保留在本机临时工作记录中，不为原始区新增统一索引要求。

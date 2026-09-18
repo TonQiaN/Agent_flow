@@ -35,4 +35,4 @@ Workflow 每次调用生成独立 RunnerResourceSink，经 FileWorkflowCatalog �
 
 资源事实现已进入正常 Workflow，但还没有跨进程恢复 CAS 所有权、旧宿主迟到 create/start 隔离、中断 Attempt 收尾及同一 NodeTask 新 Attempt 调度。单次 CAS 检查不等于与 Docker 操作原子完成；不能据此直接开放自动恢复。受控 SIGKILL 夹具只证明正常写入和旧资源共同清理，不证明并发恢复者下的 A 不重跑/B 新 Attempt 完成。Agent/认证/Effect、队列、重试、并行和真实学生批卷/报告/PDF 均保留后续验收。
 
-[检查点指南](../guides/workflow-checkpoints.md) · [Runner 资源恢复](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[检查点指南](../guides/workflow-checkpoints.md) · [Runner 资源恢复](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

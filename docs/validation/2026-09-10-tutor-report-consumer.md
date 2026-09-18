@@ -33,4 +33,4 @@ Node 26、macOS、已安装 Tutor Python 环境：构建、测试类型检查、
 
 桥接使用受信任宿主文件函数，不宣称支持这条报告管线的跨进程恢复、Worker 调度或 Docker 隔离。既有 #13–#16 的独立验收不能自动填补消费端接线的这些差距。当前测试依赖指定 Tutor 安装和字体，没有 Node 24 远端 CI 或跨平台证据。后续真实验收必须继续保留原目标，不以这份合成 PDF 作为完成。
 
-[使用指南](../guides/tutor-report-consumer.md) · [Component 决策](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[使用指南](../guides/tutor-report-consumer.md) · [Component 决策](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)

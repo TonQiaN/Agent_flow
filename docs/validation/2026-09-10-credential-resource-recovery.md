@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-Issue #13，基线 88f51d8，主负责开发者 @xiaoxuanli-a。按已有授权实现不可变 API key 执行资源的共同恢复，沿用[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。此处是独立资源端口，完整 Agent Workflow 仍未验收。
+Issue #13，基线 88f51d8，主负责开发者 @xiaoxuanli-a。按已有授权实现不可变 API key 执行资源的共同恢复，沿用[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。此处是独立资源端口，完整 Agent Workflow 仍未验收。
 
 先查 Blackbox v0.1.22 / 5610d1b 的 runners.py 订阅租约与 API key 无执行占用分支、api_keys.py 的按变量名注入、credential_leases.py 与 test_credential_capacity.py，并核对 f508c78 的订阅刷新收尾。当前 FileCredentialStore 的目录占用在宿主死后会保留，不能直接套用旧 flock 自动释放；本轮不清除遗留占用、不改写订阅刷新规则。实际源存储短租约已结束后，API key 执行不再需要源写入权，可以独立清理容器。
 

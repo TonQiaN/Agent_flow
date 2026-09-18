@@ -1,6 +1,6 @@
 # materials 原始资料区
 
-作用范围：materials 及其子目录。唯一书写决策：[资料管理决定](../.agents/decisions/development/README.md#d-20260911-materials-management)。
+作用范围：materials 及其子目录。唯一书写决策：[资料管理决定](../.agents/agent_notes/development/README.md#d-20260911-materials-management)。
 
 ## 资料边界
 

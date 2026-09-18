@@ -24,4 +24,4 @@ ArtifactStore 增加可选 inspect；FileArtifactStore 仅返回本实例私有�
 
 同存储复用不等于完整临时产物回收。Catalog 的 checkpoint/restore 暂存、不同存储与其他节点的 node 目录、旧进程初始/已接纳 ArtifactStore 快照、资源分配未登记窗口仍待处理。不能通过目录前缀、PID 消失或测试最终删除自有根证明这些边界已完成。订阅占用恢复、完整 #13 和真实批卷报告/PDF 尚未验收。
 
-[Agent 输入](../guides/agent-acceptance.md) · [Runner 输入](../guides/runner-owned-input.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[Agent 输入](../guides/agent-acceptance.md) · [Runner 输入](../guides/runner-owned-input.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

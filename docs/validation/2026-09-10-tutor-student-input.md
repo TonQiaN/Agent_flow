@@ -42,7 +42,7 @@
 
 FileArtifactArchive 仍保留原 256 MiB；这条宿主工具消费链未声明持久 Worker 恢复。真实 Claude/DeepSeek 矩阵与远端 PR 交付也未由本次测试覆盖。
 
-[扫描件使用指南](../guides/tutor-scanned-marking.md) · [执行模型决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[扫描件使用指南](../guides/tutor-scanned-marking.md) · [执行模型决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)
 
 本轮最终 `npm run check` 整体通过：407项普通测试全部通过；默认 E2E 17通过、188按环境跳过。另显式开启的8项 Tutor 报告流程、11项 Adapter/附件检查、1项含4次真实 CLI 离线启动的测试全部通过；构建、测试类型、依赖边界及760个本地文档链接通过。
 

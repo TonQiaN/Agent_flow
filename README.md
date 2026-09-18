@@ -7,7 +7,7 @@ AgentFlow 提供 TypeScript 工作流引擎、容器执行、模型接入、持�
 | 入口 | 内容 |
 | --- | --- |
 | [项目文档](docs/README.md) | 当前架构、指南、结构、验证和复盘 |
-| [项目决策](.agents/decisions/README.md) | 产品与开发流程的取舍，按生命周期目录组织 |
+| [agent_notes](.agents/agent_notes/README.md) | 产品与开发流程的正式笔记，保存取舍并按生命周期目录组织 |
 | [原始资料入口](materials/README.md) | 宽松收录的会议、聊天、研究、录音及 artifacts |
 | [协作说明](AGENTS.md) | AI 开发读取顺序与共同流程 |
 | [开发工作指南](docs/development/workflow.md) | 以 Issue 为起点的流程、本地模板与尚未落实的自动化 |

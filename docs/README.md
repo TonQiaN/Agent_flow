@@ -1,6 +1,6 @@
 # 项目文档
 
-这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。决定及其取舍只在 .agents/decisions 维护；materials 是独立的宽松原始资料区。
+这里说明项目当前是什么、怎样使用、怎样验证；roadmap 是明确标识的当前规划区域。正式笔记及其取舍只在 .agents/agent_notes 维护；materials 是独立的宽松原始资料区。
 
 **当前状态：可运行确定性 Component、JSON contract、Docker Runner 与受控 CONNECT 联网、独立 Harness 计划/parser、文件契约与快照交接、Agent 接纳与进程内可信收据、私有凭据存储/执行绑定。串行 Workflow 编译/路由/有界返修及 JSON 函数、文件函数、Agent 接纳、确定性脚本、文件到 JSON 转换及模拟 Effect 适配已实现；Tutor 合成批卷已接通 Gate、返修和模拟发布，真实 Codex 也已通过同一合成材料的正常及返修流程。持久化及节点边界恢复已完成首版作者验收，包含 API key 与订阅组合；本地队列、Worker 和认证占用联动、节点有限重试与持久等待、单层 JSON Map/Fork 已接通。三家官方合成批卷正常/返修、图片与多出口已通过，两种订阅新登录及所选真实续期证据已核对；Codex 凭据撤销后重新登录复验通过，详见 [2026-09-15 联合验收](validation/2026-09-15-official-harness-acceptance.md)；真实 Codex 已完成一题合成扫描件，并从草稿修正和单独报告续跑完成一份16页真实学生作答的批改、独立复核及18页 PDF。详情见学生验收记录，未证明空白冷启动一次成功。**
 
@@ -11,7 +11,7 @@
 | [架构](architecture/README.md) | 当前边界与尚待设计的问题 |
 | [使用指南](guides/README.md) | 当前仓库用法与未来用户指南入口 |
 | [仓库结构图](reference/repository-map.md) | 正式目录职责，原始区只列边界 |
-| [文档维护](development/documentation.md) | 决策的查找、记录、转换及校验 |
+| [文档维护](development/documentation.md) | agent_notes 的查找、记录、转换及校验 |
 | [资料管理与团队共享](development/materials.md) | materials 的 Git 边界、原件保留与飞书 CLI 共享 |
 | [开发工作指南](development/workflow.md) | Issue 整理、预检记录、PR 模板与当前能力边界 |
 | [源码组织与工程检查](development/code-structure.md) | 当前代码职责、导入边界与构建测试命令 |
@@ -21,7 +21,7 @@
 | [版本维护](development/versioning.md) | 版本规划、PR 变更记录和手工发布步骤 |
 | [验证记录](validation/README.md) | 已执行检查、结果与局限 |
 | [重大事故复盘](postmortems/README.md) | 永久保留的影响、根因、遗漏与修正 |
-| [决策索引](../.agents/decisions/README.md) | 期望与理由的权威入口 |
+| [agent_notes 索引](../.agents/agent_notes/README.md) | 期望与理由的权威入口 |
 
 规划与当前行为明确区分。功能落地后再更新操作示例和验证事实，不因决定已接受就写成已实现。
 

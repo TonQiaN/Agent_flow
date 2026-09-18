@@ -24,4 +24,4 @@ JsonFunctionWorkflowCatalog 导出 `agentflow-deterministic-function/v1` 并提�
 
 Issue #13 保持打开，继续文件函数/转换绑定、订阅占用恢复及剩余明确验收，再进入 #14–#16。通用临时数据 GC 不作为额外前置。真实学生批卷、完整报告和 PDF 尚未验收。
 
-[使用指南](../guides/deterministic-functions.md) · [恢复](../guides/workflow-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/deterministic-functions.md) · [恢复](../guides/workflow-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

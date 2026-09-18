@@ -26,7 +26,7 @@ try {
 
 只想检查时，使用 [loadWorkflowCheckpoint](workflow-checkpoint-loading.md)：它同时接受普通 v5 检查点和上述恢复封套，返回独立的 `checkpoint` 及 `recovery` 元数据，不认领、不写库、不查询或停止容器。
 
-已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作继续拒绝；订阅恢复和 #13 作者验收见[当前对照](../validation/2026-09-10-issue13-acceptance.md)，已合入的交付入口见 [0.1.2 计划](../roadmap/0.1.2.md)。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。
+已验证活宿主迟到写入、两个真实进程 CAS 竞争、恢复者在认领/清理提交前后被 SIGKILL、查询故障后再次处理。断网 Docker 脚本还通过一次和连续两次 SIGKILL 后完整恢复：A 不重跑，旧 B 清理后在同一 NodeTask 上以第 2/3 次 Attempt 完成。未知 pending 操作继续拒绝；订阅恢复和 #13 作者验收见[当前对照](../validation/2026-09-10-issue13-acceptance.md)，已合入的交付入口见 [0.1.2 计划](../roadmap/0.1.2.md)。见 [验证记录](../validation/2026-09-10-workflow-recovery-claim.md)和[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。
 
 ## 继续正常执行
 

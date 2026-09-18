@@ -4,6 +4,10 @@
 
 ## 本地开发与云端验收
 
+当前公开仓库的 CI 使用标准 GitHub 托管 `ubuntu-latest` runner；原生 Codex 审查在 Codex 的 GitHub 集成中运行。团队选择及费用边界见 [CI 与 AI 审查分工 note](../../.agents/agent_notes/development/README.md#d-20260918-ci-ai-review)。仓库工作流没有加入 Codex 模型调用或自动合并步骤。
+
+Codex 当前对本仓库选择 Review all PRs，触发时机继承个人设置，本次读回为创建 PR 时；不能据此假定每次 push 都会重新审查。需要对新提交复查时，可使用 `@codex review`，以实际完成的审查及其提交版本为准。额度用尽后使用额外积分的开关保持关闭；这些账号设置的核对日期与限制见 [验证记录](../validation/2026-09-18-agent-notes.md)。
+
 | 阶段 | 执行与结果 |
 | --- | --- |
 | 日常修改、调试 | 本地运行受影响的检查与测试，先定位、修复失败再推送；基础检查入口为 `npm run check` |
@@ -11,7 +15,7 @@
 | PR 创建、重开、代码更新 | 云端运行全部既有检查，最新提交的 `CI required` 是合并门槛 |
 | 合并到 main 后 | 读回合并提交与内容；不自动重跑完整 CI，需要独立复验时从 Actions 的 `Run workflow` 手动触发 |
 
-本地检查复用现有 npm 命令，不需要注册自托管 Actions runner。本地成功不会回填 GitHub 检查。取消 main 自动重跑后，所有 main 改动仍需经过 PR，合并前同步目标分支并通过最新检查；不再自动验证实际合并提交是本次明确保留的限制。触发和分工取舍见[源码结构决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)与[开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
+本地检查复用现有 npm 命令，不需要注册自托管 Actions runner。本地成功不会回填 GitHub 检查。取消 main 自动重跑后，所有 main 改动仍需经过 PR，合并前同步目标分支并通过最新检查；不再自动验证实际合并提交是本次明确保留的限制。触发和分工取舍见[源码结构决定](../../.agents/agent_notes/development/README.md#d-20260909-source-layout)与[开发流程决定](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow)。
 
 ## 任务与本地对应
 

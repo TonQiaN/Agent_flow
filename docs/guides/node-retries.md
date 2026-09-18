@@ -41,4 +41,4 @@ nodes: {
 
 Effect 沿用固定操作键、当前输入校验和当前授权。pending 或结果未知的操作在共同恢复入口阻塞；已保存可靠回执可由后续获授权的 Attempt 复用，不能因重试而重复发送。当前没有复杂退避、替换 Agent/账户、分布式调度或历史迁移功能。
 
-验证见 [#15 作者验收](../validation/2026-09-10-node-retries.md)。设计依据 [P-20260910-node-retries](../../.agents/decisions/product/README.md#p-20260910-node-retries)。
+验证见 [#15 作者验收](../validation/2026-09-10-node-retries.md)。设计依据 [P-20260910-node-retries](../../.agents/agent_notes/product/README.md#p-20260910-node-retries)。

@@ -96,4 +96,4 @@ const resumed = await new WorkflowRuntime().resumePersisted(recovery);
 
 首期控制入口是 TypeScript 库的 compileWorkflow、WorkflowRuntime.start/query/cancel 及 Run 句柄。CLI 定义加载属于可选后续功能，不是 Issue #9 的额外验收前置。文件 Agent → Gate/Fixer → Transform → Effect 批卷样例已完成消费侧集成，合成替身和真实 Codex 使用同一应用；真实业务发布仍未接入。
 
-[验证记录](../validation/2026-09-09-workflow-effects.md) · [执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[验证记录](../validation/2026-09-09-workflow-effects.md) · [执行决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)

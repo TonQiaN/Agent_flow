@@ -1,6 +1,6 @@
 # 仓库结构图
 
-当前能力与未完成范围见 [文档入口](../README.md)。两类决策各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
+当前能力与未完成范围见 [文档入口](../README.md)。agent_notes 中产品与开发流程两类笔记各自拥有完整生命周期目录；空生命周期目录使用 .gitkeep 保留。实现源码统一在根 src 内，应用和包按实际能力创建。
 
 ```text
 Agent_flow/
@@ -20,9 +20,9 @@ Agent_flow/
 │   ├── examples/                  # 合成示例入口
 │   ├── tests/                     # e2e 跨模块、browser 用户旅程、fixtures 合成素材
 │   └── tooling/                   # 依赖边界、测试分组；ci/ 保存诊断、汇总与截图工具
-├── .agents/decisions/
+├── .agents/agent_notes/
 │   ├── README.md
-│   ├── AGENTS.md                  # 决策目录的操作约束
+│   ├── AGENTS.md                  # agent_notes 的操作约束
 │   ├── CLAUDE.md -> AGENTS.md      # 共用同目录指令正文
 │   ├── TEMPLATE.md
 │   ├── product/
@@ -64,7 +64,7 @@ Agent_flow/
 
 目录、职责或开发入口变化时，负责该改动的开发者同步本图、根 AGENTS.md 的简图、[工程指南](../development/code-structure.md) 与相关使用指南。尚未建立的入口须明确标为占位，实际落地后及时替换。
 
-[生命周期定义](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
+[生命周期定义](../../.agents/agent_notes/development/README.md#d-20260907-decision-lifecycle) · [文档操作](../development/documentation.md) · [开发工作指南](../development/workflow.md)
 
 `src/packages/integrations/workflow` 提供文件函数/Agent 与串行 Workflow 的本机连接、私有文件来源引用及失败资源清理；核心编译器与运行控制留在 `engine/workflow`。
 

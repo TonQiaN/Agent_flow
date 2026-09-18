@@ -32,4 +32,4 @@
 
 同一 NodeTask 的新 Attempt、旧中断 Attempt 历史收尾和恢复后共享路由仍待实施。只读加载与共同清理不能证明 A/B 已恢复完成。pending 操作继续保守拒绝，不由 PID、时间或一次 absent 查询解锁；认证、Effect、队列、重试、并行及真实学生批卷/报告/PDF 均保留后续验收。
 
-[使用指南](../guides/workflow-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/workflow-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

@@ -24,4 +24,4 @@
 
 本次测试中的格式检查和刷新均为合成行为，不证明 OAuth token 续期、账号一致性或远端有效性。真实 provider codec、Profile、Codex 计划与认证运行的组合、事件脱敏、真实模型及文件 contract 仍待接通。默认 CI 会执行本次普通 Docker 用例，但继续明确跳过未配置的 1 项专用 Codex 沙箱和 3 项外部联网测试。
 
-使用顺序见 [Harness 与认证指南](../guides/harness-auth.md)，设计见 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle) 与 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)。
+使用顺序见 [Harness 与认证指南](../guides/harness-auth.md)，设计见 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle) 与 [Runner 决定](../../.agents/agent_notes/product/README.md#p-20260909-runner-lifecycle)。

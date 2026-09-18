@@ -1,6 +1,6 @@
-# 决策系统的操作规则
+# agent_notes 的操作规则
 
-作用范围：.agents/decisions 及其子目录。唯一书写决策：[D-20260907-agents-writing](development/README.md#d-20260907-agents-writing)。
+作用范围：.agents/agent_notes 及其子目录。这里的正式笔记沿用既有决策记录的稳定 ID、唯一正文与生命周期规则。唯一书写决策：[D-20260907-agents-writing](development/README.md#d-20260907-agents-writing)。
 
 ## 记录与修订
 

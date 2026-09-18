@@ -1,6 +1,10 @@
-# 开发流程决策索引
+# 开发流程笔记索引
 
 以下 ID 是稳定引用入口；正文位置表达生命周期。索引不单独维护状态或结论。
+
+## D-20260918-ci-ai-review
+
+[两人团队的 CI 与 AI 审查分工](implemented/D-20260918-ci-ai-review.md)
 
 ## D-20260909-source-layout
 
@@ -24,7 +28,7 @@
 
 ## D-20260907-agents-writing
 
-[决策目录 AGENTS.md 的职责与唯一书写归属](implemented/D-20260907-agents-writing.md)
+[agent_notes 目录 AGENTS.md 的职责与唯一书写归属](implemented/D-20260907-agents-writing.md)
 
 ## D-20260910-root-agents-writing
 

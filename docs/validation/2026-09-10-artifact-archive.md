@@ -1,6 +1,6 @@
 # 耐久文件归档验证
 
-2026-09-10（澳大利亚悉尼）；主负责开发者 @xiaoxuanli-a，Codex 实现与作者自查。延续 [Issue #13](https://github.com/TonQiaN/Agent_flow/issues/13) 和 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)，没有新增独立审阅或远端发布。
+2026-09-10（澳大利亚悉尼）；主负责开发者 @xiaoxuanli-a，Codex 实现与作者自查。延续 [Issue #13](https://github.com/TonQiaN/Agent_flow/issues/13) 和 [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)，没有新增独立审阅或远端发布。
 
 ## 预检
 

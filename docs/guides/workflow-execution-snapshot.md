@@ -28,7 +28,7 @@ FileWorkflowCatalog 从自己已注册的 ScriptDefinition 取得 argv、timeout
 
 执行绑定匹配不证明旧任务已停止，不代替输入/产物耐久保存、Attempt 历史、取消意图或 Effect 回执。本接口已接入 [Workflow 检查点](workflow-checkpoints.md)写入，恢复协调与新 Attempt 支持的实际绑定及边界见[恢复指南](workflow-recovery.md)。
 
-[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证及复盘](../validation/2026-09-10-script-execution-binding.md) · [结构快照](workflow-structure.md)
+[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence) · [本轮验证及复盘](../validation/2026-09-10-script-execution-binding.md) · [结构快照](workflow-structure.md)
 
 ## Agent 执行定义
 

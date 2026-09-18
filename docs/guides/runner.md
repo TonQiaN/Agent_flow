@@ -40,7 +40,7 @@ invocation.recordFiles 可声明最多 16 个 state 内相对文件：`{ id: 'ev
 
 执行后先保留 raw 文件，再删除容器；outputs 和整个私有工作区继续存在。接收方完成校验、复制或接纳以后调用 runner.release(result.resource)，才删除工作区；重复 release 幂等。容器删除失败、停止未确认或私有凭据绑定尚未完成收尾时 release 拒绝。需要手工修复时使用结果内 resource.id 定位本次资源；进程崩溃后的认领与恢复由独立的 [Workflow 恢复协调](workflow-recovery.md)调用 Runner 资源端口完成。
 
-完整需求和未覆盖项见 [#12](https://github.com/TonQiaN/Agent_flow/issues/12)；设计边界见 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)。
+完整需求和未覆盖项见 [#12](https://github.com/TonQiaN/Agent_flow/issues/12)；设计边界见 [Runner 决定](../../.agents/agent_notes/product/README.md#p-20260909-runner-lifecycle)。
 
 ## 宿主系统配置映射
 

@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-Issue #13，本地基线 dba71f2。按用户已确认的中断后同 NodeTask 新 Attempt、已接纳结果复用和参考 Blackbox 的授权实现；主负责开发者 @xiaoxuanli-a，Codex 实施及作者检查，没有补造独立审阅。沿用[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)，#13 保持未整体验收。
+Issue #13，本地基线 dba71f2。按用户已确认的中断后同 NodeTask 新 Attempt、已接纳结果复用和参考 Blackbox 的授权实现；主负责开发者 @xiaoxuanli-a，Codex 实施及作者检查，没有补造独立审阅。沿用[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)，#13 保持未整体验收。
 
 先核对 Blackbox Agent Flow v0.1.22 / 5610d1b 的 runtime.py resume、任务 attempts 递增，以及 tests/test_runtime.py 的定点故障和恢复测试。复用恢复前检查及任务内递增边界；不照搬原地清空中断记录、清除取消意图或旧格式升级。
 

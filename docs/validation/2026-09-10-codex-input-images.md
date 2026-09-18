@@ -36,4 +36,4 @@
 
 结构和接线测试不能代替真实模型复杂契约交付或学生评分质量。私有执行证据仅保留在本地验收目录，仓库不收录原始事件或凭据。
 
-[使用指南](../guides/codex-input-images.md) · [Harness 决策](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)
+[使用指南](../guides/codex-input-images.md) · [Harness 决策](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)
