@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isExecutionIdentity, isIdentifier } from '@agentflow/domain';
 import type { ComponentDefinition, ExecutionIdentity, JsonValue } from '@agentflow/domain';
-import type { InvocationPhaseSink, InvocationResourcePlan, AgentExecutionRequest, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource } from '@agentflow/engine';
+import type { InvocationPhaseSink, InvocationResourcePlan, AgentExecutionRequest, RunnerResourceSink, RunnerResourceCheckpoint, RestoredRunnerResource, RunnerResult, AgentExecutionFacts } from '@agentflow/engine';
 import { ArtifactError, DefinitionError, snapshotJson, consumeWorkflowValueRestore, WorkflowRestoreError, canonicalJson } from '@agentflow/engine';
 import type { AgentAttempt, AgentExecutor, ArtifactArchive, ArtifactArchiveReference, ArtifactStore, WorkflowValueRestoreRequest, WorkflowRestoredValue, Cancellation, ExecutionReceipt, FileContractRegistry, FileManifest,
   ScriptAttempt, ScriptDefinition, ScriptEvidence, ScriptExecutor, WorkflowCatalog, WorkflowContract, WorkflowIssue, WorkflowNodeExecutor, WorkflowNodeResult } from '@agentflow/engine';
@@ -17,6 +17,7 @@ export interface FileFunctionContext {
 }
 /** Trusted host code: resolve only after all its writers have stopped. */
 export type FileWorkflowFunction = (context: FileFunctionContext) => Promise<{ readonly outcome: string }>;
+export type FileExecutionObserver = (identity: ExecutionIdentity, facts: { runner: RunnerResult | null; agent?: AgentExecutionFacts; accepted: boolean }) => Promise<void>;
 export interface FileWorkflowReceipt {
   readonly identity: ExecutionIdentity;
   readonly componentId: string;
@@ -67,7 +68,7 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
   readonly #restoring = new Set<string>();
   readonly #attempts = new Set<string>();
   readonly #resources = new Map<string, Resources>();
-  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive) {
+  constructor(private readonly contracts: FileContractRegistry, private readonly artifacts: ArtifactStore, private readonly workRoot: string, private readonly archive?: ArtifactArchive, private readonly observeExecution?: FileExecutionObserver) {
     if (!isAbsolute(workRoot) || workRoot.includes('\0')) throw new DefinitionError('INVALID_WORKFLOW_WORK_ROOT');
   }
 
@@ -375,19 +376,28 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
         resources.stopped = false;
         resources.script = await b.executor.execute({ identity: clone(ownIdentity), inputSource: inputPath, definition: clone(b.definition) }, cancellation, persistence);
         const result = resources.script.result;
-        if (result.status === 'failed') return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
+        if (result.status === 'failed') {
+          phase = 'FILE_NODE_OBSERVATION_FAILED';
+          await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false });
+          return failed(resources.script.executionFacts()?.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code);
+        }
         script = result.evidence; outcome = script.outcome;
         phase = 'OUTPUT_CONTRACT_FAILED'; checkedContractId = component.outcomes[outcome]!;
         output = await this.artifacts.capture(resources.script.executionFacts()!.capture!.outputsPath, checkedContractId);
         resources.pendingOutput = () => this.artifacts.release(output.id);
+        phase = 'FILE_NODE_OBSERVATION_FAILED';
+        await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: true });
       } else {
         resources.stopped = false;
         resources.attempt = await b.executor.execute({ componentId: component.id, identity: clone(ownIdentity), prompt: b.prompt,
           config: clone(b.config), outcomes: clone(component.outcomes), input: reused ? { snapshotId: ref.storageId, contractId: component.inputContract } : { source: inputPath, contractId: component.inputContract } }, cancellation, phases);
         const result = resources.attempt.result;
+        const facts = resources.attempt.executionFacts();
+        if (result.status !== 'failed') resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);
+        phase = 'FILE_NODE_OBSERVATION_FAILED';
+        await this.observeExecution?.(identity, { runner: facts?.runner ?? null, ...(facts ? { agent: facts } : {}), accepted: result.status !== 'failed' });
         if (result.status === 'failed') return { ...failed(resources.attempt.executionFacts()?.runner.phase === 'timed_out' ? 'EXECUTION_TIMEOUT' : result.code), issues: result.issues.map(issue => ({ ...issue, contractId: result.contractId ?? component.inputContract })) };
         agent = result.receipt;
-        resources.pendingOutput = () => b.executor.releaseOutput(result.receipt.id);
         if (!sameFiles(ref.manifest, agent.input)) return failed('WORKFLOW_AGENT_INPUT_MISMATCH');
         outcome = agent.outcome; output = agent.output;
       }
@@ -397,7 +407,13 @@ export class FileWorkflowCatalog implements WorkflowCatalog, WorkflowNodeExecuto
       const value = this.issue(identity.runId, output, receipt, resources.pendingOutput!);
       resources.pendingOutput = null; this.#resources.delete(key(identity));
       return { identity: clone(ownIdentity), componentId: component.id, status: 'accepted', outcome, output: value };
-    } catch (error) { return failed(phase, error, checkedContractId); }
+    } catch (error) {
+      if (phase === 'OUTPUT_CONTRACT_FAILED' && resources.script) {
+        try { await this.observeExecution?.(identity, { runner: resources.script.executionFacts(), accepted: false }); }
+        catch { return failed('FILE_NODE_OBSERVATION_FAILED', error, checkedContractId); }
+      }
+      return failed(phase, error, checkedContractId);
+    }
     finally {
       resources.active = false;
       if (ref) {

@@ -1,3 +1,4 @@
+import type { CredentialRunnerOptions } from './credential-runner.js';
 import type { CredentialStore } from '@agentflow/engine';
 import { ClaudeAdapter, CLAUDE_VERSION } from '../harness/claude.js';
 import { CLAUDE_SUBSCRIPTION_HOSTS, ClaudeCredentialRedactor, claudeSubscriptionProfile } from '../auth/claude-subscription.js';
@@ -9,7 +10,7 @@ export type ClaudeRunRequest = CredentialRunRequest<ClaudeSubscriptionProfile>;
 export type ClaudeExecutionResult = CredentialExecutionResult;
 
 export class ClaudeSubscriptionRunner extends CredentialHarnessRunner<ClaudeSubscriptionProfile> {
-  constructor(store: CredentialStore, options: { workspaceRoot: string; image: string; proxyImage: string; maxInputBytes?: number }) {
+  constructor(store: CredentialStore, options: CredentialRunnerOptions) {
     super(store, options, {
       binding: 'exclusive',
       resourceEnvironment: { CLAUDE_CONFIG_DIR: '/task/state/claude' },

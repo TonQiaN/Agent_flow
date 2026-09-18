@@ -17,6 +17,7 @@ package.json                 npm workspaces 与工程命令
 package-lock.json            固定依赖版本
 src/
   apps/cli/                  命令行入口
+  apps/studio/               本机展示与工作流启动服务
   packages/domain/           业务类型与执行身份
   packages/engine/           执行引擎与契约
   packages/integrations/     文件、进程、容器等环境适配

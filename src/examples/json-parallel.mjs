@@ -1,13 +1,20 @@
-import {mkdtemp,rm} from 'node:fs/promises';
+import {parallelDefinition} from './studio/parallel.mjs';
+import {randomUUID} from 'node:crypto';
+import {resolve} from 'node:path';
+import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {ContractRegistry,ComponentRegistry,FunctionRegistry,JsonFunctionWorkflowCatalog,ParallelWorkflowCatalog,compileWorkflow,WorkflowRuntime,NodeWorker,loadWorkflowCheckpoint} from '@agentflow/engine';
 import {SqliteRunRecordStore,PersistentNodeQueue,systemClock} from '@agentflow/integrations';
 
 const kind=process.argv[2]??'map';
+const runId=process.env.AGENTFLOW_STUDIO_RUN_ID??'example';
 if(!['map','fork'].includes(kind))throw new Error('Use map or fork');
-const root=await mkdtemp(join(tmpdir(),'agentflow-parallel-demo-'));
-const records=await SqliteRunRecordStore.open(join(root,'queue'));
+const keep=process.env.AGENTFLOW_HISTORY_DISABLED!=='1'||!!process.env.AGENTFLOW_STUDIO_RUN_ROOT;
+const root=keep?(process.env.AGENTFLOW_STUDIO_RUN_ROOT??join(resolve(process.env.AGENTFLOW_STUDIO_DATA??'.local/studio'),'runs','cli-'+randomUUID())):await mkdtemp(join(tmpdir(),'agentflow-parallel-demo-'));
+await mkdir(root,{recursive:true,mode:0o700});
+if(keep&&!process.env.AGENTFLOW_STUDIO_RUN_ROOT)await writeFile(join(root,'meta.json'),JSON.stringify({id:root.split('/').at(-1),workflowId:'parallel-'+kind,title:'JSON '+kind,mainRunId:runId,createdAt:Date.now(),source:'cli'}),{mode:0o600});
+const records=await SqliteRunRecordStore.open(join(root,'records'));
 try {
  const contracts=new ContractRegistry();
  contracts.register('item',{type:'object',properties:{id:{type:'string'},value:{type:'number'}},required:['id','value']});
@@ -25,24 +32,26 @@ try {
  const parallel=new ParallelWorkflowCatalog(contracts,source);
  const structure=kind==='map'?{component:'double',itemId:'id'}:{branches:{zeta:{component:'triple'},alpha:{component:'double'}}};
  parallel.register('batch',{kind,inputContract:kind==='map'?'items':'item',outputContract:'joined',outcome:'done',maxConcurrency:2,failurePolicy:'wait-all',...structure});
- const flow=compileWorkflow({id:'demo',start:'batch',maxSteps:1,input:{kind:'json',id:kind==='map'?'items':'item'},outcomes:{done:{kind:'json',id:'joined'}},nodes:{batch:{component:'batch'}},routes:[{from:'batch',outcome:'done',to:{end:'done'}}]},parallel);
+ const flow=compileWorkflow(parallelDefinition(kind),parallel);
  const configuration={roles:{coordinator:1,compute:2},credentials:[],workflows:{demo:{batch:{role:'coordinator',capability:'json'}},...Object.fromEntries(parallel.childWorkflows().map(child=>[child.definition.id,{unit:{role:'compute',capability:'json'}}]))}};
  const queue=new PersistentNodeQueue(records,configuration);
  const input=kind==='map'?[{id:'a',value:1},{id:'b',value:2},{id:'c',value:3}]:{id:'request',value:7};
- await new WorkflowRuntime().preparePersisted(flow,'example',input,queue.records());
+ await new WorkflowRuntime().preparePersisted(flow,runId,input,queue.records());
  const host={open:async(runId,store)=>{
   const row=await store.read(runId),checkpoint=row.content.checkpoint??row.content;
   const compiled=checkpoint.snapshot.workflowId==='demo'?flow:parallel.childWorkflow(checkpoint.snapshot.workflowId);
   if(!compiled)throw new Error('Unknown installed workflow');
   return {compiled,runtime:new WorkflowRuntime()};
  }};
- const worker=id=>new NodeWorker(queue,host,systemClock,id,['json'],300);
- await worker('coordinator').runOnce();
+ // Use the Worker default lease: this runnable example is not a lease-expiry test.
+ const worker=id=>new NodeWorker(queue,host,systemClock,id,['json']);
+ const check=result=>{if(result?.error)throw new Error(`Worker ${result.claim.worker} (${result.claim.node}) failed: ${result.error}`);};
+ check(await worker('coordinator').runOnce());
  const runs=await Promise.all([worker('first').runUntilIdle(),worker('second').runUntilIdle()]);
- if(runs.flat().some(result=>result.error))throw new Error('Worker failed');
- const loaded=await loadWorkflowCheckpoint(flow,'example',queue.records());
+ for(const result of runs.flat())check(result);
+ const loaded=await loadWorkflowCheckpoint(flow,runId,queue.records());
  try {
   if(loaded.checkpoint.snapshot.status!=='succeeded')throw new Error('Example did not finish');
   console.log(JSON.stringify(loaded.checkpoint.snapshot.lastAccepted.result.output,null,2));
  } finally {await loaded.dispose();}
-} finally {records.close();await rm(root,{recursive:true,force:true});}
+} finally {records.close();if(!keep)await rm(root,{recursive:true,force:true});}

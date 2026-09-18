@@ -4,8 +4,8 @@ import { chmod, mkdtemp, mkdir, readFile, writeFile, readdir, rm, stat } from 'n
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { ComponentDefinition, JsonValue } from '@agentflow/domain';
-import { AgentExecutor, ContractRegistry, FileContractRegistry, compileWorkflow, WorkflowRuntime } from '@agentflow/engine';
-import type { AgentExecutionDriver, AgentExecutionFacts, ArtifactStore, HarnessTask, WorkflowDefinition } from '@agentflow/engine';
+import { AgentExecutor, ContractRegistry, FileContractRegistry, ScriptExecutor, compileWorkflow, WorkflowRuntime } from '@agentflow/engine';
+import type { AgentExecutionDriver, AgentExecutionFacts, ArtifactStore, ExecutionBackend, HarnessTask, WorkflowDefinition } from '@agentflow/engine';
 import { FileArtifactStore } from '../artifacts/file-store.js';
 import { FileArtifactArchive } from '../artifacts/file-archive.js';
 import { FileWorkflowCatalog } from './files.js';
@@ -156,6 +156,44 @@ test('Agent cleanup failure blocks acceptance and retains a retry without upgrad
   await assert.rejects(f.catalog.cleanup(identity)); d.failRelease(false); await f.catalog.cleanup(identity);
   await assert.rejects(readdir(join(f.root, 'nodes')), { code: 'ENOENT' }); assert.equal((await readdir(join(f.root, 'store'))).length, 1);
   assert.equal(run.query().status, 'failed'); await f.catalog.release(input, 'run');
+});
+
+test('recording failure stops routing and retains cleanup ownership for Agent and script output', async t => {
+  for (const mode of ['agent', 'script', 'invalid-script-output']) {
+    const f = await fixture(t); let observations = 0, releases = 0, time = 0;
+    const catalog = new FileWorkflowCatalog(f.contracts, f.store, join(f.root, 'nodes'), undefined, async () => {
+      observations++; throw new Error('PRIVATE_RECORD_FAILURE');
+    });
+    const c = component('recorded', mode === 'agent' ? 'agent' : 'transform');
+    if (mode === 'agent') {
+      const d = driver(f.root, f.store);
+      catalog.registerAgent(c, new AgentExecutor(f.contracts, f.store, d.impl), { prompt: 'task', config: {} });
+    } else {
+      const outputsPath = join(f.root, 'script-output'); await mkdir(outputsPath);
+      await writeFile(join(outputsPath, 'answer.json'), mode === 'script' ? '{"revision":1}' : '{"revision":-1}');
+      const text = JSON.stringify({ schema: 'agentflow-script-result/v1', outcome: 'done' });
+      const backend: ExecutionBackend = {
+        async allocate() { return { id: 'script-resource' }; }, async prepare() {}, async create() {}, async start() {},
+        async observe() { return { state: 'exited', exitCode: 0 }; }, async stop() { return { confirmed: true }; }, async remove() {},
+        async capture() { return { outputsPath, imageId: null, files: {},
+          stdout: { path: '/fixture/stdout', bytes: text.length, complete: true, truncated: false },
+          stderr: { path: '/fixture/stderr', bytes: 0, complete: true, truncated: false } }; },
+        async release() { releases++; await rm(outputsPath, { recursive: true, force: true }); },
+      };
+      catalog.registerScript(c, new ScriptExecutor(backend, { now: () => time, async sleep(ms) { time += ms; } }, { async read() { return text; } }),
+        { argv: ['fixture'], timeoutMs: 100 });
+    }
+    const input = await catalog.prepareInput('run', f.source, 'files');
+    const run = new WorkflowRuntime().start(compileWorkflow(one('recorded'), catalog), 'run', input), result = await run.completion;
+    await catalog.cleanup(identity); await catalog.cleanup(identity);
+    assert.equal((await readdir(f.store.root)).length, 1, `${mode}: only caller-owned input remains`);
+    assert.equal(result.status, 'failed', mode); assert.equal(result.reason, 'FILE_NODE_OBSERVATION_FAILED', mode);
+    assert.equal(result.lastAccepted, null); assert.equal(observations, 1); assert.ok(!JSON.stringify(result).includes('PRIVATE_RECORD_FAILURE'));
+    if (mode === 'invalid-script-output') assert.equal(result.issues[0]?.code, 'JSON_CONTRACT');
+    await catalog.release(input, 'run'); assert.deepEqual(await readdir(f.store.root), []);
+    if (mode !== 'agent') assert.equal(releases, 1);
+    assert.equal(run.query().status, 'failed');
+  }
 });
 
 test('unconfirmed Agent stop retains input and does not claim cancellation; recovery only cleans resources', async t => {

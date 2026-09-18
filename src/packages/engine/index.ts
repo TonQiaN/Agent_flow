@@ -71,3 +71,7 @@ export type { RetryCategory, RetryPolicy, RetryDecision } from './retry/policy.j
 export { ParallelWorkflowCatalog } from './parallel/catalog.js';
 export type { ParallelDefinition, ParallelBranch, ParallelExpansion, ParallelCheckpoint } from './parallel/types.js';
 export type { ParallelRecordPort } from './persistence/types.js';
+
+export type { WorkflowObservation, WorkflowObserver } from './workflow/runtime.js';
+export { inspectWorkflowExecution, archiveWorkflowViewValue } from './workflow/execution.js';
+export type { WorkflowDisplayDefinition } from './workflow/execution.js';

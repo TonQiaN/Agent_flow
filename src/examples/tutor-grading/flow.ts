@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { ComponentDefinition, JsonValue } from '@agentflow/domain';
 import { AgentExecutor, ComponentRegistry, EffectExecutor, EffectWorkflowCatalog, compileWorkflow, WorkflowRuntime } from '@agentflow/engine';
 import type { AgentExecutionDriver, ArtifactStore, EffectMode, FileManifest, WorkflowCatalog, WorkflowDefinition, WorkflowSnapshot, EffectRequest, EffectApproval } from '@agentflow/engine';
-import { FileArtifactStore, FileWorkflowCatalog, FileJsonWorkflowCatalog, SimulatedEffectService } from '@agentflow/integrations';
+import { localWorkflowHistory, FileArtifactStore, FileWorkflowCatalog, FileJsonWorkflowCatalog, SimulatedEffectService } from '@agentflow/integrations';
 import { gradingContracts } from './contracts.js';
 import { review, publicationInput } from './gate.js';
 
@@ -41,10 +41,12 @@ export async function createGradingApplication<D extends AgentExecutionDriver>(r
     reserved.add(binding.component.id);
   }
   const contracts = gradingContracts(), store = new FileArtifactStore(join(root, 'artifacts'), contracts.files);
-  const files = new FileWorkflowCatalog(contracts.files, store, join(root, 'nodes'));
+  const history = await localWorkflowHistory('tutor-grading', contracts.files);
+  const files = new FileWorkflowCatalog(contracts.files, store, join(root, 'nodes'), history.archive);
   const bridge = new FileJsonWorkflowCatalog(files, contracts.json, join(root, 'transforms'));
   const driver = factory(store), agents = new AgentExecutor(contracts.files, store, driver);
-  const runtime = new WorkflowRuntime(), originals = new Map<string, FileManifest>(), runs = new Set<string>(), owners = new Map<string, WorkflowCatalog>();
+  let observe: import('@agentflow/engine').WorkflowObserver = async () => {};
+  const runtime = new WorkflowRuntime(undefined, value => observe(value)), originals = new Map<string, FileManifest>(), runs = new Set<string>(), owners = new Map<string, WorkflowCatalog>();
   const source = join(root, 'original'); await mkdir(source, { recursive: true });
   await cp(sourcePath, join(source, 'source'), { recursive: true, errorOnExist: true, force: false });
   files.registerFunction(component('intake', 'transform', 'source-files', { completed: 'source-files' }), async ctx => { await cp(ctx.inputPath, ctx.outputsPath, { recursive: true }); return { outcome: 'completed' }; }); owners.set('intake', files);
@@ -79,7 +81,7 @@ export async function createGradingApplication<D extends AgentExecutionDriver>(r
     async run(runId: string, requestedDefinition = definition): Promise<GradingRun> {
       if (runs.has(runId)) throw new Error('DUPLICATE_GRADING_RUN'); runs.add(runId);
       const plan = compileWorkflow(requestedDefinition, catalog), input = await files.prepareInput(runId, source, 'source-files');
-      originals.set(runId, files.inspect(input, runId).manifest);
+      originals.set(runId, files.inspect(input, runId).manifest); observe = history.observer(plan);
       try { return { input, snapshot: await runtime.start(plan, runId, input).completion }; }
       catch (error) { await files.release(input, runId); throw error; }
     },

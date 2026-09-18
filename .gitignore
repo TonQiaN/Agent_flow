@@ -7,3 +7,9 @@ dist/
 .env
 .env.*
 !.env.example
+
+_reference/
+
+src/apps/studio/public/
+playwright-report/
+test-results/

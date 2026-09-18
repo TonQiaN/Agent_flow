@@ -1,0 +1,25 @@
+# 本机展示服务与招聘工作流验证
+
+Issue #39；第二层基于 `eb0fbb9`，@TonQiaN 主责，Codex 实现和作者自查，尚未独立人类审阅。
+
+已验证：本机原始 repair Workflow 从服务启动一次，重复请求返回同一运行；同源限制、文件穿越/父目录符号链接拒绝；旧 CLI 产生完整修订；服务重开后历史 revision 不变，读取早期修订不执行节点。招聘关卡测试拒绝跨候选人引用、假页码/原文、第三种最终结果、总分，以及缺失未知项影响说明。
+
+合成招聘使用真实 Docker 解析与渲染、原 PersistentNodeQueue/NodeWorker/Map，验证正常、候选人返工、岗位返工、重试、失败、取消。固定响应只替代模型内容。首次实际运行发现并修正 Map 汇合结构和 HTML 类型；测试中重建文档镜像触发定义不一致，修正为本次启动时固定摘要。更新后的矩阵结果将在同次 PR 最终验证补充。
+
+真实 DeepSeek 已用用户授权的新 key 启动官方执行链。先后定位错误代理基础镜像、Cordis 4.0.2 与固定 4.0.1 不一致；修复后已进入真实并行评审，整体验收另记最终结果。Codex 0.153.4 可见日志探针已记录网络错误，本机 DNS 将 chatgpt.com 返回基准测试网段，受控代理按现有规则拒绝；不削弱目标/公网地址校验。
+
+Blackbox 参考：`xiaoxuanli-a/Agent_workflow` commit `4dc0f4ac630d6e54036dcbfafa1a4ae7ce2fa345`，重点查阅 DeepSeek 镜像与 CONNECT 代理。其 Python 代理、旧路径与本项目 Node 代理不同；未照搬入口。参考只在忽略的 `_reference/` 保存。
+
+本记录不代替画布 UI、真实点击截图、实际模型完整招聘验收和本地用户报告；这些由后续叠放层一起交付。
+
+更新后的六场景 Docker 矩阵全部通过（6/6，173.7 秒）；默认 `npm run check` 为 440 通过、194 个显式条件关闭的 Docker 用例跳过、0 失败。CI 为 Node 24/26 构建文档镜像，并显式打开原 Docker 与六场景矩阵。上传幂等性另补跨 multipart boundary 的同内容重试验证。
+
+同步 main c8e1890 后的 Linux CI 发现旧的容量保持测试使用 300ms 真实租约，在未确认后继结果写入前偶发过期。该用例改用固定时钟，使断言只验证前一步的成功不能释放后一步未知资源的容量；独立到期/跨进程恢复用例保持原覆盖。
+
+
+## 2026-09-17 合并前复核
+
+- 工作台创建的检查、Map、Fork 运行使用分配的运行 ID，真实本机服务回归验证元数据与主运行身份一致。
+- 独立复核汇总拒绝候选人 ID 替换、重复与漏项，保留的旧复核也不能重复归属。
+- 批卷接口拒绝伪装为固定 JSON 目标路径的 PDF/TXT 和无效 JSON；有效 JSON 正常接纳。
+- `npm run check:quality` 通过；`node --import tsx --test src/apps/studio/server.test.ts src/apps/studio/upload.test.ts src/examples/recruitment/contracts.test.ts` 8/8 通过。检查使用临时数据目录，无真实模型调用，不改变用户的运行历史。

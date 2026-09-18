@@ -1,0 +1,7 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"], "lib": ["ES2023", "DOM", "DOM.Iterable"] },
+  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/engine" }, { "path": "../../packages/integrations" }],
+  "include": ["*.ts"],
+  "exclude": ["*.test.ts"]
+}
