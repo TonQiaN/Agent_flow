@@ -1,18 +1,22 @@
 # Changelog
 
-这里记录实际变化；未来目标见 [Roadmap](docs/roadmap/README.md)，维护方式见 [版本维护指南](docs/development/versioning.md)。核心 0.1.3 与前端/本机工作台 0.1.4 分别记录，尚未建立正式发布 tag；待发布条目不等于发布事实。
+这里记录实际变化；未来目标见 [Roadmap](docs/roadmap/README.md)，维护方式见 [版本维护指南](docs/development/versioning.md)。核心 0.1.3 与含前端/本机工作台的 0.1.4 分别固定源码快照；实际交付范围见各版本的 tag 和提交。所有包继续 private，源码发布不代表 npm 分发。
 
 ## Unreleased
 
-### 0.1.4（目标版本，未发布）
+## 0.1.4 — 2026-09-18
 
-#### 新增
+源码 [v0.1.4](https://github.com/TonQiaN/Agent_flow/tree/v0.1.4) 固定提交 [2e44cf2](https://github.com/TonQiaN/Agent_flow/commit/2e44cf2d27f39475e27fe7c44cdcd098ebadbe22)，包含核心、前端与同期修复的完整项目。Studio 为 0.1.4，核心包保持 0.1.3；范围与验证见 [发布交接记录](docs/validation/2026-09-18-source-release.md)。
+
+### 新增
 
 - TypeScript 本机工作台按 5 个业务工作流、4 个技术示例组织原有与招聘入口；画布从左到右展开，默认保持可读比例，通过拖拽浏览。曲线文字说明流转内容、条件与返工上限，节点标明当前进度；点击节点、曲线或文字才打开详情。每个流程可直接进入自己的完整运行；并行节点按实际执行轮次进入子任务并返回。提供一次上传启动、容器设置、文件/PDF、历史筛选与只读回放，原 CLI 运行也可留下查看记录。
 - 单岗位多简历招聘合并为读取材料、匹配与推荐、独立复核、生成报告四节点；正常路径两次 Harness 执行，有界返工与交付检查放在节点内部，保留逐项证据和二元推荐；JSON、网页与个人 PDF 共用已校验结果，不设总分或排名。接入真实 DeepSeek，补充 Chromium 用户旅程与材料/招聘 Docker CI；见[使用与验收](docs/guides/local-studio.md)。
 - 运行存储在同一事务保留历史修订，支持分页与只读投影；Codex、Claude、DeepSeek 可采集按尝试区分的脱敏日志，Codex 可显式保存本次隔离会话。已识别的 v1 本机库迁移到 v2，旧记录缺失时间保持未知。见 [Issue #39](https://github.com/TonQiaN/Agent_flow/issues/39) 与[历史指南](docs/guides/run-history.md)。
 
-#### 修复
+### 修复
+
+- Map/Fork 示例使用 Worker 的默认租约，避免短暂调度停顿造成运行未完成；协调步骤失败现在直接报告节点和错误码。
 
 - 工作台回放按全局保存顺序对齐并行修订，日志翻页保留已加载内容且不串运行；回看早期记录重置失效的执行选择，批卷在上传弹窗内校验 JSON。
 
@@ -25,35 +29,13 @@
 - 运行、节点、步骤和回放显示保存的起止时间及耗时，容器执行时间单独展开，重试日志按完整尝试身份隔离。结果页支持通用结构化输出和不同内容的 PDF、Python 等产物；文件按节点与尝试分组、搜索并跳回来源，文本预览有大小上限。没有子任务时直接显示步骤，旧记录缺少时间或文件来源时保留说明。
 - 日志归档失败返回明确错误，并保留临时输出的清理归属；招聘 Worker 使用引擎默认租约，避免繁忙机器误报任务失去归属。干净安装先构建依赖类型，Linux 文档测试使用宿主文件归属。
 
-#### 重要变更
+### 重要变更
 
-- 前端与本机工作台归入 0.1.4，Studio 包版本同步为 0.1.4；核心包保持 0.1.3，内部依赖按被依赖包版本同步，全部继续 private。版本计划见 [0.1.4](docs/roadmap/0.1.4.md)，本次不创建发布 tag。
+- 前端与本机工作台归入 0.1.4，Studio 包版本同步为 0.1.4；核心包保持 0.1.3，内部依赖按被依赖包版本同步，全部继续 private。发布范围见 [0.1.4 计划](docs/roadmap/0.1.4.md)，后续事实回填不移动已固定的源码 tag。
 
-### 开发协作（未分配产品版本）
+## 0.1.3 — 2026-09-18
 
-- 前端 CI 增加固定 Linux/Chromium 的截图基准比较，覆盖画布、节点、时间、结果、分组文件与窄窗口；失败保存基准、实际图、差异和 trace，普通 CI 不能自动更新基准。浏览器旅程与工作流验收独立运行，并纳入固定合并检查。
-
-- 开发期优先本地验证，完整云端 CI 仅由所有 base 的 PR 和手动入口触发，取消 main 合并后的全量重跑；PR 创建、重开及代码更新仍保留全部检查与 `CI required` 门槛。本地基础检查与完整 Linux/Docker、Node 24/26 验证的命令和证据边界见 [CI 指南](docs/development/ci.md)及 [Issue #48](https://github.com/TonQiaN/Agent_flow/issues/48)。快速质量、单元、Docker 集成、工作流、浏览器与截图任务继续分组执行；阶段日志、JUnit、逐测试事件、容器状态及恢复子进程证据按运行与重试次数分别保存。
-
-#### 新增
-
-- 建立决策、当前说明、原始资料的分层入口，提供 Roadmap、CHANGELOG 与手工发布维护指南；变更按目标版本归类，同一未发布功能收敛为当前行为，正式发布仍需核对远端 tag。
-- 明确主／子 Issue 与 PR 的责任、追溯和整体验收；当前交接定位最新提交及验证，历史结果保留原日期、范围和限制。见 [Issue #32](https://github.com/TonQiaN/Agent_flow/issues/32)。
-
-#### 重要变更
-
-- 五类主 Issue 表单提供“开发流程 / 项目内容”领域分类，聚焦情况、期望结果与边界，保留缺陷事实；开放空白入口，Sub-issue 的内容与形式由负责人自主决定。见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
-- 根 AGENTS.md 采用独立书写决定，整理必要规则、真实仓库布局、docs 工作入口与团队约定；项目内每份 AGENTS.md 配套同目录 CLAUDE.md 相对符号链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
-- materials 原始内容默认不再进入 Git，仅保留五份根级管理文件；新增局部指令及选定资料通过飞书 CLI 共享的约定。已有 checkout 更新前的原件保留方式见 [资料指南](docs/development/materials.md)，关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34)。
-
-#### 修复
-
-- 代理指令按任务触发概览阅读；开发指南补齐已有文档和轻量改动的处理说明、Blackbox 参考入口及调查继续条件，并修正根入口负责决定的过时引用。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
-- 决策 alternatives 仅记录用户确实考虑过且给出取舍理由的方案；模板允许明确写暂无，避免补造候选或理由。见 [Issue #37](https://github.com/TonQiaN/Agent_flow/issues/37)。
-
-## 0.1.3 — 待发布
-
-首次累计源码发布，汇总原 [0.1.1](docs/roadmap/0.1.1.md)、[0.1.2](docs/roadmap/0.1.2.md) 和 [0.1.3](docs/roadmap/0.1.3.md) 交付批次；发布准备见 [Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44)。正式 tag 尚未创建，功能验收边界见下列限制与引用证据。
+首次累计核心源码发布，汇总原 [0.1.1](docs/roadmap/0.1.1.md)、[0.1.2](docs/roadmap/0.1.2.md) 和 [0.1.3](docs/roadmap/0.1.3.md) 交付批次。源码 [v0.1.3](https://github.com/TonQiaN/Agent_flow/tree/v0.1.3) 固定提交 [461159c](https://github.com/TonQiaN/Agent_flow/commit/461159cd4a680fbb791ad830b8b250f431f28898)，不含 Studio 或后续 #47 修复；交接见 [Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44)。功能验收边界见下列限制与引用证据。
 
 ### 新增
 
@@ -83,13 +65,11 @@
 
 ### 重要变更
 
-- 核心源码版本为 0.1.3：根工作区及 CLI、DeepSeek 工具、domain、engine、integrations 五个包保持一致；Studio 前端另归 0.1.4，所有内部依赖和锁文件按实际包版本同步，包仍为 private。本次包含原 0.1.1–0.1.3 交付批次，不补造早期发布记录，也不发布 npm 包。
+- 核心源码版本为 0.1.3：根工作区及 CLI、DeepSeek 工具、domain、engine、integrations 五个包保持一致；该快照不含 Studio，所有内部依赖和锁文件按实际包版本同步，包仍为 private。本次包含原 0.1.1–0.1.3 交付批次，不补造早期发布记录，也不发布 npm 包。
 - Codex/Claude/DeepSeek Driver 移除 `inputRoot` 选项，保留 `timeoutMs`；输入准备交由已登记 Runner 工作区负责。移除未发布且无当前调用的旧 API key 文件快照入口，DeepSeek 继续使用环境绑定。
 - 文件 Workflow 将实际 Runner 超时统一映射为 `EXECUTION_TIMEOUT`，替代通用 Script/Agent 执行失败码；未配置重试的调用也会看到此错误码，仍默认只执行一次。
 
 ### 修复
-
-- Map/Fork 示例使用 Worker 的默认租约，避免短暂调度停顿造成运行未完成；协调步骤失败现在直接报告节点和错误码。
 
 - Codex 临时 input/work/outputs 的元数据权限采用固定子路径映射，避免默认只读挂载阻止启动，仍保护认证文件。解析允许 turn.started 前的初始化警告，并将明确 turn.failed 识别为失败终态；仍拒绝冲突或终态后的事件。
 - 文件收集忽略未归属的普通空目录，避免工具遗留空目录阻止合法交付；未声明文件、危险链接和已声明目录树仍严格验证。
@@ -107,3 +87,27 @@
 - 限于相同定义与环境下的节点边界恢复及单机调度；不支持历史环境重建、多主机、抢占或复杂公平调度。当前队列索引为 v3，不迁移未发布的 v1/v2；容量与历史记录上限见 [队列指南](docs/guides/node-queue.md)。
 - 真实模型恢复、机器断电及生产 Tutor 服务未由现有证据覆盖；真实学生报告的分阶段续跑不代表持久 Worker 恢复验收。
 - 所选学生样本从未接纳草稿修正批改后单独续跑报告，未证明空白冷启动一次成功，不构成模型评分准确率基准；不代替其他真实模型、生产发布或持久 Worker 恢复验收。
+
+## 开发协作（首次源码发布交接）
+
+以下协作变化已经收录于 v0.1.4 的完整源码快照，其中较早的管理骨架也包含在 v0.1.3 中；本节单列协作成果，不另分配产品版本，也不表示全部是 v0.1.3 之后新增。
+
+- 前端 CI 增加固定 Linux/Chromium 的截图基准比较，覆盖画布、节点、时间、结果、分组文件与窄窗口；失败保存基准、实际图、差异和 trace，普通 CI 不能自动更新基准。浏览器旅程与工作流验收独立运行，并纳入固定合并检查。
+
+- 开发期优先本地验证，完整云端 CI 仅由所有 base 的 PR 和手动入口触发，取消 main 合并后的全量重跑；PR 创建、重开及代码更新仍保留全部检查与 `CI required` 门槛。本地基础检查与完整 Linux/Docker、Node 24/26 验证的命令和证据边界见 [CI 指南](docs/development/ci.md)及 [Issue #48](https://github.com/TonQiaN/Agent_flow/issues/48)。快速质量、单元、Docker 集成、工作流、浏览器与截图任务继续分组执行；阶段日志、JUnit、逐测试事件、容器状态及恢复子进程证据按运行与重试次数分别保存。
+
+### 新增
+
+- 建立决策、当前说明、原始资料的分层入口，提供 Roadmap、CHANGELOG 与手工发布维护指南；变更按目标版本归类，同一未发布功能收敛为当前行为，正式发布仍需核对远端 tag。
+- 明确主／子 Issue 与 PR 的责任、追溯和整体验收；当前交接定位最新提交及验证，历史结果保留原日期、范围和限制。见 [Issue #32](https://github.com/TonQiaN/Agent_flow/issues/32)。
+
+### 重要变更
+
+- 五类主 Issue 表单提供“开发流程 / 项目内容”领域分类，聚焦情况、期望结果与边界，保留缺陷事实；开放空白入口，Sub-issue 的内容与形式由负责人自主决定。见 [Issue #21](https://github.com/TonQiaN/Agent_flow/issues/21)。
+- 根 AGENTS.md 采用独立书写决定，整理必要规则、真实仓库布局、docs 工作入口与团队约定；项目内每份 AGENTS.md 配套同目录 CLAUDE.md 相对符号链接。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
+- materials 原始内容默认不再进入 Git，仅保留五份根级管理文件；新增局部指令及选定资料通过飞书 CLI 共享的约定。已有 checkout 更新前的原件保留方式见 [资料指南](docs/development/materials.md)，关联 [Issue #34](https://github.com/TonQiaN/Agent_flow/issues/34)。
+
+### 修复
+
+- 代理指令按任务触发概览阅读；开发指南补齐已有文档和轻量改动的处理说明、Blackbox 参考入口及调查继续条件，并修正根入口负责决定的过时引用。见 [Issue #20](https://github.com/TonQiaN/Agent_flow/issues/20)。
+- 决策 alternatives 仅记录用户确实考虑过且给出取舍理由的方案；模板允许明确写暂无，避免补造候选或理由。见 [Issue #37](https://github.com/TonQiaN/Agent_flow/issues/37)。
