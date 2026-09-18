@@ -1,6 +1,6 @@
 # 版本维护指南
 
-当前具备 Roadmap、CHANGELOG 和手工发布约定；核心 0.1.3 与前端/本机工作台 0.1.4 分别准备，尚未创建正式 tag。没有 npm 分发实现或发布自动化。取舍见 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)。
+当前具备 Roadmap、CHANGELOG 和手工发布流程；核心 [v0.1.3](https://github.com/TonQiaN/Agent_flow/tree/v0.1.3) 与包含前端/本机工作台的 [v0.1.4](https://github.com/TonQiaN/Agent_flow/tree/v0.1.4) 已固定为两个源码快照，实际日期与提交见 [发布交接验证](../validation/2026-09-18-source-release.md)。没有 npm 分发实现或发布自动化。取舍见 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)。
 
 ## 内容放在哪里
 
@@ -63,10 +63,10 @@ Roadmap 不复制 Issue 的详细任务状态或决策正文，CHANGELOG 不收�
 
 ## 手工发布
 
-当次发布负责人在对应 Issue / PR 中明确，沿用 [开发工作指南](workflow.md) 的评审和合并步骤。[Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44) 跟进编号、验收和实际交付范围。2026-09-18 用户已授权将核心 0.1.3 与前端 0.1.4 的准备一起合并，审阅通过后无需重复请求授权；正式 tag 与发布事实继续单独核对。
+当次发布负责人在对应 Issue / PR 中明确，沿用 [开发工作指南](workflow.md) 的评审和合并步骤。[Issue #44](https://github.com/TonQiaN/Agent_flow/issues/44) 跟进编号、验收和实际交付范围。2026-09-18 用户先授权合并版本准备，随后要求完成 #44，覆盖剩余源码 tag、事实回填和关闭；已有授权不重复请求，实际结果仍逐项核对。
 
 1. **准备发布记录。** 核对版本整体验收和相关 Issue，通过 PR 将本次 Unreleased 中已核对的目标版本条目移到二级 `X.Y.Z — 待发布` 标题下，将其分类升为三级，保留 Unreleased；roadmap 保持进行中并关联版本计划。按各包已确认的目标版本更新 manifest，内部依赖对齐被依赖包，执行 `npm install --package-lock-only --ignore-scripts` 更新锁文件。核对外部依赖版本、resolved 和 integrity 没有漂移，再执行 `npm ci`、`npm run check` 和当前 PR CI；业务实现未变化时复用范围仍适用的官方验收。同步必要使用说明和验证证据，未交付事项不算入本版，其他尚未发布的实际变化留在 Unreleased。核心 0.1.3 合并原三个目标组；前端 0.1.4 单独归属，不创建虚假的历史发布章节。
-2. **确认发布提交。** 发布准备合并到 main 后，记录要发布的完整 commit SHA，核对整个文件树的交付范围和当前适用的验证结果。一个 tag 包含整个提交，CHANGELOG 分组不能从中排除前端；同时含有核心 0.1.3 和 Studio 0.1.4 的 main 不可直接标成“仅核心 0.1.3”发布。tag 对应范围未明确时保持待发布，不自动打 tag。代码或基线变化时补做受影响的验证；未配置、未执行的检查不算通过。
+2. **确认发布提交。** 发布准备合并到 main 后，记录要发布的完整 commit SHA，核对整个文件树的交付范围和当前适用的验证结果。一个 tag 包含整个提交，CHANGELOG 分组不能从中排除前端。首次交接的 v0.1.3 指向已合入历史的核心准备提交 `461159cd4a680fbb791ad830b8b250f431f28898`，不含 Studio；v0.1.4 指向合并提交 `2e44cf2d27f39475e27fe7c44cdcd098ebadbe22`，含核心、前端及同期修复。后者的核心包仍为 0.1.3，源码 tag 不冒充所有包统一升版。tag 对应范围未明确时保持待发布；代码或基线变化时补做受影响的验证，未配置、未执行的检查不算通过。
 3. **固定并推送 tag。** 为该确切提交创建 annotated tag `vX.Y.Z`，只推送该 tag。读取远端 tag 指向的 commit（annotated tag 的 peeled commit），核对其与记录的 SHA 一致。同名 tag 已存在时先核对，不能移动、覆盖或强推；推送失败后重试前也先读取远端状态。
 4. **记录实际发布事实。** 确认远端 tag 后，通过文档 PR 将 CHANGELOG 标题补为 `X.Y.Z — YYYY-MM-DD`（实际发布日）并链接 tag，将 roadmap 更新为已发布并链接对应变更记录。步骤中断或跨日时保留待发布标记直至核对完成，不把预计日期写成实际日期。tag 固定交付源码，后续文档提交补齐发布事实，无需移动 tag。
 5. **完成交接。** 在发布工作项记录 tag、确切提交、验证结果及限制。以后使用 GitHub Release 时复用 CHANGELOG 对应条目，不维护独立 release-notes 正文；只有相关验收完整满足时才关闭工作项。
