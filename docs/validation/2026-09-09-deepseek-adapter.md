@@ -1,6 +1,6 @@
 # DeepSeek Adapter 与结构化出口
 
-关联 #10/#11 和 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)。本切片完成纯 Adapter、具名原始证据接口和原生结构化出口工具；宿主认证/受控联网执行组合、真实 API 调用及学生批卷未完成。
+关联 #10/#11 和 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)。本切片完成纯 Adapter、具名原始证据接口和原生结构化出口工具；宿主认证/受控联网执行组合、真实 API 调用及学生批卷未完成。
 
 ## 参考和实现
 

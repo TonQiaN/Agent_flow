@@ -28,4 +28,4 @@ Workflow 检查点为 v3，Attempt 新增 launch；没有资源时必须为 null
 
 恢复 CAS 所有权、两个恢复者竞争、旧宿主隔离和新 Attempt 调度仍待接入。即便最后记录为 completed，恢复者仍须先取得所有权，再经共同 Runner 核对与清理旧资源；pending 不能由 PID 消失、超时或单次 absent 查询自动清除。准备/创建/启动的未知操作需要明确核对策略，不能把本轮故障夹具的已知暂停点当作通用恢复证明。
 
-[检查点指南](../guides/workflow-checkpoints.md) · [Runner 资源恢复](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[检查点指南](../guides/workflow-checkpoints.md) · [Runner 资源恢复](../guides/runner-resource-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

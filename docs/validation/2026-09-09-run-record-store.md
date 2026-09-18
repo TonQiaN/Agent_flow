@@ -6,7 +6,7 @@
 
 先检查 Blackbox v0.1.22 / 5610d1b 的 storage.py、run_leases.py、execution_plans.py、artifacts.py 及 runtime.py 的创建/恢复入口：SQLite 使用 WAL、FULL、有限忙等待和显式事务；恢复与存储分开，已有定义和输入快照。但旧实现允许某些 cancelled 恢复和整 Run 锁，不能覆盖本项目取消意图及 NodeTask 身份约束。未重新运行旧 Python 测试。
 
-当前接口具备 WorkflowSnapshot、进程内执行、ArtifactStore 和 Runner 身份，但没有引擎重启后的共同资源接管接口，也没有耐久的 Workflow checkpoint。首个切片采用独立 RunRecordStore，不改 WorkflowRuntime 的运行语义。新 [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)覆盖本项，保持 proposed，后续恢复仍未全部落实。
+当前接口具备 WorkflowSnapshot、进程内执行、ArtifactStore 和 Runner 身份，但没有引擎重启后的共同资源接管接口，也没有耐久的 Workflow checkpoint。首个切片采用独立 RunRecordStore，不改 WorkflowRuntime 的运行语义。新 [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)覆盖本项，保持 proposed，后续恢复仍未全部落实。
 
 ## 已验证
 

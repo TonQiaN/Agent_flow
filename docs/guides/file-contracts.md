@@ -39,4 +39,4 @@ try {
 
 宿主必须控制源目录、存储及目的目录的祖先，并在捕获/交接期间保证无并发写者。这不是对同权限恶意宿主的安全沙箱。`capture` 本身也不证明 Runner/Harness 成功；执行协调层仍须先验证执行身份、停止与终态，再调用契约收集器。违反契约的错误提供相对 path、rule ID 和 code，不携带文件内容。
 
-[组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-file-contracts.md)
+[组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-file-contracts.md)

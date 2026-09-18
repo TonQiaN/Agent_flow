@@ -1,6 +1,6 @@
 # DeepSeek 原生文件服务隔离
 
-关联 #10/#11、[Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 和 [源码布局决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)。本次只完成文件服务切片，尚未提供完整 DeepSeek 执行组合。
+关联 #10/#11、[Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter) 和 [源码布局决定](../../.agents/agent_notes/development/README.md#d-20260909-source-layout)。本次只完成文件服务切片，尚未提供完整 DeepSeek 执行组合。
 
 ## 对象与方法
 

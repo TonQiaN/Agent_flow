@@ -27,4 +27,4 @@
 
 提交前已通过 `git ls-remote --tags origin` 只读确认远端没有 tag；本次没有创建或推送 tag，没有发布 GitHub Release，也没有运行产品、CI 或真实发布演练。外部网页和链接内容未逐个在线验证，本地链接检查不能证明外部页面可访问。
 
-验证结论仅支持版本管理骨架已建立。相关 [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management) 的 implemented 范围限于文档、模板和规则，不表示产品或发布自动化已经实现。
+验证结论仅支持版本管理骨架已建立。相关 [版本管理决定](../../.agents/agent_notes/development/README.md#d-20260908-version-management) 的 implemented 范围限于文档、模板和规则，不表示产品或发布自动化已经实现。

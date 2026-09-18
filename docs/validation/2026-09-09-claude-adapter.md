@@ -37,4 +37,4 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_CODEX_IMAGE=agentflo
 
 DeepSeek 尚未实现；已提前记录 Blackbox 的原生模块缓存/noexec、Node 代理环境及固定 workspace 写输出问题，后续先按新项目统一目录要求验证，不直接照搬旧 cwd。#9–#12、0.1.1 及最终真实学生批卷/报告/PDF 保持未完成。
 
-[使用指南](../guides/claude-adapter.md) · [Harness 决策](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)
+[使用指南](../guides/claude-adapter.md) · [Harness 决策](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)

@@ -1,6 +1,6 @@
 # DeepSeek 私有会话采集与原生完成证据
 
-关联 #10/#11/#12、[Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 与 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle)。这是内部采集和解析切片，尚未提供可执行 DeepSeek Harness。
+关联 #10/#11/#12、[Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter) 与 [Runner 决定](../../.agents/agent_notes/product/README.md#p-20260909-runner-lifecycle)。这是内部采集和解析切片，尚未提供可执行 DeepSeek Harness。
 
 ## 依据与范围
 

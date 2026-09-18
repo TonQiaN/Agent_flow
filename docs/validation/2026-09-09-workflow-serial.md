@@ -33,7 +33,7 @@ AGENTFLOW_DOCKER_TESTS=1 AGENTFLOW_EGRESS_TESTS=1 AGENTFLOW_CODEX_IMAGE=<已核�
 
 真实 Agent/文件/脚本的 Workflow 适配、文件前序收据的统一可信交接、模拟 Effect 授权/幂等与 Tutor 合成闭环继续在同一 Workflow 工作项实施。files 类别只是编译边界，当前没有可用文件执行适配；运行记录与计划只在内存中。没有持久恢复、共享调度、自动重试或并行，也不承诺强制终止同步 TypeScript 函数。
 
-参考 Blackbox 5610d1b 的 compiler、runtime、effects：复用引用/契约/路由检查、取消/步数和 Effect 分离的取舍，不搬迁旧运行时的文件系统/存储/egress 耦合。本次先修订 [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) 再实现，Issue #9 已登记切片预检。
+参考 Blackbox 5610d1b 的 compiler、runtime、effects：复用引用/契约/路由检查、取消/步数和 Effect 分离的取舍，不搬迁旧运行时的文件系统/存储/egress 耦合。本次先修订 [组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution) 再实现，Issue #9 已登记切片预检。
 
 [Workflow 使用指南](../guides/workflow.md) · [首个 Harness 验证](2026-09-09-codex-startup.md)
 

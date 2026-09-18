@@ -33,7 +33,7 @@ GitHub 只新建了文档治理 Issue #2，并回读确认其为 OPEN、Assignee
 - 没有运行真实产品场景、Bug 修复或 stacked PR；初稿整理阶段未创建、合并 PR，后续提交与合并结果在 Issue #2 及关联 PR 留痕。Issue #2 只承接本次文档治理工作。
 - 没有发布或验收 GitHub 线上表单，没有配置自动预检、CI/CD、测试矩阵、Skill、分支保护或审批人数。
 - YAML 可解析及本地结构检查不等于 GitHub 服务端或界面验证通过。私有仓库表单校验限制及人参与核对的方式见 [工作指南](../development/workflow.md)。
-- 当前是作者借助 Codex 进行整理与静态检查，未进行多人审阅。新 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow) 尚未全部落实，迁移到 proposed 不表示撤回已有明确确认。
+- 当前是作者借助 Codex 进行整理与静态检查，未进行多人审阅。新 [开发流程决定](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow) 尚未全部落实，迁移到 proposed 不表示撤回已有明确确认。
 
 ## 同日后续：审查归入 Issue，删除独立目录
 

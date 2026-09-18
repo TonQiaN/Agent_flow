@@ -35,4 +35,4 @@
 
 文件模式与刷新方式参考 [官方认证说明](https://learn.chatgpt.com/docs/auth) 和 [可信自动化的认证保存流程](https://learn.chatgpt.com/docs/auth/ci-cd-auth)（2026-09-09 核对）。格式校验和本地 token 存在不证明远端有效性。普通事件替换只保护已知凭据值，不保证识别任意编码或所有业务 PII；原始日志持续保持私有。
 
-对应设计见 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 与 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
+对应设计见 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter) 与 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。

@@ -32,4 +32,4 @@ File Catalog 的严格加载新增 Agent 收据核对。实际 Driver 给出 Har
 
 订阅占用与刷新接管、凭据获取实际中断的不确定状态，以及探针、Driver、Catalog 宿主临时目录的崩溃遗留清理尚未完成。测试 finally 仅清理自己创建的根目录，不作为生产崩溃清理证据。真实官方模型重启、完整认证矩阵、其他绑定/Effect、真实学生批卷报告和 PDF 尚未验收。作者验证不等于独立审阅或 Node 24 CI。
 
-[阶段指南](../guides/workflow-phases.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[阶段指南](../guides/workflow-phases.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

@@ -35,7 +35,7 @@
 
 Docker 测试使用合成 JSON、凭据与协议替身；JSON Script 的逻辑结果转换器是隔离验收夹具，未新增开箱即用的 JSON Agent 转换适配器。已有 Agent outputs 接纳协议未变；本次没有官方模型登录/调用、真实学生卷、评分质量、完整报告或 PDF 验收。没有机器断电、生产部署、历史迁移或 Node 24 远端 CI 结果。单机数量上限、非公平扫描及资源未知时阻塞的既有边界仍适用。
 
-产品取舍见 [P-20260910-json-parallel](../../.agents/decisions/product/README.md#p-20260910-json-parallel)。
+产品取舍见 [P-20260910-json-parallel](../../.agents/agent_notes/product/README.md#p-20260910-json-parallel)。
 
 ## 短栈交付前复核
 

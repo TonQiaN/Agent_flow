@@ -22,4 +22,4 @@
 
 已提供来源准备/读取接口并接入实际 Script 验收，但原 createGradingApplication 整条流程尚未改造。下一步优先文件到 JSON 的实际绑定和耐久转换收据，再接固定 Effect、当前审批与实际 Agent 的联合恢复，最后继续订阅与 #13 剩余验收。#13、真实批卷、报告和 PDF 不因此完成。作者验证，不代表独立审阅、Node 24 CI 或硬件断电测试。
 
-[来源指南](../guides/tutor-source-reopening.md) · [Script 验证](2026-09-10-tutor-file-scripts.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[来源指南](../guides/tutor-source-reopening.md) · [Script 验证](2026-09-10-tutor-file-scripts.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

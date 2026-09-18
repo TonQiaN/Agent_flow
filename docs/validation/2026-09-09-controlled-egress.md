@@ -22,4 +22,4 @@
 
 Docker 的 internal bridge 本身仍可能提供宿主桥地址，因此使用 internal + isolated gateway，并检查实际网络配置；不支持时失败。[Docker bridge 文档](https://docs.docker.com/engine/network/drivers/bridge/#gateway-mode)、[端口发布与 isolated 模式](https://docs.docker.com/engine/network/port-publishing/#gateway-modes)（2026-09-09 核对）。TLS 内容保持不透明，连接目标策略不等同应用层 URL 策略。IPv6、任意端口和非公开 endpoint 不在本切片范围。
 
-对应取舍见 [Runner 决定](../../.agents/decisions/product/README.md#p-20260909-runner-lifecycle) 与 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)，配置见 [使用指南](../guides/controlled-egress.md)。
+对应取舍见 [Runner 决定](../../.agents/agent_notes/product/README.md#p-20260909-runner-lifecycle) 与 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)，配置见 [使用指南](../guides/controlled-egress.md)。

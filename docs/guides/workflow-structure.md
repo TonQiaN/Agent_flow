@@ -29,4 +29,4 @@ assertWorkflowStructureMatches(compiled, structure);
 
 Attempt 历史、输入/产物接纳、取消意图、旧 Runner query/stop 和 Effect unknown 的核对由检查点及恢复协调负责。结构匹配不能单独授权重跑节点、认定旧执行停止或发起外部动作。
 
-[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [本轮验证](../validation/2026-09-10-workflow-structure.md) · [Run 记录存储](run-record-store.md)
+[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence) · [本轮验证](../validation/2026-09-10-workflow-structure.md) · [Run 记录存储](run-record-store.md)

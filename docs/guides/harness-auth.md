@@ -40,7 +40,7 @@ finish 返回 status=released 或 retained，以及 refresh=not_prepared/unchang
 
 普通序列化只提供凭据元数据和释放状态。首个 codec 和已知凭据值脱敏已接入组合层；真实模型小任务已通过，但未触发远端刷新；这部分目前由合成凭据及真实 Docker 进程验证，见 [执行绑定验证](../validation/2026-09-09-credential-binding.md)。
 
-接口与真实证据边界见 [本次验证](../validation/2026-09-09-harness-auth-primitives.md)。取舍分别见 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter) 和 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
+接口与真实证据边界见 [本次验证](../validation/2026-09-09-harness-auth-primitives.md)。取舍分别见 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter) 和 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。
 
 ## 首个 Codex 订阅组合 API
 

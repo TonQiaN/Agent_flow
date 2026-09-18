@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-Issue #13，基线 3068267，沿用[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。主负责开发者 @xiaoxuanli-a；Codex 按已有授权实施及作者检查，没有新增独立审阅。当前范围为无私有认证绑定的 CONNECT Script，不将其视为 Agent 认证恢复完成。
+Issue #13，基线 3068267，沿用[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。主负责开发者 @xiaoxuanli-a；Codex 按已有授权实施及作者检查，没有新增独立审阅。当前范围为无私有认证绑定的 CONNECT Script，不将其视为 Agent 认证恢复完成。
 
 先核对 Blackbox v0.1.22 / 5610d1b 的 egress.py acquire/close、runners.py 的代理关联/容器结束与认证收尾，以及提交 5e33d62。参考独立代理/网络清理边界；旧版按 Run/Profile 共享资源并尽力清理，新版沿既有每个 Runner 资源独立的边界，保留严格归属与确认，未复制旧共享锁或 best-effort 成功判定。
 

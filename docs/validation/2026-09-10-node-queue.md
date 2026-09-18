@@ -6,7 +6,7 @@
 
 按已确认的 Issue 范围实现 NodeTask 调度；先核对 Blackbox v0.1.22 / 5610d1b 的 scheduler.py、storage.py、credential_leases.py、test_scheduler.py、test_credential_capacity.py 及既有调度/认证修复历史。参考事务领取、失联不立即回收和管理互斥经验；新实现不照搬整 Run Worker 或进程内容量。
 
-Run 检查点仍是唯一业务事实。队列新增有限引用索引、原子多记录条件提交及归属绑定 Store；共享引擎提供仅准备和单节点交还入口。普通非队列运行入口继续可用。配置与实际限制见 [使用指南](../guides/node-queue.md)，方案见 [队列决定](../../.agents/decisions/product/README.md#p-20260910-node-queue)。
+Run 检查点仍是唯一业务事实。队列新增有限引用索引、原子多记录条件提交及归属绑定 Store；共享引擎提供仅准备和单节点交还入口。普通非队列运行入口继续可用。配置与实际限制见 [使用指南](../guides/node-queue.md)，方案见 [队列决定](../../.agents/agent_notes/product/README.md#p-20260910-node-queue)。
 
 ## 已验证结果
 

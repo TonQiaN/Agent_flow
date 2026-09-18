@@ -28,4 +28,4 @@
 
 以上证明消费端接线、可信来源、契约、拒绝和有界路由，不证明模型评分正确。仍未读取真实学生答卷，未完成实际 Marker/Reviewer/Reporter 全链路或评分质量验收，也未完成 PR 交付。该宿主工具链暂没有持久恢复/Worker/Docker 验收。原始错误记录保留，不用合成 PDF 关闭最终任务。
 
-[使用指南](../guides/tutor-scanned-marking.md) · [Component 决策](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[使用指南](../guides/tutor-scanned-marking.md) · [Component 决策](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)

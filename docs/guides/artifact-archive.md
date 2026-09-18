@@ -53,4 +53,4 @@ Catalog 在目标支持该端口时省掉自己的 checkpoint/restore 临时目�
 
 Run 恢复协调、定义/输入一致性、Attempt 历史、接纳与后继位置、旧 Runner query/stop 和 Effect unknown 由各自模块负责。AgentExecutor 使用临时 ArtifactStore；Workflow 在接纳提交前通过实际文件 Catalog 显式归档，加载时再从归档重建临时引用。未发布 staging 和未引用归档暂时保留；首期没有 delete/list/迁移/去重/自动 GC。
 
-[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence) · [归档验证](../validation/2026-09-10-artifact-archive.md) · [Run 记录存储](run-record-store.md)
+[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence) · [归档验证](../validation/2026-09-10-artifact-archive.md) · [Run 记录存储](run-record-store.md)

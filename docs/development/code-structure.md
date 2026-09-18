@@ -1,6 +1,6 @@
 # 源码组织与工程检查
 
-本文说明当前工作区的源码组织和开发约定。目录选择及其理由见 [源码结构决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)，当前能力见 [文档入口](../README.md)，接口使用见 [使用指南](../guides/README.md)。
+本文说明当前工作区的源码组织和开发约定。目录选择及其理由见 [源码结构决定](../../.agents/agent_notes/development/README.md#d-20260909-source-layout)，当前能力见 [文档入口](../README.md)，接口使用见 [使用指南](../guides/README.md)。
 
 ## 代码放在哪里
 

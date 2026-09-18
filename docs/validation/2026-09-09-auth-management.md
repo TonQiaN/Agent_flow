@@ -27,4 +27,4 @@
 
 本次补齐 #11 的实际交互录入与本地管理入口，仍不等于实现订阅登录。订阅登录协调、安全备份恢复、Claude/DeepSeek 官方调用及真实 OAuth 刷新继续保留；真实学生批卷、完整报告和 PDF 也未验收。矩阵和相关 Issue 保持开放。
 
-使用方法见 [本地认证管理](../guides/auth-management.md)，取舍见 [认证决定](../../.agents/decisions/product/README.md#p-20260909-auth-lifecycle)。
+使用方法见 [本地认证管理](../guides/auth-management.md)，取舍见 [认证决定](../../.agents/agent_notes/product/README.md#p-20260909-auth-lifecycle)。

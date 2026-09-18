@@ -1,6 +1,6 @@
 # Issue 分类与填写指南
 
-本页对应 `.github/ISSUE_TEMPLATE/` 的五份主 Issue 表单与空白入口配置。设计依据见 [分类决定](../../.agents/decisions/development/README.md#d-20260908-issue-classification) 和 [共通决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-common)，开发与交付衔接见 [工作指南](workflow.md)。本轮变更已通过 PR #23 合入默认分支，五类主表和空白入口已实际核对，验证范围见 [验证记录](../validation/2026-09-10-main-issue-templates.md)。
+本页对应 `.github/ISSUE_TEMPLATE/` 的五份主 Issue 表单与空白入口配置。设计依据见 [分类决定](../../.agents/agent_notes/development/README.md#d-20260908-issue-classification) 和 [共通决定](../../.agents/agent_notes/development/README.md#d-20260908-issue-template-common)，开发与交付衔接见 [工作指南](workflow.md)。本轮变更已通过 PR #23 合入默认分支，五类主表和空白入口已实际核对，验证范围见 [验证记录](../validation/2026-09-10-main-issue-templates.md)。
 
 ## 主 Issue 与 Sub-issue
 

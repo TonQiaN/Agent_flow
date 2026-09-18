@@ -22,4 +22,4 @@
 
 本次不完成可信前序执行记录、Component Agent 接纳协调、Workflow 路由、持久恢复、其他 Harness、多出口真实任务或 Tutor 批卷。调用方仍必须证明生产者停止并控制目录祖先和并发写者；快照 API 不替代 Runner/Harness 终态。PR 继续 Draft，Issue #9 保持部分交付。
 
-[文件契约指南](../guides/file-contracts.md) · [组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[文件契约指南](../guides/file-contracts.md) · [组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)

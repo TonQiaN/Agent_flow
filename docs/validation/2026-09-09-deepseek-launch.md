@@ -1,6 +1,6 @@
 # DeepSeek 固定启动与图像交接
 
-关联 #10/#11 和 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)。本次完成容器启动资产；宿主 Adapter/Profile/Runner 组合和真实 API 调用仍未交付。
+关联 #10/#11 和 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)。本次完成容器启动资产；宿主 Adapter/Profile/Runner 组合和真实 API 调用仍未交付。
 
 ## 参考与实现
 

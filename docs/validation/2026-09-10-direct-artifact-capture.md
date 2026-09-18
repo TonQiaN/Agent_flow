@@ -28,4 +28,4 @@ Catalog 保存时把实际源快照的 materialize 安装给归档；加载通�
 
 此切片消除内置组合的 Catalog 检查点/恢复中间副本，没有完成全局崩溃回收。未发布存储暂存、旧进程初始/已接纳临时快照、脚本/函数和旧端口回退的 node 目录、资源分配未登记窗口仍待处理。发布后的未引用归档继续保留，不扫描前缀、不凭 PID 消失或测试清理根目录推断所有权。订阅占用恢复、其他 #13 验收及真实批卷报告/PDF 仍未完成。
 
-[归档指南](../guides/artifact-archive.md) · [加载指南](../guides/workflow-checkpoint-loading.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[归档指南](../guides/artifact-archive.md) · [加载指南](../guides/workflow-checkpoint-loading.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

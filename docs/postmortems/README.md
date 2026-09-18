@@ -10,4 +10,4 @@
 - 修正措施、负责人、已有工作项与完成后的验证证据；尚未完成的措施继续标明。
 - 改变长期取舍时关联唯一决策 ID，避免把制度决定复制进复盘；复盘本身保留事件事实。
 
-不要求依赖原始日志路径才可理解结论。依据见 [分层决定](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)，验证结果见 [验证入口](../validation/README.md)。
+不要求依赖原始日志路径才可理解结论。依据见 [分层决定](../../.agents/agent_notes/development/README.md#d-20260907-documentation-layers)，验证结果见 [验证入口](../validation/README.md)。

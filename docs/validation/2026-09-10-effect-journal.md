@@ -32,4 +32,4 @@ EffectRecordStore 是引擎操作日志端口，SqliteEffectRecordStore 复用�
 
 当前为独立 EffectExecutor 持久边界。EffectWorkflowCatalog 的实际执行定义、持久映射策略、严格回执加载与恢复认领仍待接入；目前不能用该日志宣称整个 Effect Workflow 可恢复。未知操作没有服务结果核对能力时保持阻塞，不承诺任意真实服务 exactly-once。其他 #13 绑定、订阅及真实学生批卷报告/PDF 仍未验收。通用未发布暂存 GC 不作为这些验收的新增前置。
 
-[使用指南](../guides/workflow-effects.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/workflow-effects.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

@@ -1,6 +1,6 @@
 # 开发工作指南
 
-当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置分组 CI 和固定汇总检查，自动业务预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
+当前仓库具备开发流程决定、Issue / PR 模板、确定性 Component 与基础工程检查。已配置分组 CI 和固定汇总检查，自动业务预检、部署和完整产品验收仍未实现；阶段与取舍见 [开发流程决定](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow)。
 
 ## 建立和整理 Issue
 
@@ -44,6 +44,8 @@ Issue 保存实际讨论和确认，正式决定保留自足的取舍、必要�
 
 ## PR 的交接与审查
 
+当前两人团队使用公开仓库、标准 GitHub Actions runner 和订阅内原生 Codex 审查，选择理由与工具职责见 [CI 与 AI 审查分工 note](../../.agents/agent_notes/development/README.md#d-20260918-ci-ai-review)。Actions 提供工程检查结果，Codex 提出审查意见；负责人对照 Issue 核对验收证据并处理反馈，有权限的人或已获明确授权的工具执行合并。自定义 Actions Codex 审查及自动合并继续暂停，CI 通过或 AI 未发现问题均不自动判定 Issue 已完成。
+
 [PR 模板](../../.github/PULL_REQUEST_TEMPLATE.md) 记录问题与结果、主 Issue 及实际存在的 Sub-issue、验收覆盖、发生实质改动的决定和验证证据。CLI/API 创建 PR 同样补齐这些交接内容；勾选本身不执行检查。这些是 PR 说明要求，不约束子项正文。
 
 每个 PR 相对实际 base 至少包含一份正式决策正文的实质改动。复用既有 ID 不等于只加引用；轻量改动若不存在有意义的决策变更，应并入同一问题下包含实质决策变更的相关 PR，不为凑数建立决定或制造空修改。已有文档无需重写不豁免该 PR 门槛。作者先自查相关差异与验证，实际审阅方式如实记录，不能把 AI 或作者自查写成多人审查。
@@ -74,6 +76,7 @@ CI 使用固定名称 `CI required` 汇总本层质量和测试任务，失败�
 | --- | --- |
 | 五类主 Issue 表单、空白与子项入口的实际显示核对及职责说明 | 长期使用效果 |
 | 人参与整理、预检、决定与 PR 的交接约定 | 自动状态、自动预检、决策增量门禁 |
+| 原生 Codex PR 审查及 CI、AI、负责人的分工说明 | 自动判定 Issue 整体验收、自定义 Actions Codex 审查与自动合并 |
 | 局部文档与模板验证、TypeScript 构建与 Node 测试、Node 24/26 CI | 完整产品集成矩阵、部署与真实产品开发流程 |
 
 本轮实现与验证见 [主 Issue 模板验证](../validation/2026-09-10-main-issue-templates.md)。[2026-09-08 验证](../validation/2026-09-08-issue-templates.md) 是旧版五表的历史证据；本轮默认分支入口已另行核对。私有仓库 required、Assignees 与默认分支的实际平台限制见 Issue 指南。Sub-issue 目前没有模板或写作推荐，本轮也未验证长期模板化收益。

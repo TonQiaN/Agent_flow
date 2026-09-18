@@ -41,4 +41,4 @@ try {
 
 这些收据通过进程内私有登记表建立可信来源，不是数字签名或可离线验证的证书；AgentExecutor 不提供公开收据导入接口；Workflow 通过[严格加载器](workflow-checkpoint-loading.md)与实际 File Catalog 核对耐久来源记录并恢复文件引用。宿主和显式安装的驱动、存储是信任边界，不声称抵抗同权限恶意宿主。确定性 Component、Effect 与 Agent 经各自 Catalog 接入同一 Workflow，业务路由仍由用户定义。
 
-[组件决定](../../.agents/decisions/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-agent-acceptance.md)
+[组件决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution) · [验证记录](../validation/2026-09-09-agent-acceptance.md)

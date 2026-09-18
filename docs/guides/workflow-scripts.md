@@ -48,4 +48,4 @@ Workflow 的编译、启动和引用生命周期与 [文件 Workflow](workflow-f
 
 当前已经验证真实 Docker 脚本 → 文件 Gate、异常协议/文件、取消与超时。独立 [JSON 模拟 Effect](workflow-effects.md) 已接入；Tutor 合成闭环与所选真实学生分阶段样本已有验证，范围及限制见 [0.1.3 计划](../roadmap/0.1.3.md)。最小控制入口使用库 API，CLI 定义加载尚未提供。
 
-[验证记录](../validation/2026-09-09-workflow-scripts.md) · [执行决定](../../.agents/decisions/product/README.md#p-20260909-component-execution)
+[验证记录](../validation/2026-09-09-workflow-scripts.md) · [执行决定](../../.agents/agent_notes/product/README.md#p-20260909-component-execution)

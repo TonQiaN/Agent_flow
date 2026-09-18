@@ -1,6 +1,6 @@
 # DeepSeek 统一工具进程隔离
 
-关联 #10/#11 与 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)。这是文件服务之后的本地矩阵切片，不代表完整 DeepSeek Harness 已交付。
+关联 #10/#11 与 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)。这是文件服务之后的本地矩阵切片，不代表完整 DeepSeek Harness 已交付。
 
 ## 参考与对象
 

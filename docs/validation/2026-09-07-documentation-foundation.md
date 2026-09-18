@@ -1,6 +1,6 @@
 # 文档管理骨架验证
 
-日期：2026-09-07。对象：验证时位于本地 codex/documentation-foundation 分支、尚未提交的文档骨架，不是产品运行实现。关联 [生命周期](../../.agents/decisions/development/README.md#d-20260907-decision-lifecycle)、[内容](../../.agents/decisions/development/README.md#d-20260907-decision-record-content)、[分层](../../.agents/decisions/development/README.md#d-20260907-documentation-layers)决定。
+日期：2026-09-07。对象：验证时位于本地 codex/documentation-foundation 分支、尚未提交的文档骨架，不是产品运行实现。关联 [生命周期](../../.agents/agent_notes/development/README.md#d-20260907-decision-lifecycle)、[内容](../../.agents/agent_notes/development/README.md#d-20260907-decision-record-content)、[分层](../../.agents/agent_notes/development/README.md#d-20260907-documentation-layers)决定。
 
 ## 方法与结果
 

@@ -2,7 +2,7 @@
 
 ## 范围与依据
 
-Issue #13，基线 56fc5e6，主负责开发者 @xiaoxuanli-a。按既有授权补齐认证获取前的版本探针资源端口，复用[持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)。作者检查不代表独立审阅或完整 Agent 恢复验收。
+Issue #13，基线 56fc5e6，主负责开发者 @xiaoxuanli-a。按既有授权补齐认证获取前的版本探针资源端口，复用[持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)。作者检查不代表独立审阅或完整 Agent 恢复验收。
 
 先查 Blackbox v0.1.22 / 5610d1b 的 runners.py 中 credential-lease、preflight、容器执行与 finally 刷新收尾，credential_leases.py 的槽位锁及 f508c78 的撕裂写入修复。借鉴认证前检查和资源结束后的凭据收尾顺序；旧版 flock 释放不能作为新项目 Docker 停止证明，不复制 PID 解锁逻辑。新版独立版本 Runner 需要单独保存资源，不能只记录后续模型执行的容器。
 

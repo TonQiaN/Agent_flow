@@ -24,4 +24,4 @@
 
 当前构造器要求调用方提供可信原始来源事实；测试在自己的临时根中预先保存这些事实，尚未交付应用级 Run 创建/重开协议。createGradingApplication 仍是原普通流程；文件到 JSON 收据、固定 Effect/当前审批、实际 Agent 和订阅的完整持久组合继续接线。#13 以及真实学生批卷、报告、PDF 不因此完成。
 
-[使用指南](../guides/tutor-file-scripts.md) · [前序预检](2026-09-10-tutor-persistence-preflight.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[使用指南](../guides/tutor-file-scripts.md) · [前序预检](2026-09-10-tutor-persistence-preflight.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)

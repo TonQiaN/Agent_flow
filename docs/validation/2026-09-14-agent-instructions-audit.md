@@ -17,10 +17,10 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 | 对象 | 当前事实与覆盖范围 |
 | --- | --- |
 | 根 `AGENTS.md` | 52 行、3,264 字节；读取全部正文及根入口负责决定 |
-| `.agents/decisions/AGENTS.md` | 19 行、2,716 字节；读取全部正文、负责决定及其引用的流程、内容、生命周期规则 |
+| `.agents/agent_notes/AGENTS.md` | 19 行、2,716 字节；读取全部正文、负责决定及其引用的流程、内容、生命周期规则 |
 | `CLAUDE.md` | 主线两处均为相对符号链接，目标为同目录 `AGENTS.md`，读取内容相同；这不证明两个工具加载和执行效果相同 |
 | 项目 Skill 与配置 | 排除原始材料、依赖、构建产物后，没有发现项目 `SKILL.md`；`.agents/skills/` 不存在，`.codex/` 与 `.claude/` 为空，Git 中也没有这几个目录的项目技能或配置文件 |
-| 指令与技能相关决定 | 根入口、决策目录、开发流程、决策内容／生命周期／文档分层、Issue 共通及有关类型、版本管理等；开发 Skill 仅在开发流程决定第 9、93 行列为另议事项 |
+| 指令与技能相关决定 | 根入口、agent_notes 目录、开发流程、决策内容／生命周期／文档分层、Issue 共通及有关类型、版本管理等；开发 Skill 仅在开发流程决定第 9、93 行列为另议事项 |
 | 关联说明 | 开发、文档、工程、Issue 与版本指南，PR 模板及有关主 Issue 表单；它们是需求或工作说明，不因含有提示文字就视为独立 Skill |
 | PR #35 | 读取 18 行 materials AGENTS.md、其 47 行负责决定、资料指南，以及根入口和负责决定的相关差异 |
 | 未纳入 | 产品运行时提示词及源码行为、src 局部指令设计、全局和第三方技能的逐个审查、原始材料正文、实际飞书操作 |
@@ -39,7 +39,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 建议将项目概览的触发条件明确为需要判断产品当前能力、范围或导航入口的任务，保留其作为能力事实入口的职责。编辑决策区前读取该区 AGENTS.md 仍有明确的作用范围，适合保留。
 
-负责决定：[D-20260910-root-agents-writing](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing)。证据类型：文本触发条件已确认；对小任务上下文负担的影响为推断，未量化。
+负责决定：[D-20260910-root-agents-writing](../../.agents/agent_notes/development/README.md#d-20260910-root-agents-writing)。证据类型：文本触发条件已确认；对小任务上下文负担的影响为推断，未量化。
 
 ### R2：工作指南省略了原决定已有的适用例外
 
@@ -51,7 +51,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 建议在指南中简短保留这两个影响执行的条件，或直接定位相关小节。此处是说明完整性修正，和是否改变“每 PR 都有决策增量”的政策分别处理；不能把补回例外写成轻量 PR 已获豁免。
 
-负责决定：[D-20260907-development-workflow](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。证据类型：指南与原决定的内容差异已确认；代理是否实际因此停顿尚未实验。
+负责决定：[D-20260907-development-workflow](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow)。证据类型：指南与原决定的内容差异已确认；代理是否实际因此停顿尚未实验。
 
 ### R3：Blackbox 优先调查缺少可定位入口和适用边界
 
@@ -65,7 +65,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 建议补足可核查的定位入口，并讨论该顺序应覆盖哪些问题、何时可以依据本项目事实继续调查。定位问题可由指南补足；对既有优先顺序的实质调整回到原负责决定，避免自行增加或取消前提。
 
-负责决定：[D-20260907-development-workflow](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。证据类型：参考入口与边界说明缺口已确认；过度搜索或阻塞的行为风险待验证。
+负责决定：[D-20260907-development-workflow](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow)。证据类型：参考入口与边界说明缺口已确认；过度搜索或阻塞的行为风险待验证。
 
 ### R4：版本管理决定仍把根指令指向旧负责决定
 
@@ -75,13 +75,13 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 在修改根入口的版本维护提示时，这会把执行者带到错误的负责记录，增加相互矛盾的归属说明。建议把当前负责链接改为根入口独立决定，保留历史确认段落原来的时间语境。
 
-负责决定：[D-20260908-version-management](../../.agents/decisions/development/README.md#d-20260908-version-management) 中的现行引用；根入口归属仍由 [D-20260910-root-agents-writing](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing) 管理。证据类型：两个现行正文的归属矛盾已确认。
+负责决定：[D-20260908-version-management](../../.agents/agent_notes/development/README.md#d-20260908-version-management) 中的现行引用；根入口归属仍由 [D-20260910-root-agents-writing](../../.agents/agent_notes/development/README.md#d-20260910-root-agents-writing) 管理。证据类型：两个现行正文的归属矛盾已确认。
 
 ## 三项需要讨论或行为证据的取舍
 
 ### D1：每个 PR 都必须产生实质决策增量
 
-位置：[开发流程决定第 47–49 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/proposed/D-20260907-development-workflow.md#L47)、决策目录 AGENTS.md 第 13 行、PR 模板第 18、49 行，以及内容决定第 7–9 行。
+位置：[开发流程决定第 47–49 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/proposed/D-20260907-development-workflow.md#L47)、agent_notes 目录 AGENTS.md 第 13 行、PR 模板第 18、49 行，以及内容决定第 7–9 行。
 
 这是明确采用的团队政策，原决定已承认小修复的独立提交成本，并要求没有真实增量时并入相关 PR。因此不能把它报告成偶然写错的规则。
 
@@ -109,7 +109,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 - 根入口已有按任务分类的工作指南链接，详细理由保留在负责决定中；优先修正具体触发条件，不能由决定较长就推导出应删除其取舍依据。
 - 两份 AGENTS.md 均有清楚作用范围和唯一负责决定，CLAUDE.md 的相对符号链接有效。文件内容共享与工具效果差异已被明确区分，适合继续保留。
-- 根入口第 50 行、决策目录第 11 行、开发流程决定第 17、25、43 行已承认既有用户授权、不要求重复批准、不强制启动期多人审批，并允许决定与实现同 PR。文章不是取消真实责任和授权边界的依据。
+- 根入口第 50 行、agent_notes 目录第 11 行、开发流程决定第 17、25、43 行已承认既有用户授权、不要求重复批准、不强制启动期多人审批，并允许决定与实现同 PR。文章不是取消真实责任和授权边界的依据。
 - 主 Issue 共通决定用目标、范围和成果表达需求，把实施方法留给负责人；这是减少过度步骤约束的已有成果。Sub-issue 自主表达也有用户明确依据。
 - materials 原始内容按任务读取，正式决定、当前说明和原始资料分开，有助于控制无关上下文。PR #35 的局部入口较短，具体操作按需指向指南，已有原件保留和共享身份核对有实际风险依据。
 - PR #35 的“新增资料不会自动上传”已在资料指南第 11 行明确，后续共享以实际资料任务为界；未发现必须把所有资料上传的要求。该局部规则尚未合入主线。
@@ -119,12 +119,12 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 | 对象 | 唯一负责决定或关联依据 | 本轮建议性质 |
 | --- | --- | --- |
-| 根 AGENTS.md 的概览读取条件 | [根入口书写决定](../../.agents/decisions/development/README.md#d-20260910-root-agents-writing) | R1：明确触发条件；后续新增局部指令按实际任务需要 |
-| 工作指南的例外、Blackbox 调查及实施边界 | [开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow) | R2、R3；D1、D2、D3 中实际采用的变化按各自影响记录 |
-| 决策目录 AGENTS.md 的相关提示 | [决策目录书写决定](../../.agents/decisions/development/README.md#d-20260907-agents-writing) | 仅在其提示确实需随流程变化时同步；不能让流程决定成为第二个书写负责人 |
-| “已有决定覆盖”与轻量改动说明 | [决策内容决定](../../.agents/decisions/development/README.md#d-20260907-decision-record-content) | D1 若改选才同步；保留真实取舍、同问题唯一正文 |
-| 版本管理中的根入口链接 | [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management) | R4：修正现行引用，历史段落保持当时语境 |
-| 主 Issue 与 Sub-issue | [共通写作决定](../../.agents/decisions/development/README.md#d-20260908-issue-template-common) | 已符合需求与执行分工方向，未建议新增子项模板 |
+| 根 AGENTS.md 的概览读取条件 | [根入口书写决定](../../.agents/agent_notes/development/README.md#d-20260910-root-agents-writing) | R1：明确触发条件；后续新增局部指令按实际任务需要 |
+| 工作指南的例外、Blackbox 调查及实施边界 | [开发流程决定](../../.agents/agent_notes/development/README.md#d-20260907-development-workflow) | R2、R3；D1、D2、D3 中实际采用的变化按各自影响记录 |
+| agent_notes 目录 AGENTS.md 的相关提示 | [agent_notes 目录书写决定](../../.agents/agent_notes/development/README.md#d-20260907-agents-writing) | 仅在其提示确实需随流程变化时同步；不能让流程决定成为第二个书写负责人 |
+| “已有决定覆盖”与轻量改动说明 | [决策内容决定](../../.agents/agent_notes/development/README.md#d-20260907-decision-record-content) | D1 若改选才同步；保留真实取舍、同问题唯一正文 |
+| 版本管理中的根入口链接 | [版本管理决定](../../.agents/agent_notes/development/README.md#d-20260908-version-management) | R4：修正现行引用，历史段落保持当时语境 |
+| 主 Issue 与 Sub-issue | [共通写作决定](../../.agents/agent_notes/development/README.md#d-20260908-issue-template-common) | 已符合需求与执行分工方向，未建议新增子项模板 |
 | materials 指令与共享入口 | [PR #35 中的资料管理决定](https://github.com/TonQiaN/Agent_flow/blob/5838eaf35cf01c135db116ebf9dcf33a53b26ee3/.agents/decisions/development/implemented/D-20260911-materials-management.md) | 继续由 #34／#35 承接，跟随其真实合并状态处理交叉变更 |
 | 项目 Skill | 暂无实际 Skill 正文及独立技能实现 | 无可直接评审的描述、路由或脚本；今后按具体可复用任务决定是否需要 |
 
@@ -143,7 +143,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 | 指令 | 当前行数 | 唯一书写决定 |
 | --- | --- | --- |
 | [根 AGENTS.md](../../AGENTS.md) | 54 | D-20260910-root-agents-writing |
-| [决策目录 AGENTS.md](../../.agents/decisions/AGENTS.md) | 19 | D-20260907-agents-writing |
+| [agent_notes 目录 AGENTS.md](../../.agents/agent_notes/AGENTS.md) | 19 | D-20260907-agents-writing |
 | [materials AGENTS.md](../../materials/AGENTS.md) | 18 | D-20260911-materials-management |
 
 三处 `CLAUDE.md` 均为指向同目录 `AGENTS.md` 的相对符号链接，读取内容一致。三份指令中的 22 处本地链接及所用锚点全部通过检查。Git 在 materials 中仅跟踪约定的五个管理文件，本次未读取原始材料正文。
@@ -192,11 +192,11 @@ D1–D3 涉及的流程取舍与待验证行为也未随本次 PR 改变。本�
 | R3：旧系统已有相关实现或修复 | [Blackbox 入口](../development/workflow.md#blackbox-参考入口与调查边界) 可定位；优先按症状查阅，记录实际版本及环境差异，借鉴后验证本项目受影响范围 |
 | R3：确认无关、无法访问或查无对应结果 | 说明依据或限制后继续本项目调查；无需穷尽旧仓库，不能将查无结果写成旧系统没有问题 |
 | R3：缺失资料确实影响兼容性判断或验收 | 记录具体阻塞及所缺依据，并继续不依赖该资料的工作；不会把真实依赖当作已满足 |
-| R4：从版本管理说明追溯根指令负责人 | [版本管理决定](../../.agents/decisions/development/implemented/D-20260908-version-management.md) 当前引用到 D-20260910-root-agents-writing；决策目录仍归 D-20260907-agents-writing |
+| R4：从版本管理说明追溯根指令负责人 | [版本管理决定](../../.agents/agent_notes/development/implemented/D-20260908-version-management.md) 当前引用到 D-20260910-root-agents-writing；agent_notes 目录仍归 D-20260907-agents-writing |
 
 ### 检查与交付边界
 
-使用 Python 标准库核对受影响指令、决定、指南、CHANGELOG、审查记录及索引，共 10 份相关 Markdown 的 106 处本地链接与锚点通过，22 个决定 ID 唯一。三处 CLAUDE.md 均为同目录 AGENTS.md 的相对符号链接，Git 模式为 120000，读取正文一致，文件回链与负责决定的受管清单对应。定向核对正式区域中的旧负责决定引用，剩余引用分别用于决策目录归属、共有书写分工或历史迁移说明，均应保留。`git diff --check` 通过。
+使用 Python 标准库核对受影响指令、决定、指南、CHANGELOG、审查记录及索引，共 10 份相关 Markdown 的 106 处本地链接与锚点通过，22 个决定 ID 唯一。三处 CLAUDE.md 均为同目录 AGENTS.md 的相对符号链接，Git 模式为 120000，读取正文一致，文件回链与负责决定的受管清单对应。定向核对正式区域中的旧负责决定引用，剩余引用分别用于 agent_notes 目录归属、共有书写分工或历史迁移说明，均应保留。`git diff --check` 通过。
 
 审查记录及索引同步，CHANGELOG 的 Unreleased 增加本次实际变化；本次未调整版本目标或范围，roadmap 不适用。本地未运行产品测试：此次没有源码、依赖或运行配置改动，产品测试不能证明代理的阅读与继续行为。仓库现有 CI 的结果在交付 PR 中按实际提交记录。
 

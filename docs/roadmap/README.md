@@ -22,8 +22,8 @@
 总表集中展示版本状态，初期为计划中、进行中、已发布。延期或取消会说明原因和后续去向；详细任务进展仍由 Issue 维护。已发布计划保留在原位置，历史通过 Git 查看。
 
 - [版本维护指南](../development/versioning.md)：创建计划、调整范围、记录变更及发布的实际步骤。
-- [版本管理决定](../../.agents/decisions/development/README.md#d-20260908-version-management)：目录、职责和最小发布方式的取舍。
-- [产品决策索引](../../.agents/decisions/product/README.md)：产品取舍及其确认边界。
+- [版本管理决定](../../.agents/agent_notes/development/README.md#d-20260908-version-management)：目录、职责和最小发布方式的取舍。
+- [产品决策索引](../../.agents/agent_notes/product/README.md)：产品取舍及其确认边界。
 
 ## 本机工作台（0.1.4）
 

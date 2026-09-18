@@ -2,7 +2,7 @@
 
 日期：2026-09-10。范围：[Issue #15](https://github.com/TonQiaN/Agent_flow/issues/15)，本地基线 ab9551c 后的重试实现。主责 @xiaoxuanli-a，Codex 实施和作者验证；没有其他开发者独立审阅，未提交或合并本项 PR，Issue 保持开放。
 
-预检核对已确认 Issue、当前流程和依赖，先查 Blackbox v0.1.22 / 5610d1b 节点循环、调度等待及 Effect 恢复经验。新实现由已保存 Attempt 计算预算，不复制旧局部循环的预算重置行为。决定见 [P-20260910-node-retries](../../.agents/decisions/product/README.md#p-20260910-node-retries)，当前用法见 [指南](../guides/node-retries.md)。
+预检核对已确认 Issue、当前流程和依赖，先查 Blackbox v0.1.22 / 5610d1b 节点循环、调度等待及 Effect 恢复经验。新实现由已保存 Attempt 计算预算，不复制旧局部循环的预算重置行为。决定见 [P-20260910-node-retries](../../.agents/agent_notes/product/README.md#p-20260910-node-retries)，当前用法见 [指南](../guides/node-retries.md)。
 
 ## 验收对照
 

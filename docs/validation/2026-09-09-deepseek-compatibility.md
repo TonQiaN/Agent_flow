@@ -1,6 +1,6 @@
 # DeepSeek 配置与原生能力预检
 
-关联 #10/#11 与 [Harness 决定](../../.agents/decisions/product/README.md#p-20260909-harness-adapter)。本次为矩阵的中间切片，尚不提供可执行 DeepSeek Adapter、凭据绑定或完整 Runner 组合，不关闭 Issue。
+关联 #10/#11 与 [Harness 决定](../../.agents/agent_notes/product/README.md#p-20260909-harness-adapter)。本次为矩阵的中间切片，尚不提供可执行 DeepSeek Adapter、凭据绑定或完整 Runner 组合，不关闭 Issue。
 
 ## 对象与参考
 

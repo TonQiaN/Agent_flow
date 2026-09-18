@@ -24,4 +24,4 @@ EffectAdapter 可提供实际版本化 definition；EffectExecutor 固定其方�
 
 支持的是固定操作、apply 与真实描述/日志组合。动态函数映射和 dry-run 的持久启动尚未支持；JSON Gate/Transform 等其他实际执行绑定、订阅恢复和 #13 完整验收仍待完成。未知服务操作没有核对能力时继续阻塞，不添加盲目重试、旧授权导入或任意外部服务 exactly-once 保证。真实学生批卷、报告和 PDF 尚未验收，通用崩溃 GC 不作为额外前置。
 
-[Effect 指南](../guides/workflow-effects.md) · [恢复指南](../guides/workflow-recovery.md) · [持久化决定](../../.agents/decisions/product/README.md#p-20260909-run-persistence)
+[Effect 指南](../guides/workflow-effects.md) · [恢复指南](../guides/workflow-recovery.md) · [持久化决定](../../.agents/agent_notes/product/README.md#p-20260909-run-persistence)
