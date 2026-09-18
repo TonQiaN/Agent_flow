@@ -16,7 +16,20 @@ materials 内仅五份根级管理文件进入 Git：`AGENTS.md`、`CLAUDE.md`�
 
 在已有 checkout 接收该变更前，将需要保留的 materials 原始内容复制到仓库外并核对副本；更新后按需恢复原始文件和原始子目录，保留新版的五份管理文件。检查恢复的文件与副本一致，且 `git ls-files -- materials` 仅列管理文件。不要将旧管理文件覆盖回来，也不要使用 `git clean -fdx` 清除被忽略的本地原件。
 
-新克隆只会取得管理入口，原始内容不再随代码分发。取消当前跟踪不会删除旧 Git 历史，必要时仍可从此前提交取回已有原件。
+新克隆只会取得管理入口，原始内容不再随代码分发。最初取消跟踪没有删除旧历史；2026-09-18 的 [Issue #50](https://github.com/TonQiaN/Agent_flow/issues/50) 已将原始资料从可写分支历史移除。需要原件时使用自己的本地副本或仓库外私有备份，不再依赖旧 GitHub 提交取回。
+
+## 历史清理后的旧 checkout
+
+旧历史不能直接 merge 回清理后的主干，即使最新文件树已经没有原始资料。这样会重新引入旧祖先提交，忽略规则不会拦截它。
+
+1. 在仓库外备份需要保留的 materials、本地改动及必要提交，核对副本；备份不得上传 GitHub。
+2. 优先重新克隆当前仓库；仍有未交付工作时，在新分支仅移植已经核对的实际改动，重新检查 diff、历史与凭据，不合并旧分支的历史。
+3. 将本地原件按需恢复到忽略的资料区，保留新版管理文件；核对摘要及 `git ls-files -- materials`，当前主干只应跟踪五份管理文件。
+4. 核对本机推送检查。此次安装的 pre-push 只作用于本机这个仓库及其 worktree，其他克隆不自动继承；不能依赖他人的钩子保护当前机器。
+
+旧功能分支只有在无开放 PR、其提交已进入 main 且已备份后才清理。主干成果、源码发布 tag、本地原件和历史验收事实继续保留。旧 PR 中原始资料的路径可替换为正式验证入口或“仅本地保留”的说明，不把资料文件上传为修复链接的办法。
+
+GitHub 的 `refs/pull/*` 为只读；历史重写、关闭 PR 和删除普通分支都不会自动清除这些引用与提交缓存。仍可读取原始资料时保持 private，交由 GitHub Support 处理后再核对公开入口。操作与限制见 [GitHub 官方清理说明](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)，当前进展见 [公开前清理验证](../validation/2026-09-18-public-preparation.md)和 #50。
 
 ## 飞书 CLI 的身份与目标组织
 
