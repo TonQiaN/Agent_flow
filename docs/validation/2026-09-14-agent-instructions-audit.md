@@ -55,7 +55,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 ### R3：Blackbox 优先调查缺少可定位入口和适用边界
 
-位置：[工作指南第 25 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/docs/development/workflow.md#L25)、[开发流程决定第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/agent_notes/development/proposed/D-20260907-development-workflow.md#L33)。
+位置：[工作指南第 25 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/docs/development/workflow.md#L25)、[开发流程决定第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/proposed/D-20260907-development-workflow.md#L33)。
 
 指南把“当前问题调查”统一设为先检查 Blackbox Agent Flow，再进行本项目复现和修复。正式区域能找到旧系统名称、短提交号和具体历史测试引用，但本次未找到它的明确仓库地址或 checkout 定位入口，也没有说明不相关问题、不可访问或查无对应内容时如何继续。
 
@@ -69,7 +69,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 ### R4：版本管理决定仍把根指令指向旧负责决定
 
-位置：[D-20260908-version-management 第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/agent_notes/development/implemented/D-20260908-version-management.md#L33)。
+位置：[D-20260908-version-management 第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/implemented/D-20260908-version-management.md#L33)。
 
 该处仍写根指令的入口书写沿用 `D-20260907-agents-writing`。但根入口已迁移到 `D-20260910-root-agents-writing`，旧决定第 9 行明确不再负责根文件。链接能够打开，语义指向却已过期。
 
@@ -81,7 +81,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 ### D1：每个 PR 都必须产生实质决策增量
 
-位置：[开发流程决定第 47–49 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/agent_notes/development/proposed/D-20260907-development-workflow.md#L47)、agent_notes 目录 AGENTS.md 第 13 行、PR 模板第 18、49 行，以及内容决定第 7–9 行。
+位置：[开发流程决定第 47–49 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/proposed/D-20260907-development-workflow.md#L47)、agent_notes 目录 AGENTS.md 第 13 行、PR 模板第 18、49 行，以及内容决定第 7–9 行。
 
 这是明确采用的团队政策，原决定已承认小修复的独立提交成本，并要求没有真实增量时并入相关 PR。因此不能把它报告成偶然写错的规则。
 
@@ -89,7 +89,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 
 ### D2：“关键方案”与一般实施调整的分界尚未明确
 
-位置：[开发流程决定第 19 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/agent_notes/development/proposed/D-20260907-development-workflow.md#L19)、[工作指南第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/docs/development/workflow.md#L33)。
+位置：[开发流程决定第 19 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/.agents/decisions/development/proposed/D-20260907-development-workflow.md#L19)、[工作指南第 33 行](https://github.com/TonQiaN/Agent_flow/blob/b1e94abb3fc895b007049266ece409e6af3e3eb8/docs/development/workflow.md#L33)。
 
 现行要求禁止 AI 自行改变关键方案，并明确统一调整细则尚未制定。根入口和流程已有“既有授权不重复请求”的积极说明，但对于满足同一验收时改变内部实现、修正测试或调整调查路径，何时属于已有授权内的工作，何时构成关键方案改选，仍有解释空间。
 
@@ -125,7 +125,7 @@ PR #35 已合并，其基线与当时结论见 [合并后复查](#pr-35-合并�
 | “已有决定覆盖”与轻量改动说明 | [决策内容决定](../../.agents/agent_notes/development/README.md#d-20260907-decision-record-content) | D1 若改选才同步；保留真实取舍、同问题唯一正文 |
 | 版本管理中的根入口链接 | [版本管理决定](../../.agents/agent_notes/development/README.md#d-20260908-version-management) | R4：修正现行引用，历史段落保持当时语境 |
 | 主 Issue 与 Sub-issue | [共通写作决定](../../.agents/agent_notes/development/README.md#d-20260908-issue-template-common) | 已符合需求与执行分工方向，未建议新增子项模板 |
-| materials 指令与共享入口 | [PR #35 中的资料管理决定](https://github.com/TonQiaN/Agent_flow/blob/5838eaf35cf01c135db116ebf9dcf33a53b26ee3/.agents/agent_notes/development/implemented/D-20260911-materials-management.md) | 继续由 #34／#35 承接，跟随其真实合并状态处理交叉变更 |
+| materials 指令与共享入口 | [PR #35 中的资料管理决定](https://github.com/TonQiaN/Agent_flow/blob/5838eaf35cf01c135db116ebf9dcf33a53b26ee3/.agents/decisions/development/implemented/D-20260911-materials-management.md) | 继续由 #34／#35 承接，跟随其真实合并状态处理交叉变更 |
 | 项目 Skill | 暂无实际 Skill 正文及独立技能实现 | 无可直接评审的描述、路由或脚本；今后按具体可复用任务决定是否需要 |
 
 ## 完成与未完成
