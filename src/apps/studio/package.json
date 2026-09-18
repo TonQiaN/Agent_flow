@@ -1,12 +1,12 @@
 {
   "name": "@agentflow/studio",
-  "version": "0.0.0",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@agentflow/domain": "0.0.0",
-    "@agentflow/engine": "0.0.0",
-    "@agentflow/integrations": "0.0.0",
+    "@agentflow/domain": "0.1.3",
+    "@agentflow/engine": "0.1.3",
+    "@agentflow/integrations": "0.1.3",
     "@xyflow/react": "12.11.6",
     "pdfjs-dist": "6.3.289",
     "react": "19.3.0",
