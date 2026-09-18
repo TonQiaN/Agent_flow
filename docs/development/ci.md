@@ -1,6 +1,17 @@
 # CI 使用与排查
 
-所有 PR（包括 base 为其他功能分支的 stacked PR）执行 `Check`；push 只执行 main，另提供手动入口。同一个 PR 的新提交取消旧执行。`CI required` 汇总本层所有任务，只有全部成功才通过。main 要求该检查并与 base 保持最新；平台保护配置的实际读回记录在交付 PR。
+开发期间优先在本地检查；云端 `Check` 只由 PR 和手动入口触发。所有 PR（包括 Draft 和 base 为其他功能分支的 stacked PR）在创建、重开及代码更新时执行完整检查，同一个 PR 的新提交取消旧执行。普通分支和 main 的 push 均不单独触发；推送到已有 PR 的分支仍会触发 PR 检查。`CI required` 汇总本层所有任务，只有全部成功才通过。main 要求该检查并与 base 保持最新；平台保护配置的实际读回记录在交付 PR。
+
+## 本地开发与云端验收
+
+| 阶段 | 执行与结果 |
+| --- | --- |
+| 日常修改、调试 | 本地运行受影响的检查与测试，先定位、修复失败再推送；基础检查入口为 `npm run check` |
+| 准备 PR | 完成与改动范围相称的本地验证；运行完整矩阵时使用下述 Linux/Docker 环境和全部实际检查组。纯文档或仅触发条件变更可记录相应的配置、链接及差异检查，不将未运行的产品测试写成通过 |
+| PR 创建、重开、代码更新 | 云端运行全部既有检查，最新提交的 `CI required` 是合并门槛 |
+| 合并到 main 后 | 读回合并提交与内容；不自动重跑完整 CI，需要独立复验时从 Actions 的 `Run workflow` 手动触发 |
+
+本地检查复用现有 npm 命令，不需要注册自托管 Actions runner。本地成功不会回填 GitHub 检查。取消 main 自动重跑后，所有 main 改动仍需经过 PR，合并前同步目标分支并通过最新检查；不再自动验证实际合并提交是本次明确保留的限制。触发和分工取舍见[源码结构决定](../../.agents/decisions/development/README.md#d-20260909-source-layout)与[开发流程决定](../../.agents/decisions/development/README.md#d-20260907-development-workflow)。
 
 ## 任务与本地对应
 
@@ -9,10 +20,29 @@
 | Quality | Node 24，导入边界、构建、测试类型 | `npm run check:quality` |
 | Unit / Node 24、26 | 无 Docker，各版本独立执行 | `npm run build && npm run test:unit` |
 | Docker integration | Node 24，真实 Docker；组内文件串行 | `npm run build && AGENTFLOW_DOCKER_TESTS=1 npm run test:integration` |
+| Workflow acceptance | Node 24，真实文档容器与合成模型结果 | `npm run build && AGENTFLOW_STUDIO_TESTS=1 AGENTFLOW_DOCKER_TESTS=1 npm run test:workflows` |
+| Browser journeys | Node 24，Chromium、真实服务、引擎与文档容器 | `npm run studio:test` |
+| Screenshot comparison | 固定 Linux amd64 / Playwright 镜像 | `npm run studio:visual` |
 
-本层另运行 `Workflow acceptance`：`npm run build && AGENTFLOW_STUDIO_TESTS=1 AGENTFLOW_DOCKER_TESTS=1 npm run test:workflows`，须先构建 `src/apps/studio/docker/Dockerfile.documents` 为 `agentflow/studio-documents:issue39`。该组验证材料解析、招聘真实流程与归档，不使用真实模型密钥。
+`npm run check` 默认没有开启全部环境测试，也不会执行两个 Node 版本及 Playwright 全部任务，不能单独作为“完整本地 CI”证据。完整本地验证按以下顺序执行，在每一步确认成功后再继续：
 
-显式准备 Alpine 3 和 Node 22 Bookworm slim。原生 Harness、网络策略及真实模型仍使用各自显式环境；此次没有扩大原来的跳过范围，也没有把这些项目列为通过。上层功能 PR 添加工作流及浏览器任务时，必须同时加入 `needs` 和 gate 的预期任务列表。
+1. 在 Linux 环境选择 Node 24，执行 `npm ci`、`npm run check:quality`，再执行表中的单元测试命令。
+2. 准备可用的 Docker daemon 和下述镜像、Chromium。使用 Node 24，依次执行表中的 Docker integration、Workflow acceptance、Browser journeys 命令，保留对应的环境开关；共用 Docker daemon 的这些组不要并行启动。
+3. 执行 Screenshot comparison；继续使用脚本固定的 Linux amd64 镜像，不在宿主环境更新截图基准。
+4. 切换到 Node 26，重新执行 `npm ci`，再执行表中的单元测试命令。记录实际 Node 版本，不把单一版本成功视作双版本通过。
+
+第 2 步的准备命令（在 Linux / Node 24 环境运行）：
+
+```sh
+docker pull alpine:3
+docker pull node:22-bookworm-slim
+docker build -f src/apps/studio/docker/Dockerfile.documents -t agentflow/studio-documents:issue39 .
+npx playwright install --with-deps chromium
+```
+
+本地没有对应 Linux、Node 版本或 Docker 环境时，如实记录未运行项目并在需要完整验证时补齐；macOS 基础检查不能替代 Linux 结果。当前提交、各组结果及环境跳过记录在 PR 中，保留失败证据。原生 Harness、真实账号及模型组合继续按任务范围单独验收，不属于上述云端合成矩阵的通过结论。
+
+工作流验收组验证材料解析、招聘真实流程与归档，不使用真实模型密钥。以后新增实际检查组时，必须同时加入 `needs` 和 gate 的预期任务列表。
 
 ## 看懂一次失败
 
@@ -28,7 +58,7 @@
 
 失败后先保存原始工件，再定位阶段与断言；必要时只重跑失败 job。同 SHA 重跑通过不能证明此前的超时已修复。`CI required` 的自动测试还包含故意超时的子测试，用来验证非零退出、原始输出、时间和超时事件确实能保存。
 
-参考：Blackbox Agent Flow `4dc0f4a` 的 PR/main/manual 触发与串行集成安排；该 Python 系统的测试不替代本项目 Docker 持久恢复验证。GitHub [PR 触发规则](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request) 和 [required checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks) 为平台行为依据。
+最初的串行集成安排参考 Blackbox Agent Flow `4dc0f4a`；该 Python 系统的测试不替代本项目 Docker 持久恢复验证。当前 PR/manual 触发分工由 [Issue #48](https://github.com/TonQiaN/Agent_flow/issues/48) 确认。GitHub [PR 触发规则](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request) 和 [required checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks) 为平台行为依据。
 
 ## 浏览器与截图基准
 
